@@ -2311,6 +2311,19 @@ fn word_ngrams(words: &[String], size: usize) -> Vec<String> {
 }
 
 fn append_live_segment(path: &Path, segment: &TranscriptSegment) -> Result<(), String> {
+    if let Some(last) = read_last_transcript_segment(path)? {
+        if transcript_segment_order(&last, segment).is_gt() {
+            let mut segments = read_transcript_jsonl(path)?;
+            segments.push(segment.clone());
+            segments.sort_by(transcript_segment_order);
+            return write_transcript_jsonl(path, &segments);
+        }
+    }
+
+    append_transcript_jsonl_line(path, segment)
+}
+
+fn append_transcript_jsonl_line(path: &Path, segment: &TranscriptSegment) -> Result<(), String> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -2320,6 +2333,42 @@ fn append_live_segment(path: &Path, segment: &TranscriptSegment) -> Result<(), S
         .map_err(|err| format!("Failed to encode transcript segment: {err}"))?;
     writeln!(file, "{line}")
         .map_err(|err| format!("Failed to append transcript {}: {err}", path.display()))
+}
+
+fn read_last_transcript_segment(path: &Path) -> Result<Option<TranscriptSegment>, String> {
+    if !path.is_file() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(path)
+        .map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
+    let Some(line) = content.lines().rev().find(|line| !line.trim().is_empty()) else {
+        return Ok(None);
+    };
+    serde_json::from_str(line)
+        .map(Some)
+        .map_err(|err| format!("Invalid transcript line in {}: {err}", path.display()))
+}
+
+fn write_transcript_jsonl(path: &Path, segments: &[TranscriptSegment]) -> Result<(), String> {
+    let mut content = String::new();
+    for segment in segments {
+        let line = serde_json::to_string(segment)
+            .map_err(|err| format!("Failed to encode transcript segment: {err}"))?;
+        content.push_str(&line);
+        content.push('\n');
+    }
+    write_text_atomic(path, &content)
+}
+
+fn transcript_segment_order(
+    left: &TranscriptSegment,
+    right: &TranscriptSegment,
+) -> std::cmp::Ordering {
+    left.start_ms
+        .cmp(&right.start_ms)
+        .then_with(|| left.end_ms.cmp(&right.end_ms))
+        .then_with(|| left.source.cmp(&right.source))
 }
 
 fn emit_live_status(app: &AppHandle, thread_id: &str, active: bool, message: impl Into<String>) {
@@ -2763,6 +2812,41 @@ mod tests {
         samples.extend(vec![0.04; 16_000]);
 
         assert_eq!(first_audible_ms(&samples, 16_000), Some(3_000));
+    }
+
+    #[test]
+    fn append_live_segment_keeps_jsonl_chronological() {
+        let path = env::temp_dir().join(format!(
+            "just-notes-transcript-order-{}.jsonl",
+            now_ms().unwrap()
+        ));
+        let later = TranscriptSegment {
+            speaker: "Others".to_string(),
+            source: "system".to_string(),
+            start_ms: 4_000,
+            end_ms: 8_000,
+            text: "System section two.".to_string(),
+        };
+        let earlier = TranscriptSegment {
+            speaker: "You".to_string(),
+            source: "mic".to_string(),
+            start_ms: 3_000,
+            end_ms: 12_000,
+            text: "Microphone checkpoint alpha.".to_string(),
+        };
+
+        append_live_segment(&path, &later).unwrap();
+        append_live_segment(&path, &earlier).unwrap();
+
+        let segments = read_transcript_jsonl(&path).unwrap();
+        let _ = fs::remove_file(&path);
+        assert_eq!(
+            segments
+                .iter()
+                .map(|segment| segment.source.as_str())
+                .collect::<Vec<_>>(),
+            vec!["mic", "system"],
+        );
     }
 }
 
