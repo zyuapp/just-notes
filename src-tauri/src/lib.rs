@@ -1438,7 +1438,7 @@ impl WhisperRuntime {
 
         let mut segments = Vec::new();
         for segment in state.as_iter() {
-            let text = segment.to_string().trim().to_string();
+            let text = clean_transcript_text(&segment.to_string());
             if text.is_empty() || is_ignored_transcript_text(&text) {
                 continue;
             }
@@ -1557,9 +1557,23 @@ fn process_live_channel(
         return Ok(0);
     };
 
-    let emitted = if let Some(unique_text) = state.unique_text(&agreed_text) {
-        let unique_text = completed_transcript_text(&unique_text, final_flush);
+    let completed_agreed_text = completed_transcript_text(&agreed_text, final_flush);
+    if completed_agreed_text.is_empty() {
+        state.committed_until_ms = commit_until_ms;
+        state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
+        return Ok(0);
+    }
+    let stable_end_ms = estimate_text_end_ms(
+        &segments,
+        &completed_agreed_text,
+        window_start_ms,
+        commit_until_ms,
+    );
+
+    let emitted = if let Some(unique_text) = state.unique_text(&completed_agreed_text) {
+        let unique_text = unique_text.trim().to_string();
         if unique_text.is_empty() {
+            state.mark_emitted_until(stable_end_ms);
             state.committed_until_ms = commit_until_ms;
             state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
             return Ok(0);
@@ -1569,7 +1583,7 @@ fn process_live_channel(
             speaker: state.speaker.to_string(),
             source: state.source.to_string(),
             start_ms: state.last_emitted_end_ms.max(window_start_ms),
-            end_ms: commit_until_ms,
+            end_ms: stable_end_ms,
             text: unique_text,
         };
 
@@ -1586,12 +1600,13 @@ fn process_live_channel(
                     segment,
                 },
             );
-            state.mark_emitted_until(commit_until_ms);
+            state.mark_emitted_until(stable_end_ms);
             1
         } else {
             0
         }
     } else {
+        state.mark_emitted_until(stable_end_ms);
         0
     };
 
@@ -1605,6 +1620,27 @@ fn is_ignored_transcript_text(text: &str) -> bool {
         text.trim().to_ascii_lowercase().as_str(),
         "[blank_audio]" | "[silence]" | "(silence)" | "[music]" | "(music)"
     )
+}
+
+fn clean_transcript_text(text: &str) -> String {
+    let mut cleaned = text.trim();
+    loop {
+        let lower = cleaned.to_ascii_lowercase();
+        let Some(prefix) = [
+            "[blank_audio]",
+            "[silence]",
+            "(silence)",
+            "[music]",
+            "(music)",
+            "(no audio)",
+        ]
+        .iter()
+        .find(|prefix| lower.starts_with(**prefix)) else {
+            break;
+        };
+        cleaned = cleaned[prefix.len()..].trim();
+    }
+    cleaned.to_string()
 }
 
 fn completed_transcript_text(text: &str, include_partial: bool) -> String {
@@ -1638,6 +1674,43 @@ fn common_transcript_prefix(left: &str, right: &str) -> Option<String> {
         .count();
 
     (prefix_len > 0).then(|| join_original_words(&right_words[..prefix_len]))
+}
+
+fn estimate_text_end_ms(
+    segments: &[TranscriptSegment],
+    text: &str,
+    window_start_ms: u64,
+    fallback_end_ms: u64,
+) -> u64 {
+    let target_words = normalized_words(text).len();
+    if target_words == 0 {
+        return window_start_ms;
+    }
+
+    let mut seen_words = 0usize;
+    for segment in segments {
+        let segment_words = normalized_words(&segment.text).len();
+        if segment_words == 0 {
+            continue;
+        }
+
+        let next_seen_words = seen_words + segment_words;
+        let segment_start_ms = window_start_ms + segment.start_ms;
+        let segment_end_ms = window_start_ms + segment.end_ms;
+        if target_words <= next_seen_words {
+            let words_in_segment = target_words.saturating_sub(seen_words).max(1);
+            let ratio = (words_in_segment as f64 / segment_words as f64).clamp(0.0, 1.0);
+            let duration_ms = segment_end_ms.saturating_sub(segment_start_ms) as f64;
+            let estimated_ms = (segment_start_ms as f64 + duration_ms * ratio)
+                .round()
+                .max(segment_start_ms as f64) as u64;
+            return estimated_ms.min(fallback_end_ms);
+        }
+
+        seen_words = next_seen_words;
+    }
+
+    fallback_end_ms
 }
 
 fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> Option<String> {
@@ -2304,6 +2377,45 @@ mod tests {
                 false,
             ),
             Some("Section 1 says the green calendar moved beside the copper lamp.".to_string()),
+        );
+    }
+
+    #[test]
+    fn clean_transcript_text_removes_leading_non_speech_marker() {
+        assert_eq!(
+            clean_transcript_text("(no audio) Long recording quality test begins now."),
+            "Long recording quality test begins now.".to_string(),
+        );
+    }
+
+    #[test]
+    fn estimate_text_end_ms_tracks_confirmed_prefix() {
+        let segments = vec![
+            TranscriptSegment {
+                speaker: "Others".to_string(),
+                source: "system".to_string(),
+                start_ms: 0,
+                end_ms: 4_000,
+                text: "Section 1 says the green calendar moved beside the copper lamp.".to_string(),
+            },
+            TranscriptSegment {
+                speaker: "Others".to_string(),
+                source: "system".to_string(),
+                start_ms: 4_000,
+                end_ms: 8_000,
+                text: "Section 2 says the yellow folder stayed under the quiet monitor."
+                    .to_string(),
+            },
+        ];
+
+        assert_eq!(
+            estimate_text_end_ms(
+                &segments,
+                "Section 1 says the green calendar moved beside the copper lamp.",
+                10_000,
+                22_000,
+            ),
+            14_000,
         );
     }
 }
