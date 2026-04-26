@@ -4,7 +4,6 @@ use std::{
     fs::OpenOptions,
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
-    process::Command,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -17,11 +16,12 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device, SampleFormat, Stream, StreamConfig, SupportedStreamConfig,
 };
-use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
+use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
-const LIVE_TRANSCRIPTION_CHUNK_MS: u64 = 3_000;
-const LIVE_TRANSCRIPTION_OVERLAP_MS: u64 = 750;
+const LIVE_TRANSCRIPTION_STEP_MS: u64 = 2_000;
+const LIVE_TRANSCRIPTION_WINDOW_MS: u64 = 12_000;
+const LIVE_TRANSCRIPTION_STABILITY_DELAY_MS: u64 = 2_000;
 const LIVE_TRANSCRIPTION_POLL_MS: u64 = 250;
 const LIVE_SILENCE_RMS_THRESHOLD: f32 = 0.005;
 const MAX_ROLLING_BUFFER_MS: u64 = 120_000;
@@ -71,7 +71,6 @@ impl AppPaths {
 
     fn transcription_paths(&self) -> TranscriptionPaths {
         TranscriptionPaths {
-            engine_path: self.data_dir.join("engine").join("whisper-cli"),
             model_path: self
                 .data_dir
                 .join("models")
@@ -259,7 +258,6 @@ struct TranscriptionStatusPayload {
 }
 
 struct TranscriptionPaths {
-    engine_path: PathBuf,
     model_path: PathBuf,
 }
 
@@ -298,7 +296,10 @@ fn create_thread(paths: tauri::State<'_, AppPaths>) -> Result<ThreadDetail, Stri
 }
 
 #[tauri::command]
-fn get_thread(paths: tauri::State<'_, AppPaths>, thread_id: String) -> Result<ThreadDetail, String> {
+fn get_thread(
+    paths: tauri::State<'_, AppPaths>,
+    thread_id: String,
+) -> Result<ThreadDetail, String> {
     load_thread_by_id(paths.inner(), &thread_id)
 }
 
@@ -378,10 +379,7 @@ fn load_thread_detail(thread_dir: &Path) -> Result<ThreadDetail, String> {
     Ok(ThreadDetail {
         summary,
         segments,
-        transcript_markdown_path: thread_dir
-            .join("transcript.md")
-            .display()
-            .to_string(),
+        transcript_markdown_path: thread_dir.join("transcript.md").display().to_string(),
     })
 }
 
@@ -404,8 +402,8 @@ fn load_thread_summary(thread_dir: &Path) -> Result<ThreadSummary, String> {
 }
 
 fn read_thread_metadata(path: &Path) -> Result<ThreadMetadata, String> {
-    let json =
-        fs::read_to_string(path).map_err(|err| format!("Failed to read {}: {err}", path.display()))?;
+    let json = fs::read_to_string(path)
+        .map_err(|err| format!("Failed to read {}: {err}", path.display()))?;
     serde_json::from_str(&json).map_err(|err| format!("Invalid {}: {err}", path.display()))
 }
 
@@ -433,8 +431,8 @@ fn reset_stale_recording_threads(paths: &AppPaths) -> Result<(), String> {
     for entry in fs::read_dir(&paths.threads_dir)
         .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?
     {
-        let entry =
-            entry.map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?;
+        let entry = entry
+            .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?;
         let thread_dir = entry.path();
         if !thread_dir.is_dir() {
             continue;
@@ -672,7 +670,10 @@ fn render_thread_markdown(thread_dir: &Path, duration_ms: u64) -> Result<(), Str
     let mut markdown = String::new();
     markdown.push_str(&format!("# {}\n\n", metadata.title));
     markdown.push_str(&format!("Thread: `{}`\n\n", metadata.id));
-    markdown.push_str(&format!("Duration: `{}`\n\n", format_transcript_time(duration_ms)));
+    markdown.push_str(&format!(
+        "Duration: `{}`\n\n",
+        format_transcript_time(duration_ms)
+    ));
 
     for segment in segments {
         markdown.push_str(&format!(
@@ -688,21 +689,19 @@ fn render_thread_markdown(thread_dir: &Path, duration_ms: u64) -> Result<(), Str
 
 fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
     let transcription_paths = paths.transcription_paths();
-    let engine_exists = transcription_paths.engine_path.is_file();
+    let engine_exists = true;
     let model_exists = transcription_paths.model_path.is_file();
-    let ready = engine_exists && model_exists;
-    let message = match (engine_exists, model_exists) {
-        (true, true) => "Local transcription is ready".to_string(),
-        (false, true) => "Local transcription engine is missing".to_string(),
-        (true, false) => "Local transcription model is missing".to_string(),
-        (false, false) => "Local transcription engine and model are missing".to_string(),
+    let ready = model_exists;
+    let message = match model_exists {
+        true => "Local transcription is ready".to_string(),
+        false => "Local transcription model is missing".to_string(),
     };
 
     TranscriptionStatusPayload {
         ready,
         engine_exists,
         model_exists,
-        engine_path: transcription_paths.engine_path.display().to_string(),
+        engine_path: "embedded whisper.cpp runtime".to_string(),
         model_path: transcription_paths.model_path.display().to_string(),
         message,
     }
@@ -880,12 +879,12 @@ fn spawn_live_transcription_thread(
     mic_sample_rate: u32,
     system_sample_rate: u32,
 ) -> Option<JoinHandle<()>> {
-    if !paths.engine_path.is_file() || !paths.model_path.is_file() {
+    if !paths.model_path.is_file() {
         emit_live_status(
             &app,
             &thread_id,
             false,
-            "Live transcription is disabled until the local engine and model are installed",
+            "Live transcription is disabled until the local model is installed",
         );
         return None;
     }
@@ -907,8 +906,8 @@ fn spawn_live_transcription_thread(
                     thread_id,
                     active: false,
                     message: err,
-                    chunk_ms: LIVE_TRANSCRIPTION_CHUNK_MS,
-                    overlap_ms: LIVE_TRANSCRIPTION_OVERLAP_MS,
+                    chunk_ms: LIVE_TRANSCRIPTION_WINDOW_MS,
+                    overlap_ms: LIVE_TRANSCRIPTION_STABILITY_DELAY_MS,
                 },
             );
         }
@@ -925,14 +924,14 @@ fn run_live_transcription_loop(
     mic_sample_rate: u32,
     system_sample_rate: u32,
 ) -> Result<(), String> {
+    let whisper = WhisperRuntime::load(&paths.model_path)?;
     emit_live_status(
         &app,
         &thread_id,
         true,
-        "Live transcription is listening with 3s chunks and 750ms overlap",
+        "Live transcription is listening with a 12s rolling window and 2s commit delay",
     );
 
-    let work_dir = thread_dir.join("work");
     let jsonl_path = thread_dir.join("transcript.jsonl");
     let mut mic = LiveChannelState::new("mic", "You", mic_sample_rate);
     let mut system = LiveChannelState::new("system", "Others", system_sample_rate);
@@ -942,9 +941,8 @@ fn run_live_transcription_loop(
         let stopping = should_stop.load(Ordering::Relaxed);
         emitted_count += process_live_channel(
             &app,
-            &paths,
+            &whisper,
             &buffers,
-            &work_dir,
             &jsonl_path,
             &thread_dir,
             &thread_id,
@@ -953,9 +951,8 @@ fn run_live_transcription_loop(
         )?;
         emitted_count += process_live_channel(
             &app,
-            &paths,
+            &whisper,
             &buffers,
-            &work_dir,
             &jsonl_path,
             &thread_dir,
             &thread_id,
@@ -983,10 +980,10 @@ struct LiveChannelState {
     source: &'static str,
     speaker: &'static str,
     sample_rate: u32,
-    next_chunk_end_ms: u64,
+    next_decode_ms: u64,
     committed_until_ms: u64,
     last_emitted_end_ms: u64,
-    chunk_index: usize,
+    prompt_tail: VecDeque<String>,
 }
 
 impl LiveChannelState {
@@ -995,20 +992,110 @@ impl LiveChannelState {
             source,
             speaker,
             sample_rate,
-            next_chunk_end_ms: LIVE_TRANSCRIPTION_CHUNK_MS,
+            next_decode_ms: LIVE_TRANSCRIPTION_STEP_MS,
             committed_until_ms: 0,
             last_emitted_end_ms: 0,
-            chunk_index: 0,
+            prompt_tail: VecDeque::with_capacity(8),
         }
+    }
+
+    fn prompt(&self) -> String {
+        self.prompt_tail
+            .iter()
+            .rev()
+            .take(4)
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    fn remember_prompt_text(&mut self, text: &str) {
+        self.prompt_tail.push_back(text.to_string());
+        while self.prompt_tail.len() > 8 {
+            self.prompt_tail.pop_front();
+        }
+    }
+}
+
+struct WhisperRuntime {
+    ctx: WhisperContext,
+}
+
+impl WhisperRuntime {
+    fn load(model_path: &Path) -> Result<Self, String> {
+        let ctx = WhisperContext::new_with_params(model_path, WhisperContextParameters::default())
+            .map_err(|err| {
+                format!(
+                    "Failed to load local transcription model {}: {err}",
+                    model_path.display()
+                )
+            })?;
+        Ok(Self { ctx })
+    }
+
+    fn transcribe(
+        &self,
+        samples_16k: &[f32],
+        prompt: &str,
+        source: &str,
+        speaker: &str,
+    ) -> Result<Vec<TranscriptSegment>, String> {
+        let mut state = self
+            .ctx
+            .create_state()
+            .map_err(|err| format!("Failed to create transcription state: {err}"))?;
+        let mut params = FullParams::new(SamplingStrategy::BeamSearch {
+            beam_size: 5,
+            patience: -1.0,
+        });
+        params.set_language(Some("en"));
+        params.set_n_threads(default_thread_count() as i32);
+        params.set_no_context(false);
+        params.set_single_segment(false);
+        params.set_print_special(false);
+        params.set_print_progress(false);
+        params.set_print_realtime(false);
+        params.set_print_timestamps(false);
+        if !prompt.trim().is_empty() {
+            params.set_initial_prompt(prompt);
+        }
+
+        state
+            .full(params, samples_16k)
+            .map_err(|err| format!("Failed to transcribe {source} audio: {err}"))?;
+
+        let mut segments = Vec::new();
+        for segment in state.as_iter() {
+            let text = segment.to_string().trim().to_string();
+            if text.is_empty() {
+                continue;
+            }
+            let start_ms = (segment.start_timestamp().max(0) as u64) * 10;
+            let end_ms = (segment
+                .end_timestamp()
+                .max(segment.start_timestamp())
+                .max(0) as u64)
+                * 10;
+            segments.push(TranscriptSegment {
+                speaker: speaker.to_string(),
+                source: source.to_string(),
+                start_ms,
+                end_ms,
+                text,
+            });
+        }
+        Ok(segments)
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn process_live_channel(
     app: &AppHandle,
-    paths: &TranscriptionPaths,
+    whisper: &WhisperRuntime,
     buffers: &Arc<Mutex<SharedBuffers>>,
-    work_dir: &Path,
     jsonl_path: &Path,
     thread_dir: &Path,
     thread_id: &str,
@@ -1030,28 +1117,26 @@ fn process_live_channel(
         return Ok(0);
     }
 
-    let target_end_ms = if final_flush {
+    let decode_end_ms = if final_flush {
         available_ms
-    } else if available_ms >= state.next_chunk_end_ms {
-        state.next_chunk_end_ms
+    } else if available_ms >= state.next_decode_ms {
+        state.next_decode_ms
     } else {
         return Ok(0);
     };
     let commit_until_ms = if final_flush {
-        target_end_ms
+        decode_end_ms
     } else {
-        target_end_ms.saturating_sub(LIVE_TRANSCRIPTION_OVERLAP_MS)
+        decode_end_ms.saturating_sub(LIVE_TRANSCRIPTION_STABILITY_DELAY_MS)
     };
     if commit_until_ms <= state.committed_until_ms {
-        state.next_chunk_end_ms += LIVE_TRANSCRIPTION_CHUNK_MS;
+        state.next_decode_ms += LIVE_TRANSCRIPTION_STEP_MS;
         return Ok(0);
     }
 
-    let window_start_ms = state
-        .committed_until_ms
-        .saturating_sub(LIVE_TRANSCRIPTION_OVERLAP_MS);
+    let window_start_ms = decode_end_ms.saturating_sub(LIVE_TRANSCRIPTION_WINDOW_MS);
     let start_index = ms_to_samples(window_start_ms, state.sample_rate) as u64;
-    let end_index = ms_to_samples(target_end_ms, state.sample_rate) as u64;
+    let end_index = ms_to_samples(decode_end_ms, state.sample_rate) as u64;
 
     let samples = {
         let shared = buffers
@@ -1067,27 +1152,20 @@ fn process_live_channel(
 
     let Some(samples) = samples else {
         state.committed_until_ms = commit_until_ms;
-        state.next_chunk_end_ms = target_end_ms + LIVE_TRANSCRIPTION_CHUNK_MS;
+        state.next_decode_ms = decode_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
         return Ok(0);
     };
 
     if rms(&samples) < LIVE_SILENCE_RMS_THRESHOLD {
         state.committed_until_ms = commit_until_ms;
-        state.next_chunk_end_ms = target_end_ms + LIVE_TRANSCRIPTION_CHUNK_MS;
+        state.next_decode_ms = decode_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
         return Ok(0);
     }
 
-    let stem = format!("{}-{:04}", state.source, state.chunk_index);
-    let chunk_path = work_dir.join(format!("{stem}-16k.wav"));
     let normalized_samples = resample_to_rate(&samples, state.sample_rate, 16_000);
-    write_wav(&chunk_path, 16_000, &normalized_samples)?;
-
-    let output_prefix = work_dir.join(stem);
-    let mut segments = transcribe_chunk(
-        &paths.engine_path,
-        &paths.model_path,
-        &chunk_path,
-        &output_prefix,
+    let mut segments = whisper.transcribe(
+        &normalized_samples,
+        &state.prompt(),
         state.source,
         state.speaker,
     )?;
@@ -1097,16 +1175,17 @@ fn process_live_channel(
     for mut segment in segments {
         segment.start_ms += window_start_ms;
         segment.end_ms += window_start_ms;
-        segment.start_ms = segment.start_ms.min(target_end_ms);
-        segment.end_ms = segment.end_ms.min(target_end_ms).max(segment.start_ms);
+        segment.start_ms = segment.start_ms.min(decode_end_ms);
+        segment.end_ms = segment.end_ms.min(decode_end_ms).max(segment.start_ms);
 
-        if segment.start_ms < state.last_emitted_end_ms || segment.start_ms >= commit_until_ms {
+        if segment.end_ms <= state.last_emitted_end_ms || segment.end_ms > commit_until_ms {
             continue;
         }
 
         append_live_segment(jsonl_path, &segment)?;
         touch_thread(thread_dir)?;
         let emitted_end_ms = segment.end_ms;
+        state.remember_prompt_text(&segment.text);
         let _ = app.emit(
             "live-transcript-segment",
             LiveTranscriptSegmentPayload {
@@ -1120,8 +1199,7 @@ fn process_live_channel(
     }
 
     state.committed_until_ms = commit_until_ms;
-    state.next_chunk_end_ms = target_end_ms + LIVE_TRANSCRIPTION_CHUNK_MS;
-    state.chunk_index += 1;
+    state.next_decode_ms = decode_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
     Ok(emitted)
 }
 
@@ -1144,199 +1222,10 @@ fn emit_live_status(app: &AppHandle, thread_id: &str, active: bool, message: imp
             thread_id: thread_id.to_string(),
             active,
             message: message.into(),
-            chunk_ms: LIVE_TRANSCRIPTION_CHUNK_MS,
-            overlap_ms: LIVE_TRANSCRIPTION_OVERLAP_MS,
+            chunk_ms: LIVE_TRANSCRIPTION_WINDOW_MS,
+            overlap_ms: LIVE_TRANSCRIPTION_STABILITY_DELAY_MS,
         },
     );
-}
-
-fn transcribe_chunk(
-    whisper_cli: &Path,
-    model_path: &Path,
-    input_path: &Path,
-    output_prefix: &Path,
-    source: &str,
-    speaker: &str,
-) -> Result<Vec<TranscriptSegment>, String> {
-    let output = Command::new(whisper_cli)
-        .arg("-m")
-        .arg(model_path)
-        .arg("-f")
-        .arg(input_path)
-        .arg("-l")
-        .arg("en")
-        .arg("-t")
-        .arg(default_thread_count().to_string())
-        .arg("-oj")
-        .arg("-otxt")
-        .arg("-of")
-        .arg(output_prefix)
-        .output()
-        .map_err(|err| {
-            format!(
-                "Failed to run whisper.cpp for {source} audio with {}: {err}",
-                whisper_cli.display()
-            )
-        })?;
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !output.status.success() {
-        return Err(format!(
-            "whisper.cpp failed for {source} audio with status {}:\n{}",
-            output.status,
-            stderr.trim()
-        ));
-    }
-
-    let json_path = output_prefix.with_extension("json");
-    if json_path.is_file() {
-        let json = fs::read_to_string(&json_path)
-            .map_err(|err| format!("Failed to read {}: {err}", json_path.display()))?;
-        return parse_whisper_json(&json, source, speaker);
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    if let Ok(segments) = parse_whisper_json(&stdout, source, speaker) {
-        return Ok(segments);
-    }
-
-    let txt_path = output_prefix.with_extension("txt");
-    if txt_path.is_file() {
-        let text = fs::read_to_string(&txt_path)
-            .map_err(|err| format!("Failed to read {}: {err}", txt_path.display()))?;
-        return Ok(parse_whisper_text(&text, source, speaker));
-    }
-
-    Err(format!(
-        "whisper.cpp completed for {source} audio but did not produce {} or {}. stderr:\n{}",
-        json_path.display(),
-        txt_path.display(),
-        stderr.trim()
-    ))
-}
-
-fn parse_whisper_json(
-    json: &str,
-    source: &str,
-    speaker: &str,
-) -> Result<Vec<TranscriptSegment>, String> {
-    let value: Value =
-        serde_json::from_str(json).map_err(|err| format!("Invalid whisper JSON: {err}"))?;
-    let entries = value
-        .get("transcription")
-        .or_else(|| value.get("segments"))
-        .and_then(Value::as_array)
-        .ok_or_else(|| "Whisper JSON did not contain transcription segments".to_string())?;
-
-    let mut segments = Vec::new();
-    for entry in entries {
-        let text = entry
-            .get("text")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-        if text.is_empty() {
-            continue;
-        }
-
-        let (start_ms, end_ms) = extract_segment_times(entry);
-        segments.push(TranscriptSegment {
-            speaker: speaker.to_string(),
-            source: source.to_string(),
-            start_ms,
-            end_ms,
-            text,
-        });
-    }
-
-    Ok(segments)
-}
-
-fn extract_segment_times(entry: &Value) -> (u64, u64) {
-    if let Some(offsets) = entry.get("offsets") {
-        let start_ms = offsets.get("from").and_then(Value::as_u64).unwrap_or(0);
-        let end_ms = offsets
-            .get("to")
-            .and_then(Value::as_u64)
-            .unwrap_or(start_ms);
-        return (start_ms, end_ms);
-    }
-
-    if let (Some(start), Some(end)) = (entry.get("start"), entry.get("end")) {
-        return (json_number_to_ms(start), json_number_to_ms(end));
-    }
-
-    if let Some(timestamps) = entry.get("timestamps") {
-        let start_ms = timestamps
-            .get("from")
-            .and_then(Value::as_str)
-            .and_then(parse_timecode)
-            .unwrap_or(0);
-        let end_ms = timestamps
-            .get("to")
-            .and_then(Value::as_str)
-            .and_then(parse_timecode)
-            .unwrap_or(start_ms);
-        return (start_ms, end_ms);
-    }
-
-    (0, 0)
-}
-
-fn json_number_to_ms(value: &Value) -> u64 {
-    if let Some(number) = value.as_f64() {
-        return (number * 1000.0).round().max(0.0) as u64;
-    }
-
-    value.as_u64().unwrap_or_default()
-}
-
-fn parse_whisper_text(text: &str, source: &str, speaker: &str) -> Vec<TranscriptSegment> {
-    let mut segments = Vec::new();
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        let Some(end_index) = trimmed.find(']') else {
-            continue;
-        };
-        let Some(time_range) = trimmed.strip_prefix('[').map(|line| &line[..end_index - 1]) else {
-            continue;
-        };
-        let Some((from, to)) = time_range.split_once("-->") else {
-            continue;
-        };
-        let text = trimmed[end_index + 1..].trim();
-        if text.is_empty() {
-            continue;
-        }
-
-        segments.push(TranscriptSegment {
-            speaker: speaker.to_string(),
-            source: source.to_string(),
-            start_ms: parse_timecode(from.trim()).unwrap_or(0),
-            end_ms: parse_timecode(to.trim()).unwrap_or(0),
-            text: text.to_string(),
-        });
-    }
-
-    segments
-}
-
-fn parse_timecode(value: &str) -> Option<u64> {
-    let normalized = value.replace(',', ".");
-    let parts: Vec<&str> = normalized.split(':').collect();
-    if parts.len() != 3 {
-        return None;
-    }
-
-    let hours = parts[0].parse::<u64>().ok()?;
-    let minutes = parts[1].parse::<u64>().ok()?;
-    let seconds = parts[2].parse::<f64>().ok()?;
-    Some((((hours * 60 + minutes) * 60) as f64 * 1000.0 + seconds * 1000.0).round() as u64)
 }
 
 fn read_transcript_jsonl(path: &Path) -> Result<Vec<TranscriptSegment>, String> {
@@ -1376,7 +1265,10 @@ fn count_jsonl_lines(path: &Path) -> Result<usize, String> {
 
     let file = fs::File::open(path)
         .map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
-    Ok(BufReader::new(file).lines().filter(|line| line.is_ok()).count())
+    Ok(BufReader::new(file)
+        .lines()
+        .filter(|line| line.is_ok())
+        .count())
 }
 
 fn write_text_atomic(path: &Path, content: &str) -> Result<(), String> {
@@ -1418,28 +1310,6 @@ fn rms(samples: &[f32]) -> f32 {
 
     let square_sum = samples.iter().map(|sample| sample * sample).sum::<f32>();
     (square_sum / samples.len() as f32).sqrt()
-}
-
-fn write_wav(path: &Path, sample_rate: u32, samples: &[f32]) -> Result<(), String> {
-    let spec = hound::WavSpec {
-        channels: 1,
-        sample_rate,
-        bits_per_sample: 16,
-        sample_format: hound::SampleFormat::Int,
-    };
-    let mut writer = hound::WavWriter::create(path, spec)
-        .map_err(|err| format!("Failed to create {}: {err}", path.display()))?;
-
-    for sample in samples {
-        let scaled = (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
-        writer
-            .write_sample(scaled)
-            .map_err(|err| format!("Failed to write {}: {err}", path.display()))?;
-    }
-
-    writer
-        .finalize()
-        .map_err(|err| format!("Failed to finalize {}: {err}", path.display()))
 }
 
 fn resample_to_rate(samples: &[f32], source_rate: u32, target_rate: u32) -> Vec<f32> {
