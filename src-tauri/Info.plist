@@ -4,5 +4,7 @@
 <dict>
   <key>NSMicrophoneUsageDescription</key>
   <string>Just Notes uses the microphone to create local live transcripts.</string>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>Just Notes captures system audio locally so it can transcribe meetings and playback into your notes.</string>
 </dict>
 </plist>
