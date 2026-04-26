@@ -40,6 +40,9 @@ const LIVE_TRANSCRIPTION_WINDOW_MS: u64 = 12_000;
 const LIVE_TRANSCRIPTION_STABILITY_DELAY_MS: u64 = 2_000;
 const LIVE_TRANSCRIPTION_POLL_MS: u64 = 250;
 const LIVE_SILENCE_RMS_THRESHOLD: f32 = 0.005;
+const LIVE_DUPLICATE_RECENT_SEGMENTS: usize = 8;
+const LIVE_DUPLICATE_NGRAM_SIZE: usize = 3;
+const LIVE_DUPLICATE_COVERAGE_THRESHOLD: f32 = 0.72;
 const MAX_ROLLING_BUFFER_MS: u64 = 120_000;
 const SYSTEM_CAPTURE_DEVICE_NAME: &str = "Just Notes System Audio";
 
@@ -1239,6 +1242,7 @@ struct LiveChannelState {
     committed_until_ms: u64,
     last_emitted_end_ms: u64,
     prompt_tail: VecDeque<String>,
+    emitted_text_tail: VecDeque<String>,
 }
 
 impl LiveChannelState {
@@ -1251,6 +1255,7 @@ impl LiveChannelState {
             committed_until_ms: 0,
             last_emitted_end_ms: 0,
             prompt_tail: VecDeque::with_capacity(8),
+            emitted_text_tail: VecDeque::with_capacity(LIVE_DUPLICATE_RECENT_SEGMENTS),
         }
     }
 
@@ -1271,6 +1276,17 @@ impl LiveChannelState {
         self.prompt_tail.push_back(text.to_string());
         while self.prompt_tail.len() > 8 {
             self.prompt_tail.pop_front();
+        }
+    }
+
+    fn is_duplicate_text(&self, text: &str) -> bool {
+        is_repeated_transcript_text(text, &self.emitted_text_tail)
+    }
+
+    fn remember_emitted_text(&mut self, text: &str) {
+        self.emitted_text_tail.push_back(text.to_string());
+        while self.emitted_text_tail.len() > LIVE_DUPLICATE_RECENT_SEGMENTS {
+            self.emitted_text_tail.pop_front();
         }
     }
 }
@@ -1436,11 +1452,15 @@ fn process_live_channel(
         if segment.end_ms <= state.last_emitted_end_ms || segment.end_ms > commit_until_ms {
             continue;
         }
+        if state.is_duplicate_text(&segment.text) {
+            continue;
+        }
 
         append_live_segment(jsonl_path, &segment)?;
         touch_thread(thread_dir)?;
         let emitted_end_ms = segment.end_ms;
         state.remember_prompt_text(&segment.text);
+        state.remember_emitted_text(&segment.text);
         let _ = app.emit(
             "live-transcript-segment",
             LiveTranscriptSegmentPayload {
@@ -1456,6 +1476,70 @@ fn process_live_channel(
     state.committed_until_ms = commit_until_ms;
     state.next_decode_ms = decode_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
     Ok(emitted)
+}
+
+fn is_repeated_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> bool {
+    if recent_texts.is_empty() {
+        return false;
+    }
+
+    let candidate_words = normalized_words(candidate);
+    if candidate_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
+        return recent_texts
+            .iter()
+            .rev()
+            .take(LIVE_DUPLICATE_RECENT_SEGMENTS)
+            .any(|text| normalized_words(text) == candidate_words);
+    }
+
+    let recent = recent_texts
+        .iter()
+        .rev()
+        .take(LIVE_DUPLICATE_RECENT_SEGMENTS)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let recent_words = normalized_words(&recent);
+    if recent_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
+        return false;
+    }
+
+    let candidate_ngrams = word_ngrams(&candidate_words, LIVE_DUPLICATE_NGRAM_SIZE);
+    if candidate_ngrams.is_empty() {
+        return false;
+    }
+
+    let recent_ngrams = word_ngrams(&recent_words, LIVE_DUPLICATE_NGRAM_SIZE);
+    let covered = candidate_ngrams
+        .iter()
+        .filter(|ngram| recent_ngrams.contains(ngram))
+        .count();
+    let coverage = covered as f32 / candidate_ngrams.len() as f32;
+    coverage >= LIVE_DUPLICATE_COVERAGE_THRESHOLD
+}
+
+fn normalized_words(text: &str) -> Vec<String> {
+    text.split_whitespace()
+        .filter_map(|word| {
+            let normalized = word
+                .chars()
+                .filter(|character| character.is_ascii_alphanumeric())
+                .flat_map(|character| character.to_lowercase())
+                .collect::<String>();
+            (!normalized.is_empty()).then_some(normalized)
+        })
+        .collect()
+}
+
+fn word_ngrams(words: &[String], size: usize) -> Vec<String> {
+    if words.len() < size {
+        return Vec::new();
+    }
+
+    words.windows(size).map(|window| window.join(" ")).collect()
 }
 
 fn append_live_segment(path: &Path, segment: &TranscriptSegment) -> Result<(), String> {
@@ -1670,6 +1754,37 @@ fn ensure_microphone_permission(app: &AppHandle) -> Result<(), String> {
 #[cfg(not(target_os = "macos"))]
 fn ensure_microphone_permission(_app: &AppHandle) -> Result<(), String> {
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repeated_transcript_text_matches_overlapping_rollup() {
+        let mut recent = VecDeque::new();
+        recent.push_back("This is a Just Notes quality assurance test.".to_string());
+        recent.push_back(
+            "The blue notebook is beside the silver microphone. Every local transcript should preserve these exactly."
+                .to_string(),
+        );
+
+        assert!(is_repeated_transcript_text(
+            "This is a Just Notes quality assurance test. The blue notebook is beside the silver microphone. Every local transcript should preserve these exact words.",
+            &recent,
+        ));
+    }
+
+    #[test]
+    fn repeated_transcript_text_allows_new_sentence() {
+        let mut recent = VecDeque::new();
+        recent.push_back("This is a Just Notes quality assurance test.".to_string());
+
+        assert!(!is_repeated_transcript_text(
+            "Chapter two begins with a calendar reminder and a project checkpoint.",
+            &recent,
+        ));
+    }
 }
 
 pub fn run() {
