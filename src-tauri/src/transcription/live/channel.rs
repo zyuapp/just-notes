@@ -214,3 +214,27 @@ fn emit_unique_live_segment(
     state.mark_emitted_until(stable_end_ms);
     Ok(1)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::LiveChannelState;
+
+    #[test]
+    fn live_channel_state_requires_two_matching_hypotheses() {
+        let mut state = LiveChannelState::new("system", "Others", 48_000);
+        assert_eq!(
+            state.agreed_text(
+                "Section 1 says the green calendar moved beside the copper lamp.",
+                false,
+            ),
+            None,
+        );
+        assert_eq!(
+            state.agreed_text(
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow folder.",
+                false,
+            ),
+            Some("Section 1 says the green calendar moved beside the copper lamp.".to_string()),
+        );
+    }
+}

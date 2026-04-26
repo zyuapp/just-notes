@@ -2,8 +2,6 @@ mod channel;
 mod window;
 mod worker;
 
-#[cfg(test)]
-pub(crate) use channel::LiveChannelState;
 pub(crate) use worker::{spawn_live_transcription_thread, LiveTranscriptionThreadConfig};
 
 const LIVE_TRANSCRIPTION_STEP_MS: u64 = 2_000;

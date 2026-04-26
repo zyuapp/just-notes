@@ -101,3 +101,84 @@ pub(crate) fn estimate_text_end_ms(
 
     fallback_end_ms
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        clean_transcript_text, common_transcript_prefix, completed_transcript_text,
+        estimate_text_end_ms,
+    };
+    use crate::threads::TranscriptSegment;
+
+    #[test]
+    fn completed_transcript_text_drops_live_partial_sentence() {
+        assert_eq!(
+            completed_transcript_text(
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow",
+                false,
+            ),
+            "Section 1 says the green calendar moved beside the copper lamp.".to_string(),
+        );
+        assert_eq!(
+            completed_transcript_text("Section 2 says the yellow", false),
+            "".to_string(),
+        );
+        assert_eq!(
+            completed_transcript_text("Section 2 says the yellow", true),
+            "Section 2 says the yellow".to_string(),
+        );
+    }
+
+    #[test]
+    fn common_transcript_prefix_returns_agreed_words_from_latest_text() {
+        assert_eq!(
+            common_transcript_prefix(
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow",
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow folder stayed under the quiet monitor.",
+            ),
+            Some(
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow"
+                    .to_string()
+            ),
+        );
+    }
+
+    #[test]
+    fn clean_transcript_text_removes_leading_non_speech_marker() {
+        assert_eq!(
+            clean_transcript_text("(no audio) Long recording quality test begins now."),
+            "Long recording quality test begins now.".to_string(),
+        );
+    }
+
+    #[test]
+    fn estimate_text_end_ms_tracks_confirmed_prefix() {
+        let segments = vec![
+            TranscriptSegment {
+                speaker: "Others".to_string(),
+                source: "system".to_string(),
+                start_ms: 0,
+                end_ms: 4_000,
+                text: "Section 1 says the green calendar moved beside the copper lamp.".to_string(),
+            },
+            TranscriptSegment {
+                speaker: "Others".to_string(),
+                source: "system".to_string(),
+                start_ms: 4_000,
+                end_ms: 8_000,
+                text: "Section 2 says the yellow folder stayed under the quiet monitor."
+                    .to_string(),
+            },
+        ];
+
+        assert_eq!(
+            estimate_text_end_ms(
+                &segments,
+                "Section 1 says the green calendar moved beside the copper lamp.",
+                10_000,
+                22_000,
+            ),
+            14_000,
+        );
+    }
+}

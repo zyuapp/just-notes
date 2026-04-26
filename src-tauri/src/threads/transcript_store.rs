@@ -127,3 +127,52 @@ fn transcript_segment_order(
         .then_with(|| left.end_ms.cmp(&right.end_ms))
         .then_with(|| left.source.cmp(&right.source))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        env, fs,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    use super::{append_live_segment, read_transcript_jsonl};
+    use crate::threads::TranscriptSegment;
+
+    #[test]
+    fn append_live_segment_keeps_jsonl_chronological() {
+        let path = env::temp_dir().join(format!(
+            "just-notes-transcript-order-{}.jsonl",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
+        let later = TranscriptSegment {
+            speaker: "Others".to_string(),
+            source: "system".to_string(),
+            start_ms: 4_000,
+            end_ms: 8_000,
+            text: "System section two.".to_string(),
+        };
+        let earlier = TranscriptSegment {
+            speaker: "You".to_string(),
+            source: "mic".to_string(),
+            start_ms: 3_000,
+            end_ms: 12_000,
+            text: "Microphone checkpoint alpha.".to_string(),
+        };
+
+        append_live_segment(&path, &later).unwrap();
+        append_live_segment(&path, &earlier).unwrap();
+
+        let segments = read_transcript_jsonl(&path).unwrap();
+        let _ = fs::remove_file(&path);
+        assert_eq!(
+            segments
+                .iter()
+                .map(|segment| segment.source.as_str())
+                .collect::<Vec<_>>(),
+            vec!["mic", "system"],
+        );
+    }
+}

@@ -48,3 +48,21 @@ pub(crate) fn resample_to_rate(samples: &[f32], source_rate: u32, target_rate: u
 
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::first_audible_ms;
+
+    const LIVE_SILENCE_RMS_THRESHOLD: f32 = 0.005;
+
+    #[test]
+    fn first_audible_ms_skips_leading_silence() {
+        let mut samples = vec![0.0; 16_000 * 3];
+        samples.extend(vec![0.04; 16_000]);
+
+        assert_eq!(
+            first_audible_ms(&samples, 16_000, LIVE_SILENCE_RMS_THRESHOLD),
+            Some(3_000)
+        );
+    }
+}
