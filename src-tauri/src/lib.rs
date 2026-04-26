@@ -20,8 +20,8 @@ use cpal::{
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
 
-const LIVE_TRANSCRIPTION_CHUNK_MS: u64 = 10_000;
-const LIVE_TRANSCRIPTION_OVERLAP_MS: u64 = 2_000;
+const LIVE_TRANSCRIPTION_CHUNK_MS: u64 = 5_000;
+const LIVE_TRANSCRIPTION_OVERLAP_MS: u64 = 1_000;
 const LIVE_TRANSCRIPTION_POLL_MS: u64 = 250;
 const LIVE_SILENCE_RMS_THRESHOLD: f32 = 0.005;
 const MAX_ROLLING_BUFFER_MS: u64 = 120_000;
@@ -929,7 +929,7 @@ fn run_live_transcription_loop(
         &app,
         &thread_id,
         true,
-        "Live transcription is listening with 10s chunks and 2s overlap",
+        "Live transcription is listening with 5s chunks and 1s overlap",
     );
 
     let work_dir = thread_dir.join("work");
@@ -1100,7 +1100,7 @@ fn process_live_channel(
         segment.start_ms = segment.start_ms.min(target_end_ms);
         segment.end_ms = segment.end_ms.min(target_end_ms).max(segment.start_ms);
 
-        if segment.start_ms < state.last_emitted_end_ms || segment.end_ms > commit_until_ms {
+        if segment.start_ms < state.last_emitted_end_ms || segment.start_ms >= commit_until_ms {
             continue;
         }
 
