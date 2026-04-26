@@ -32,7 +32,7 @@
     "macOS": {
       "minimumSystemVersion": "14.4",
       "entitlements": "./Entitlements.plist",
-      "signingIdentity": "-"
+      "signingIdentity": "Apple Development: zhuocheng.yu.d@gmail.com (8N9LZ4A85R)"
     }
   }
 }
