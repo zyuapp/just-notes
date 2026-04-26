@@ -1,0 +1,73 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { ApiError } from "./errors";
+
+const listenMock = mock();
+
+mock.module("@tauri-apps/api/event", () => ({
+  listen: listenMock,
+}));
+
+const { eventsApi } = await import("./events");
+
+describe("eventsApi", () => {
+  beforeEach(() => {
+    listenMock.mockReset();
+  });
+
+  test("registers meter events and unwraps event payloads", async () => {
+    const dispose = mock();
+    const handler = mock();
+    const payload = {
+      threadId: "thread-1",
+      micLevel: 0.2,
+      systemLevel: 0.8,
+      elapsedMs: 1200,
+    };
+
+    listenMock.mockImplementationOnce(async () => dispose);
+
+    const unlisten = await eventsApi.onMeter(handler);
+    const [eventName, registeredHandler] = listenMock.mock.calls[0];
+    registeredHandler({ payload });
+
+    expect(eventName).toBe("meter-update");
+    expect(unlisten).toBe(dispose);
+    expect(handler.mock.calls).toEqual([[payload]]);
+  });
+
+  test("registers live transcript segment events", async () => {
+    listenMock.mockImplementationOnce(async () => mock());
+
+    await eventsApi.onLiveTranscriptSegment(mock());
+
+    expect(listenMock.mock.calls[0][0]).toBe("live-transcript-segment");
+  });
+
+  test("registers live transcript status events", async () => {
+    listenMock.mockImplementationOnce(async () => mock());
+
+    await eventsApi.onLiveTranscriptStatus(mock());
+
+    expect(listenMock.mock.calls[0][0]).toBe("live-transcript-status");
+  });
+
+  test("registers live transcript error events", async () => {
+    listenMock.mockImplementationOnce(async () => mock());
+
+    await eventsApi.onLiveTranscriptError(mock());
+
+    expect(listenMock.mock.calls[0][0]).toBe("live-transcript-error");
+  });
+
+  test("normalizes listen failures", async () => {
+    listenMock.mockRejectedValueOnce("Listener rejected");
+
+    try {
+      await eventsApi.onMeter(mock());
+      throw new Error("Expected onMeter to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).message).toBe("Listener rejected");
+    }
+  });
+});
