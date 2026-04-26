@@ -16,6 +16,12 @@ pub(crate) enum ThreadStatus {
     Recording,
 }
 
+impl ThreadStatus {
+    pub(crate) fn is_recording(&self) -> bool {
+        matches!(self, Self::Recording)
+    }
+}
+
 #[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]

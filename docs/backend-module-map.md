@@ -60,7 +60,9 @@ Use this when changing model status, Whisper behavior, live transcription timing
 
 ## `src-tauri/src/recording`
 
-- `mod.rs`: recording-session state, start/stop orchestration, thread selection, capture startup, live transcription startup, and finalization.
+- `mod.rs`: recording facade and public API exports.
+- `state.rs`: recorder state, active session storage, startup guard, and selected-thread reuse predicate.
+- `workflow.rs`: start/stop orchestration, thread selection, capture startup, live transcription startup, and finalization.
 - `meter.rs`: live meter event worker.
 
 Use this when changing the lifecycle of a recording session or how capture/transcription/thread persistence are coordinated.
