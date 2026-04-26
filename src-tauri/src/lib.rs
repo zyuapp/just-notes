@@ -1806,6 +1806,8 @@ fn process_live_channel(
         return Ok(0);
     }
 
+    let audible_start_ms =
+        first_audible_ms(&samples, state.sample_rate).map(|offset_ms| window_start_ms + offset_ms);
     let normalized_samples = resample_to_rate(&samples, state.sample_rate, 16_000);
     let mut segments = whisper.transcribe(
         &normalized_samples,
@@ -1851,7 +1853,10 @@ fn process_live_channel(
         let segment = TranscriptSegment {
             speaker: state.speaker.to_string(),
             source: state.source.to_string(),
-            start_ms: state.last_emitted_end_ms.max(window_start_ms),
+            start_ms: state
+                .last_emitted_end_ms
+                .max(window_start_ms)
+                .max(audible_start_ms.unwrap_or(window_start_ms)),
             end_ms: stable_end_ms,
             text: unique_text,
         };
@@ -2414,6 +2419,14 @@ fn rms(samples: &[f32]) -> f32 {
     (square_sum / samples.len() as f32).sqrt()
 }
 
+fn first_audible_ms(samples: &[f32], sample_rate: u32) -> Option<u64> {
+    let chunk_size = ((sample_rate as u64 * 100) / 1000).max(1) as usize;
+    samples
+        .chunks(chunk_size)
+        .position(|chunk| rms(chunk) >= LIVE_SILENCE_RMS_THRESHOLD)
+        .map(|chunk_index| samples_to_ms((chunk_index * chunk_size) as u64, sample_rate))
+}
+
 fn resample_to_rate(samples: &[f32], source_rate: u32, target_rate: u32) -> Vec<f32> {
     if samples.is_empty() || source_rate == target_rate {
         return samples.to_vec();
@@ -2742,6 +2755,14 @@ mod tests {
             ),
             14_000,
         );
+    }
+
+    #[test]
+    fn first_audible_ms_skips_leading_silence() {
+        let mut samples = vec![0.0; 16_000 * 3];
+        samples.extend(vec![0.04; 16_000]);
+
+        assert_eq!(first_audible_ms(&samples, 16_000), Some(3_000));
     }
 }
 
