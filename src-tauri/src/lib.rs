@@ -34,7 +34,10 @@ use threads::repository::{
     set_thread_status, touch_thread,
 };
 use threads::transcript_store::append_live_segment;
-use transcription::{TranscriptionPaths, TranscriptionStatusPayload};
+use transcription::{
+    first_audible_ms, ms_to_samples, resample_to_rate, rms, samples_to_ms, TranscriptionPaths,
+    TranscriptionStatusPayload,
+};
 
 type LiveSampleWindow = Option<Vec<f32>>;
 
@@ -775,8 +778,12 @@ fn prepare_live_decode_window(
         return Ok(None);
     }
 
-    let audible_start_ms =
-        first_audible_ms(&samples, state.sample_rate).map(|offset_ms| window_start_ms + offset_ms);
+    let audible_start_ms = first_audible_ms(
+        &samples,
+        state.sample_rate,
+        LIVE_SILENCE_RMS_THRESHOLD,
+    )
+    .map(|offset_ms| window_start_ms + offset_ms);
     Ok(Some(LiveDecodeWindow {
         target_end_ms,
         commit_until_ms,
@@ -1358,53 +1365,6 @@ pub(crate) fn now_ms() -> Result<u64, String> {
         .as_millis() as u64)
 }
 
-fn samples_to_ms(samples: u64, sample_rate: u32) -> u64 {
-    ((samples as f64 * 1000.0) / sample_rate as f64).floor() as u64
-}
-
-fn ms_to_samples(ms: u64, sample_rate: u32) -> usize {
-    ((ms as f64 * sample_rate as f64) / 1000.0).round() as usize
-}
-
-fn rms(samples: &[f32]) -> f32 {
-    if samples.is_empty() {
-        return 0.0;
-    }
-
-    let square_sum = samples.iter().map(|sample| sample * sample).sum::<f32>();
-    (square_sum / samples.len() as f32).sqrt()
-}
-
-fn first_audible_ms(samples: &[f32], sample_rate: u32) -> Option<u64> {
-    let chunk_size = ((sample_rate as u64 * 100) / 1000).max(1) as usize;
-    samples
-        .chunks(chunk_size)
-        .position(|chunk| rms(chunk) >= LIVE_SILENCE_RMS_THRESHOLD)
-        .map(|chunk_index| samples_to_ms((chunk_index * chunk_size) as u64, sample_rate))
-}
-
-fn resample_to_rate(samples: &[f32], source_rate: u32, target_rate: u32) -> Vec<f32> {
-    if samples.is_empty() || source_rate == target_rate {
-        return samples.to_vec();
-    }
-
-    let output_len =
-        ((samples.len() as f64) * (target_rate as f64) / (source_rate as f64)).ceil() as usize;
-    let ratio = source_rate as f64 / target_rate as f64;
-    let mut output = Vec::with_capacity(output_len);
-
-    for out_index in 0..output_len {
-        let source_pos = out_index as f64 * ratio;
-        let left = source_pos.floor() as usize;
-        let right = (left + 1).min(samples.len() - 1);
-        let frac = (source_pos - left as f64) as f32;
-        let sample = samples[left] * (1.0 - frac) + samples[right] * frac;
-        output.push(sample);
-    }
-
-    output
-}
-
 fn default_thread_count() -> usize {
     thread::available_parallelism()
         .map(|count| count.get().clamp(2, 8))
@@ -1683,7 +1643,10 @@ mod tests {
         let mut samples = vec![0.0; 16_000 * 3];
         samples.extend(vec![0.04; 16_000]);
 
-        assert_eq!(first_audible_ms(&samples, 16_000), Some(3_000));
+        assert_eq!(
+            first_audible_ms(&samples, 16_000, LIVE_SILENCE_RMS_THRESHOLD),
+            Some(3_000)
+        );
     }
 
     #[test]

@@ -14,7 +14,7 @@ use super::{
     },
     samples::{average_f32, push_mono_frames},
 };
-use crate::samples_to_ms;
+use crate::transcription::samples_to_ms;
 
 const FIXTURE_CHUNK_MS: u64 = 50;
 
