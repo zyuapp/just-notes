@@ -1,0 +1,3 @@
+# Existing Rust files above RUST_FILE_MAX_LINES are ratcheted here.
+# Reduce these limits as files are split into smaller modules.
+src-tauri/src/lib.rs 2968

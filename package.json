@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "fmt:rs": "cd src-tauri && cargo fmt -- --check",
+    "lint:rs": "cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings -W clippy::cognitive-complexity -W clippy::too-many-lines",
+    "lint:rs:files": "scripts/check-rust-file-lines.sh",
+    "test:rs": "cd src-tauri && cargo test --all-features",
+    "verify": "bun run build && bun run fmt:rs && bun run lint:rs && bun run lint:rs:files && bun run test:rs",
     "tauri": "tauri"
   },
   "dependencies": {
