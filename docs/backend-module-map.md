@@ -54,7 +54,9 @@ Use this when changing how audio is acquired, buffered, leveled, or fixture-driv
 - `live/channel.rs`: per-source live channel state, hypothesis agreement, segment emission, and transcript append.
 - `live/window.rs`: decode-window selection and silence gating.
 - `text/cleanup.rs`: transcript cleanup, partial sentence handling, prefix agreement, and end-time estimation.
-- `text/dedupe.rs`: duplicate suppression across recent transcript text.
+- `text/dedupe.rs`: duplicate suppression policy across recent transcript text.
+- `text/dedupe/spans.rs`: repeated word span matching.
+- `text/dedupe/trimming.rs`: duplicate prefix, suffix, and middle-span trimming.
 - `text/words.rs`: shared word normalization and sentence splitting helpers.
 - `mod.rs`: transcription facade used by recording and tests.
 
