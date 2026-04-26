@@ -1,3 +1,2 @@
 # Existing Rust files above RUST_FILE_MAX_LINES are ratcheted here.
-# Reduce these limits as files are split into smaller modules.
-src-tauri/src/lib.rs 3028
+# Add temporary per-file limits only when a split cannot be completed in the same change.

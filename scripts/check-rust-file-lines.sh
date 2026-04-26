@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-max_lines="${RUST_FILE_MAX_LINES:-500}"
+max_lines="${RUST_FILE_MAX_LINES:-250}"
 baseline_file="${RUST_FILE_LINES_BASELINE:-scripts/rust-file-lines.baseline}"
 status=0
 violations="$(mktemp "${TMPDIR:-/tmp}/just-notes-rust-lines.XXXXXX")"

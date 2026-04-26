@@ -46,6 +46,8 @@ The intended direction is:
 
 Avoid dependencies that point back into `lib.rs`. If a domain module needs something from `lib.rs`, move that behavior into the appropriate context first.
 
+The `bun run verify` command runs `scripts/check-rust-domain-boundaries.sh` to guard the most important dependency rules. If the script blocks a change, update the domain design first rather than bypassing the guard.
+
 ## Rules Of Thumb
 
 - Tauri commands belong in `lib.rs`; command behavior belongs in domain modules.
@@ -54,4 +56,3 @@ Avoid dependencies that point back into `lib.rs`. If a domain module needs somet
 - `transcription` turns audio windows into committed transcript segments.
 - `threads` persists and loads thread state; it should stay usable without audio devices.
 - `ipc` structs are public contracts with the frontend, so changes should be deliberate and binding-checked.
-
