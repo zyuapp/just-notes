@@ -674,16 +674,17 @@ fn prepare_recording_session(
 
     let transcription = transcription_status(&paths);
     let should_stop_live_transcription = Arc::new(AtomicBool::new(false));
-    let live_transcription_thread = spawn_live_transcription_thread(
-        app,
-        paths.transcription_paths(),
-        Arc::clone(&buffers),
-        Arc::clone(&should_stop_live_transcription),
-        thread_id.clone(),
-        thread_dir.clone(),
-        mic_sample_rate,
-        system_sample_rate,
-    );
+    let live_transcription_thread =
+        spawn_live_transcription_thread(LiveTranscriptionThreadConfig {
+            app,
+            paths: paths.transcription_paths(),
+            buffers: Arc::clone(&buffers),
+            should_stop: Arc::clone(&should_stop_live_transcription),
+            thread_id: thread_id.clone(),
+            thread_dir: thread_dir.clone(),
+            mic_sample_rate,
+            system_sample_rate,
+        });
 
     let mut slot = recorder
         .session
@@ -1468,7 +1469,7 @@ fn spawn_meter_thread(
     })
 }
 
-fn spawn_live_transcription_thread(
+struct LiveTranscriptionThreadConfig {
     app: AppHandle,
     paths: TranscriptionPaths,
     buffers: Arc<Mutex<SharedBuffers>>,
@@ -1477,7 +1478,22 @@ fn spawn_live_transcription_thread(
     thread_dir: PathBuf,
     mic_sample_rate: u32,
     system_sample_rate: u32,
+}
+
+fn spawn_live_transcription_thread(
+    config: LiveTranscriptionThreadConfig,
 ) -> Option<JoinHandle<()>> {
+    let LiveTranscriptionThreadConfig {
+        app,
+        paths,
+        buffers,
+        should_stop,
+        thread_id,
+        thread_dir,
+        mic_sample_rate,
+        system_sample_rate,
+    } = config;
+
     if !paths.model_path.is_file() {
         emit_live_status(
             &app,
@@ -1489,16 +1505,17 @@ fn spawn_live_transcription_thread(
     }
 
     Some(thread::spawn(move || {
-        if let Err(err) = run_live_transcription_loop(
-            app.clone(),
+        let config = LiveTranscriptionThreadConfig {
+            app: app.clone(),
             paths,
             buffers,
             should_stop,
-            thread_id.clone(),
-            thread_dir.clone(),
+            thread_id: thread_id.clone(),
+            thread_dir,
             mic_sample_rate,
             system_sample_rate,
-        ) {
+        };
+        if let Err(err) = run_live_transcription_loop(config) {
             let _ = app.emit(
                 "live-transcript-error",
                 LiveTranscriptStatusPayload {
@@ -1513,16 +1530,17 @@ fn spawn_live_transcription_thread(
     }))
 }
 
-fn run_live_transcription_loop(
-    app: AppHandle,
-    paths: TranscriptionPaths,
-    buffers: Arc<Mutex<SharedBuffers>>,
-    should_stop: Arc<AtomicBool>,
-    thread_id: String,
-    thread_dir: PathBuf,
-    mic_sample_rate: u32,
-    system_sample_rate: u32,
-) -> Result<(), String> {
+fn run_live_transcription_loop(config: LiveTranscriptionThreadConfig) -> Result<(), String> {
+    let LiveTranscriptionThreadConfig {
+        app,
+        paths,
+        buffers,
+        should_stop,
+        thread_id,
+        thread_dir,
+        mic_sample_rate,
+        system_sample_rate,
+    } = config;
     let whisper = WhisperRuntime::load(&paths.model_path)?;
     emit_live_status(
         &app,
@@ -1537,27 +1555,17 @@ fn run_live_transcription_loop(
     let mut emitted_count = 0usize;
 
     loop {
+        let context = LiveChannelContext {
+            app: &app,
+            whisper: &whisper,
+            buffers: &buffers,
+            jsonl_path: &jsonl_path,
+            thread_dir: &thread_dir,
+            thread_id: &thread_id,
+        };
         let stopping = should_stop.load(Ordering::Relaxed);
-        emitted_count += process_live_channel(
-            &app,
-            &whisper,
-            &buffers,
-            &jsonl_path,
-            &thread_dir,
-            &thread_id,
-            &mut mic,
-            stopping,
-        )?;
-        emitted_count += process_live_channel(
-            &app,
-            &whisper,
-            &buffers,
-            &jsonl_path,
-            &thread_dir,
-            &thread_id,
-            &mut system,
-            stopping,
-        )?;
+        emitted_count += process_live_channel(&context, &mut mic, stopping)?;
+        emitted_count += process_live_channel(&context, &mut system, stopping)?;
 
         if stopping {
             break;
@@ -1729,47 +1737,64 @@ impl WhisperRuntime {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn process_live_channel(
-    app: &AppHandle,
-    whisper: &WhisperRuntime,
-    buffers: &Arc<Mutex<SharedBuffers>>,
-    jsonl_path: &Path,
-    thread_dir: &Path,
-    thread_id: &str,
-    state: &mut LiveChannelState,
-    final_flush: bool,
-) -> Result<usize, String> {
-    let available_samples = {
-        let shared = buffers
-            .lock()
-            .map_err(|_| "Audio buffer lock was poisoned".to_string())?;
-        match state.source {
-            "mic" => shared.mic.available_end_index(),
-            "system" => shared.system.available_end_index(),
-            _ => 0,
-        }
-    };
-    let available_ms = samples_to_ms(available_samples, state.sample_rate);
-    if available_ms <= state.committed_until_ms {
-        return Ok(0);
-    }
+struct LiveChannelContext<'a> {
+    app: &'a AppHandle,
+    whisper: &'a WhisperRuntime,
+    buffers: &'a Arc<Mutex<SharedBuffers>>,
+    jsonl_path: &'a Path,
+    thread_dir: &'a Path,
+    thread_id: &'a str,
+}
 
+struct LiveDecodeWindow {
+    target_end_ms: u64,
+    commit_until_ms: u64,
+    window_start_ms: u64,
+    samples: Vec<f32>,
+    audible_start_ms: Option<u64>,
+}
+
+fn live_target_end_ms(
+    available_ms: u64,
+    state: &LiveChannelState,
+    final_flush: bool,
+) -> Option<u64> {
     let target_end_ms = if final_flush {
         available_ms
     } else if available_ms >= state.next_decode_ms {
         state.next_decode_ms
     } else {
-        return Ok(0);
+        return None;
     };
-    let commit_until_ms = if final_flush {
+    Some(target_end_ms)
+}
+
+fn live_commit_until_ms(target_end_ms: u64, final_flush: bool) -> u64 {
+    if final_flush {
         target_end_ms
     } else {
         target_end_ms.saturating_sub(LIVE_TRANSCRIPTION_STABILITY_DELAY_MS)
+    }
+}
+
+fn prepare_live_decode_window(
+    buffers: &Arc<Mutex<SharedBuffers>>,
+    state: &mut LiveChannelState,
+    final_flush: bool,
+) -> Result<Option<LiveDecodeWindow>, String> {
+    let available_samples = live_available_samples(buffers, state.source)?;
+    let available_ms = samples_to_ms(available_samples, state.sample_rate);
+    if available_ms <= state.committed_until_ms {
+        return Ok(None);
+    }
+
+    let Some(target_end_ms) = live_target_end_ms(available_ms, state, final_flush) else {
+        return Ok(None);
     };
+    let commit_until_ms = live_commit_until_ms(target_end_ms, final_flush);
     if commit_until_ms <= state.committed_until_ms {
         state.next_decode_ms += LIVE_TRANSCRIPTION_STEP_MS;
-        return Ok(0);
+        return Ok(None);
     }
 
     let max_window_start_ms =
@@ -1782,34 +1807,77 @@ fn process_live_channel(
     let start_index = ms_to_samples(window_start_ms, state.sample_rate) as u64;
     let end_index = ms_to_samples(target_end_ms, state.sample_rate) as u64;
 
-    let samples = {
-        let shared = buffers
-            .lock()
-            .map_err(|_| "Audio buffer lock was poisoned".to_string())?;
-        let channel = match state.source {
-            "mic" => &shared.mic,
-            "system" => &shared.system,
-            _ => return Ok(0),
-        };
-        channel.window(start_index, end_index)
-    };
+    let samples = live_samples(buffers, state.source, start_index, end_index)?;
 
     let Some(samples) = samples else {
-        state.committed_until_ms = commit_until_ms;
-        state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
-        return Ok(0);
+        advance_live_decode(state, commit_until_ms, target_end_ms);
+        return Ok(None);
     };
 
     if rms(&samples) < LIVE_SILENCE_RMS_THRESHOLD {
-        state.committed_until_ms = commit_until_ms;
-        state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
-        return Ok(0);
+        advance_live_decode(state, commit_until_ms, target_end_ms);
+        return Ok(None);
     }
 
     let audible_start_ms =
         first_audible_ms(&samples, state.sample_rate).map(|offset_ms| window_start_ms + offset_ms);
-    let normalized_samples = resample_to_rate(&samples, state.sample_rate, 16_000);
-    let mut segments = whisper.transcribe(
+    Ok(Some(LiveDecodeWindow {
+        target_end_ms,
+        commit_until_ms,
+        window_start_ms,
+        samples,
+        audible_start_ms,
+    }))
+}
+
+fn live_available_samples(
+    buffers: &Arc<Mutex<SharedBuffers>>,
+    source: &str,
+) -> Result<u64, String> {
+    let shared = buffers
+        .lock()
+        .map_err(|_| "Audio buffer lock was poisoned".to_string())?;
+    let available_samples = match source {
+        "mic" => shared.mic.available_end_index(),
+        "system" => shared.system.available_end_index(),
+        _ => 0,
+    };
+    Ok(available_samples)
+}
+
+fn live_samples(
+    buffers: &Arc<Mutex<SharedBuffers>>,
+    source: &str,
+    start_index: u64,
+    end_index: u64,
+) -> Result<Option<Vec<f32>>, String> {
+    let shared = buffers
+        .lock()
+        .map_err(|_| "Audio buffer lock was poisoned".to_string())?;
+    let samples = match source {
+        "mic" => shared.mic.window(start_index, end_index),
+        "system" => shared.system.window(start_index, end_index),
+        _ => None,
+    };
+    Ok(samples)
+}
+
+fn advance_live_decode(state: &mut LiveChannelState, commit_until_ms: u64, target_end_ms: u64) {
+    state.committed_until_ms = commit_until_ms;
+    state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
+}
+
+fn process_live_channel(
+    context: &LiveChannelContext<'_>,
+    state: &mut LiveChannelState,
+    final_flush: bool,
+) -> Result<usize, String> {
+    let Some(window) = prepare_live_decode_window(context.buffers, state, final_flush)? else {
+        return Ok(0);
+    };
+
+    let normalized_samples = resample_to_rate(&window.samples, state.sample_rate, 16_000);
+    let mut segments = context.whisper.transcribe(
         &normalized_samples,
         &state.prompt(),
         state.source,
@@ -1823,70 +1891,80 @@ fn process_live_channel(
         .collect::<Vec<_>>()
         .join(" ");
     let Some(agreed_text) = state.agreed_text(&decoded_text, final_flush) else {
-        state.committed_until_ms = commit_until_ms;
-        state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
+        advance_live_decode(state, window.commit_until_ms, window.target_end_ms);
         return Ok(0);
     };
 
     let completed_agreed_text = completed_transcript_text(&agreed_text, final_flush);
     if completed_agreed_text.is_empty() {
-        state.committed_until_ms = commit_until_ms;
-        state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
+        advance_live_decode(state, window.commit_until_ms, window.target_end_ms);
         return Ok(0);
     }
     let stable_end_ms = estimate_text_end_ms(
         &segments,
         &completed_agreed_text,
-        window_start_ms,
-        commit_until_ms,
+        window.window_start_ms,
+        window.commit_until_ms,
     );
 
-    let emitted = if let Some(unique_text) = state.unique_text(&completed_agreed_text) {
-        let unique_text = unique_text.trim().to_string();
-        if unique_text.is_empty() {
-            state.mark_emitted_until(stable_end_ms);
-            state.committed_until_ms = commit_until_ms;
-            state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
-            return Ok(0);
-        }
+    let emitted = emit_unique_live_segment(
+        context,
+        state,
+        &window,
+        &completed_agreed_text,
+        stable_end_ms,
+    )?;
+    advance_live_decode(state, window.commit_until_ms, window.target_end_ms);
+    Ok(emitted)
+}
 
-        let segment = TranscriptSegment {
-            speaker: state.speaker.to_string(),
-            source: state.source.to_string(),
-            start_ms: state
-                .last_emitted_end_ms
-                .max(window_start_ms)
-                .max(audible_start_ms.unwrap_or(window_start_ms)),
-            end_ms: stable_end_ms,
-            text: unique_text,
-        };
-
-        if segment.end_ms > segment.start_ms {
-            append_live_segment(jsonl_path, &segment)?;
-            touch_thread(thread_dir)?;
-            state.remember_prompt_text(&segment.text);
-            state.remember_emitted_text(&segment.text);
-            let _ = app.emit(
-                "live-transcript-segment",
-                LiveTranscriptSegmentPayload {
-                    thread_id: thread_id.to_string(),
-                    committed_until_ms: commit_until_ms,
-                    segment,
-                },
-            );
-            state.mark_emitted_until(stable_end_ms);
-            1
-        } else {
-            0
-        }
-    } else {
+fn emit_unique_live_segment(
+    context: &LiveChannelContext<'_>,
+    state: &mut LiveChannelState,
+    window: &LiveDecodeWindow,
+    text: &str,
+    stable_end_ms: u64,
+) -> Result<usize, String> {
+    let Some(unique_text) = state.unique_text(text) else {
         state.mark_emitted_until(stable_end_ms);
-        0
+        return Ok(0);
     };
 
-    state.committed_until_ms = commit_until_ms;
-    state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
-    Ok(emitted)
+    let unique_text = unique_text.trim().to_string();
+    if unique_text.is_empty() {
+        state.mark_emitted_until(stable_end_ms);
+        return Ok(0);
+    }
+
+    let segment = TranscriptSegment {
+        speaker: state.speaker.to_string(),
+        source: state.source.to_string(),
+        start_ms: state
+            .last_emitted_end_ms
+            .max(window.window_start_ms)
+            .max(window.audible_start_ms.unwrap_or(window.window_start_ms)),
+        end_ms: stable_end_ms,
+        text: unique_text,
+    };
+
+    if segment.end_ms <= segment.start_ms {
+        return Ok(0);
+    }
+
+    append_live_segment(context.jsonl_path, &segment)?;
+    touch_thread(context.thread_dir)?;
+    state.remember_prompt_text(&segment.text);
+    state.remember_emitted_text(&segment.text);
+    let _ = context.app.emit(
+        "live-transcript-segment",
+        LiveTranscriptSegmentPayload {
+            thread_id: context.thread_id.to_string(),
+            committed_until_ms: window.commit_until_ms,
+            segment,
+        },
+    );
+    state.mark_emitted_until(stable_end_ms);
+    Ok(1)
 }
 
 fn is_ignored_transcript_text(text: &str) -> bool {
@@ -2581,6 +2659,45 @@ fn ensure_microphone_permission(_app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+pub fn run() {
+    let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
+
+    let builder = tauri::Builder::default()
+        .manage(paths)
+        .manage(RecorderState::default())
+        .setup(|app| {
+            reset_stale_recording_threads(app.state::<AppPaths>().inner())?;
+            Ok(())
+        });
+
+    #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        get_app_info,
+        list_threads,
+        create_thread,
+        get_thread,
+        get_transcription_status,
+        start_recording,
+        start_fixture_recording,
+        stop_recording
+    ]);
+
+    #[cfg(not(any(debug_assertions, feature = "qa-fixtures")))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        get_app_info,
+        list_threads,
+        create_thread,
+        get_thread,
+        get_transcription_status,
+        start_recording,
+        stop_recording
+    ]);
+
+    builder
+        .run(tauri::generate_context!())
+        .expect("error while running Just Notes");
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2848,43 +2965,4 @@ mod tests {
             vec!["mic", "system"],
         );
     }
-}
-
-pub fn run() {
-    let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
-
-    let builder = tauri::Builder::default()
-        .manage(paths)
-        .manage(RecorderState::default())
-        .setup(|app| {
-            reset_stale_recording_threads(app.state::<AppPaths>().inner())?;
-            Ok(())
-        });
-
-    #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        get_app_info,
-        list_threads,
-        create_thread,
-        get_thread,
-        get_transcription_status,
-        start_recording,
-        start_fixture_recording,
-        stop_recording
-    ]);
-
-    #[cfg(not(any(debug_assertions, feature = "qa-fixtures")))]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        get_app_info,
-        list_threads,
-        create_thread,
-        get_thread,
-        get_transcription_status,
-        start_recording,
-        stop_recording
-    ]);
-
-    builder
-        .run(tauri::generate_context!())
-        .expect("error while running Just Notes");
 }
