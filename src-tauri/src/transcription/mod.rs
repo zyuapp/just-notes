@@ -1,9 +1,13 @@
 mod audio;
+mod live;
 pub(crate) mod models;
 mod runtime;
 mod text;
 
 pub(crate) use audio::{first_audible_ms, ms_to_samples, resample_to_rate, rms, samples_to_ms};
+#[cfg(test)]
+pub(crate) use live::LiveChannelState;
+pub(crate) use live::{spawn_live_transcription_thread, LiveTranscriptionThreadConfig};
 pub(crate) use models::{TranscriptionPaths, TranscriptionStatusPayload};
 pub(crate) use runtime::WhisperRuntime;
 pub(crate) use text::{
