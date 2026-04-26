@@ -80,10 +80,7 @@ pub(crate) fn write_text_atomic(path: &Path, content: &str) -> Result<(), String
     })
 }
 
-fn append_transcript_jsonl_line(
-    path: &Path,
-    segment: &TranscriptSegment,
-) -> Result<(), String> {
+fn append_transcript_jsonl_line(path: &Path, segment: &TranscriptSegment) -> Result<(), String> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)

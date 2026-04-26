@@ -6,7 +6,10 @@ use std::{
     time::Duration,
 };
 
-use cpal::{traits::{DeviceTrait, HostTrait}, Device, Stream};
+use cpal::{
+    traits::{DeviceTrait, HostTrait},
+    Device, Stream,
+};
 use objc2::AnyThread;
 use objc2_core_audio::{
     kAudioAggregateDeviceIsPrivateKey, kAudioAggregateDeviceNameKey,

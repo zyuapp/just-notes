@@ -43,7 +43,7 @@ fn request_microphone_permission(sender: std::sync::mpsc::Sender<Result<(), Stri
         }
         AVAuthorizationStatus::Restricted => {
             let _ = sender.send(Err(
-                "Microphone access is restricted by macOS policy".to_string(),
+                "Microphone access is restricted by macOS policy".to_string()
             ));
         }
         AVAuthorizationStatus::NotDetermined => {

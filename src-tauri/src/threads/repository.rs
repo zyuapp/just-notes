@@ -51,10 +51,7 @@ pub(crate) fn create_thread(paths: &AppPaths) -> Result<ThreadDetail, String> {
     load_thread_detail(&thread_dir)
 }
 
-pub(crate) fn load_thread_by_id(
-    paths: &AppPaths,
-    thread_id: &str,
-) -> Result<ThreadDetail, String> {
+pub(crate) fn load_thread_by_id(paths: &AppPaths, thread_id: &str) -> Result<ThreadDetail, String> {
     let thread_dir = paths.thread_dir(thread_id);
     if !thread_dir.is_dir() {
         return Err(format!("Thread does not exist: {thread_id}"));

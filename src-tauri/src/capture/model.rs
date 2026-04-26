@@ -5,10 +5,7 @@ use std::{
 };
 
 #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
-use std::{
-    sync::atomic::AtomicBool,
-    thread::JoinHandle,
-};
+use std::{sync::atomic::AtomicBool, thread::JoinHandle};
 
 use cpal::Stream;
 

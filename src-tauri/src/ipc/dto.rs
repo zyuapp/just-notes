@@ -1,4 +1,6 @@
-use crate::{threads::ThreadDetail, threads::TranscriptSegment, transcription::TranscriptionStatusPayload};
+use crate::{
+    threads::ThreadDetail, threads::TranscriptSegment, transcription::TranscriptionStatusPayload,
+};
 
 #[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
