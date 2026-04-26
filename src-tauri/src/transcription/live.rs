@@ -1,4 +1,5 @@
 mod channel;
+mod sink;
 mod window;
 mod worker;
 
