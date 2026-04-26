@@ -50,7 +50,17 @@ type TranscriptionStatus = {
   modelExists: boolean;
   enginePath: string;
   modelPath: string;
+  modelName: string;
+  availableModels: WhisperModelStatus[];
   message: string;
+};
+
+type WhisperModelStatus = {
+  name: string;
+  filename: string;
+  path: string;
+  installed: boolean;
+  selected: boolean;
 };
 
 type RecordingPayload = {

@@ -47,6 +47,25 @@ const LIVE_DUPLICATE_MIN_KEEP_WORDS: usize = 4;
 const LIVE_DUPLICATE_MIN_TRIM_WORDS: usize = 6;
 const MAX_ROLLING_BUFFER_MS: u64 = 120_000;
 const SYSTEM_CAPTURE_DEVICE_NAME: &str = "Just Notes System Audio";
+const WHISPER_MODEL_CANDIDATES: [WhisperModelCandidate; 3] = [
+    WhisperModelCandidate {
+        name: "medium.en",
+        filename: "ggml-medium.en.bin",
+    },
+    WhisperModelCandidate {
+        name: "small.en",
+        filename: "ggml-small.en.bin",
+    },
+    WhisperModelCandidate {
+        name: "base.en",
+        filename: "ggml-base.en.bin",
+    },
+];
+
+struct WhisperModelCandidate {
+    name: &'static str,
+    filename: &'static str,
+}
 
 #[derive(Clone)]
 struct AppPaths {
@@ -92,14 +111,44 @@ impl AppPaths {
     }
 
     fn transcription_paths(&self) -> TranscriptionPaths {
+        let mut available_models =
+            discover_whisper_models(&self.data_dir.join("models").join("whisper"));
+        let selected_model = available_models
+            .iter()
+            .find(|model| model.installed)
+            .cloned()
+            .unwrap_or_else(|| {
+                available_models
+                    .last()
+                    .expect("whisper model candidates")
+                    .clone()
+            });
+        for model in &mut available_models {
+            model.selected = model.filename == selected_model.filename;
+        }
+
         TranscriptionPaths {
-            model_path: self
-                .data_dir
-                .join("models")
-                .join("whisper")
-                .join("ggml-base.en.bin"),
+            model_path: selected_model.path.clone(),
+            model_name: selected_model.name.clone(),
+            available_models,
         }
     }
+}
+
+fn discover_whisper_models(model_dir: &Path) -> Vec<WhisperModelStatus> {
+    WHISPER_MODEL_CANDIDATES
+        .iter()
+        .map(|candidate| {
+            let path = model_dir.join(candidate.filename);
+            WhisperModelStatus {
+                name: candidate.name.to_string(),
+                filename: candidate.filename.to_string(),
+                installed: path.is_file(),
+                path,
+                selected: false,
+            }
+        })
+        .collect()
 }
 
 #[derive(Clone, Default)]
@@ -276,11 +325,26 @@ struct TranscriptionStatusPayload {
     model_exists: bool,
     engine_path: String,
     model_path: String,
+    model_name: String,
+    available_models: Vec<WhisperModelStatus>,
     message: String,
 }
 
+#[derive(serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct WhisperModelStatus {
+    name: String,
+    filename: String,
+    path: PathBuf,
+    installed: bool,
+    selected: bool,
+}
+
+#[derive(Clone)]
 struct TranscriptionPaths {
     model_path: PathBuf,
+    model_name: String,
+    available_models: Vec<WhisperModelStatus>,
 }
 
 #[tauri::command]
@@ -716,7 +780,10 @@ fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
     let model_exists = transcription_paths.model_path.is_file();
     let ready = model_exists;
     let message = match model_exists {
-        true => "Local transcription is ready".to_string(),
+        true => format!(
+            "Local transcription is ready ({})",
+            transcription_paths.model_name
+        ),
         false => "Local transcription model is missing".to_string(),
     };
 
@@ -726,6 +793,8 @@ fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
         model_exists,
         engine_path: "embedded whisper.cpp runtime".to_string(),
         model_path: transcription_paths.model_path.display().to_string(),
+        model_name: transcription_paths.model_name,
+        available_models: transcription_paths.available_models,
         message,
     }
 }
@@ -1189,7 +1258,7 @@ fn run_live_transcription_loop(
         &app,
         &thread_id,
         true,
-        "Live transcription is listening with a 12s rolling window and 2s commit delay",
+        format!("Live transcription is listening with {}", paths.model_name),
     );
 
     let jsonl_path = thread_dir.join("transcript.jsonl");
