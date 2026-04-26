@@ -28,8 +28,8 @@ use threads::repository::{
 };
 use threads::{ThreadDetail, ThreadStatus, ThreadSummary};
 use transcription::{
-    spawn_live_transcription_thread, LiveTranscriptionThreadConfig, TranscriptionPaths,
-    TranscriptionStatusPayload,
+    spawn_live_transcription_thread, transcription_status, LiveTranscriptionThreadConfig,
+    TranscriptionPaths, TranscriptionStatusPayload,
 };
 
 #[derive(Clone, Default)]
@@ -354,31 +354,6 @@ fn stop_recording_inner(paths: AppPaths, recorder: RecorderState) -> Result<Thre
     set_thread_status(&thread_dir, ThreadStatus::Idle)?;
     render_thread_markdown(&thread_dir, duration_ms)?;
     load_thread_by_id(&paths, &thread_id)
-}
-
-fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
-    let transcription_paths = paths.transcription_paths();
-    let engine_exists = true;
-    let model_exists = transcription_paths.model_path.is_file();
-    let ready = model_exists;
-    let message = match model_exists {
-        true => format!(
-            "Local transcription is ready ({})",
-            transcription_paths.model_name
-        ),
-        false => "Local transcription model is missing".to_string(),
-    };
-
-    TranscriptionStatusPayload {
-        ready,
-        engine_exists,
-        model_exists,
-        engine_path: "embedded whisper.cpp runtime".to_string(),
-        model_path: transcription_paths.model_path.display().to_string(),
-        model_name: transcription_paths.model_name,
-        available_models: transcription_paths.available_models,
-        message,
-    }
 }
 
 fn spawn_meter_thread(
