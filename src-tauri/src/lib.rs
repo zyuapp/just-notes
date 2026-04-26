@@ -1341,7 +1341,7 @@ impl WhisperRuntime {
         let mut segments = Vec::new();
         for segment in state.as_iter() {
             let text = segment.to_string().trim().to_string();
-            if text.is_empty() {
+            if text.is_empty() || is_ignored_transcript_text(&text) {
                 continue;
             }
             let start_ms = (segment.start_timestamp().max(0) as u64) * 10;
@@ -1405,9 +1405,9 @@ fn process_live_channel(
         return Ok(0);
     }
 
-    let window_start_ms = commit_until_ms.saturating_sub(LIVE_TRANSCRIPTION_WINDOW_MS);
+    let window_start_ms = target_end_ms.saturating_sub(LIVE_TRANSCRIPTION_WINDOW_MS);
     let start_index = ms_to_samples(window_start_ms, state.sample_rate) as u64;
-    let end_index = ms_to_samples(commit_until_ms, state.sample_rate) as u64;
+    let end_index = ms_to_samples(target_end_ms, state.sample_rate) as u64;
 
     let samples = {
         let shared = buffers
@@ -1442,41 +1442,63 @@ fn process_live_channel(
     )?;
     segments.sort_by_key(|segment| segment.start_ms);
 
-    let mut emitted = 0usize;
-    for mut segment in segments {
-        segment.start_ms += window_start_ms;
-        segment.end_ms += window_start_ms;
-        segment.start_ms = segment.start_ms.min(commit_until_ms);
-        segment.end_ms = segment.end_ms.min(commit_until_ms).max(segment.start_ms);
-
-        if segment.end_ms <= state.last_emitted_end_ms {
-            continue;
+    let decoded_text = segments
+        .iter()
+        .map(|segment| segment.text.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let emitted = if let Some(unique_text) = state.unique_text(&decoded_text) {
+        let unique_text = unique_text.trim().to_string();
+        if unique_text.is_empty() {
+            state.committed_until_ms = commit_until_ms;
+            state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
+            return Ok(0);
         }
-        let Some(unique_text) = state.unique_text(&segment.text) else {
-            continue;
-        };
-        segment.text = unique_text;
 
-        append_live_segment(jsonl_path, &segment)?;
-        touch_thread(thread_dir)?;
-        let emitted_end_ms = segment.end_ms;
-        state.remember_prompt_text(&segment.text);
-        state.remember_emitted_text(&segment.text);
-        let _ = app.emit(
-            "live-transcript-segment",
-            LiveTranscriptSegmentPayload {
-                thread_id: thread_id.to_string(),
-                committed_until_ms: commit_until_ms,
-                segment,
-            },
-        );
-        state.last_emitted_end_ms = state.last_emitted_end_ms.max(emitted_end_ms);
-        emitted += 1;
+        let segment = TranscriptSegment {
+            speaker: state.speaker.to_string(),
+            source: state.source.to_string(),
+            start_ms: state.last_emitted_end_ms.max(window_start_ms),
+            end_ms: commit_until_ms,
+            text: unique_text,
+        };
+
+        if segment.end_ms > segment.start_ms {
+            append_live_segment(jsonl_path, &segment)?;
+            touch_thread(thread_dir)?;
+            state.remember_prompt_text(&segment.text);
+            state.remember_emitted_text(&segment.text);
+            let _ = app.emit(
+                "live-transcript-segment",
+                LiveTranscriptSegmentPayload {
+                    thread_id: thread_id.to_string(),
+                    committed_until_ms: commit_until_ms,
+                    segment,
+                },
+            );
+            state.last_emitted_end_ms = state.last_emitted_end_ms.max(commit_until_ms);
+            1
+        } else {
+            0
+        }
+    } else {
+        0
+    };
+
+    if emitted == 0 {
+        state.last_emitted_end_ms = state.last_emitted_end_ms.max(commit_until_ms);
     }
 
     state.committed_until_ms = commit_until_ms;
     state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
     Ok(emitted)
+}
+
+fn is_ignored_transcript_text(text: &str) -> bool {
+    matches!(
+        text.trim().to_ascii_lowercase().as_str(),
+        "[blank_audio]" | "[silence]" | "(silence)" | "[music]" | "(music)"
+    )
 }
 
 fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> Option<String> {
