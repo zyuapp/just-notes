@@ -5,6 +5,8 @@ import type { ThreadDetail } from "./bindings/ThreadDetail";
 import type { ThreadSummary } from "./bindings/ThreadSummary";
 import type { TranscriptionStatusPayload as TranscriptionStatus } from "./bindings/TranscriptionStatusPayload";
 import { api, getApiErrorMessage } from "./api";
+import { formatDuration, formatThreadDate } from "./lib/format";
+import { applyLiveSegmentToThread, applyLiveSegmentToThreadList } from "./lib/transcript";
 import {
   FlaskConical,
   Circle,
@@ -21,22 +23,6 @@ import { useEffect, useMemo, useState } from "react";
 type RecorderState = "idle" | "starting" | "recording" | "stopping";
 
 const meterBars = Array.from({ length: 18 }, (_, index) => index);
-
-function formatDuration(ms: number) {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-}
-
-function formatThreadDate(ms: number) {
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(ms));
-}
 
 function Meter({ label, level, source }: { label: string; level: number; source: "mic" | "system" }) {
   const activeBars = Math.round(Math.min(1, Math.max(0, level)) * meterBars.length);
@@ -83,33 +69,9 @@ export default function App() {
       setMeters(payload);
     });
     const unlistenSegment = api.events.onLiveTranscriptSegment((payload) => {
-      setSelectedThread((current) => {
-        if (!current || current.summary.id !== payload.threadId) return current;
-        const segments = [...current.segments, payload.segment].sort((left, right) => {
-          if (left.startMs !== right.startMs) return left.startMs - right.startMs;
-          return left.source.localeCompare(right.source);
-        });
-        return {
-          ...current,
-          segments,
-          summary: {
-            ...current.summary,
-            segmentCount: segments.length,
-            updatedAtMs: Date.now(),
-          },
-        };
-      });
-      setThreads((current) =>
-        current.map((thread) =>
-          thread.id === payload.threadId
-            ? {
-                ...thread,
-                segmentCount: thread.segmentCount + 1,
-                updatedAtMs: Date.now(),
-              }
-            : thread,
-        ),
-      );
+      const updatedAtMs = Date.now();
+      setSelectedThread((current) => applyLiveSegmentToThread(current, payload, updatedAtMs));
+      setThreads((current) => applyLiveSegmentToThreadList(current, payload, updatedAtMs));
     });
     const unlistenStatus = api.events.onLiveTranscriptStatus((payload) => {
       setLiveStatus(payload);

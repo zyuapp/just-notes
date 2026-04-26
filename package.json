@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "bindings:rs": "cd src-tauri && cargo test export_bindings",
     "bindings:rs:check": "scripts/check-bindings-clean.sh",
-    "test:fe": "bun test src/api/*.test.ts",
+    "test:fe": "bun test ./src/**/*.test.ts",
     "lint:fe:boundary": "scripts/check-frontend-api-boundary.sh",
     "fmt:rs": "cd src-tauri && cargo fmt -- --check",
     "lint:rs": "cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings -W clippy::cognitive-complexity -W clippy::too-many-lines",
