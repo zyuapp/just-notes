@@ -1448,7 +1448,7 @@ fn process_live_channel(
         .collect::<Vec<_>>()
         .join(" ");
     let emitted = if let Some(unique_text) = state.unique_text(&decoded_text) {
-        let unique_text = unique_text.trim().to_string();
+        let unique_text = completed_transcript_text(&unique_text, final_flush);
         if unique_text.is_empty() {
             state.committed_until_ms = commit_until_ms;
             state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
@@ -1499,6 +1499,27 @@ fn is_ignored_transcript_text(text: &str) -> bool {
         text.trim().to_ascii_lowercase().as_str(),
         "[blank_audio]" | "[silence]" | "(silence)" | "[music]" | "(music)"
     )
+}
+
+fn completed_transcript_text(text: &str, include_partial: bool) -> String {
+    let text = text.trim();
+    if include_partial || transcript_text_is_complete(text) {
+        return text.to_string();
+    }
+
+    split_transcript_sentences(text)
+        .into_iter()
+        .filter(|sentence| transcript_text_is_complete(sentence))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn transcript_text_is_complete(text: &str) -> bool {
+    text.trim()
+        .chars()
+        .next_back()
+        .map(|character| matches!(character, '.' | '!' | '?'))
+        .unwrap_or(false)
 }
 
 fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> Option<String> {
@@ -2113,6 +2134,25 @@ mod tests {
                 &recent,
             ),
             Some("Section 21 says the navy notebook contains project tasks.".to_string()),
+        );
+    }
+
+    #[test]
+    fn completed_transcript_text_drops_live_partial_sentence() {
+        assert_eq!(
+            completed_transcript_text(
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow",
+                false,
+            ),
+            "Section 1 says the green calendar moved beside the copper lamp.".to_string(),
+        );
+        assert_eq!(
+            completed_transcript_text("Section 2 says the yellow", false),
+            "".to_string(),
+        );
+        assert_eq!(
+            completed_transcript_text("Section 2 says the yellow", true),
+            "Section 2 says the yellow".to_string(),
         );
     }
 }
