@@ -1314,6 +1314,7 @@ struct LiveChannelState {
     last_emitted_end_ms: u64,
     prompt_tail: VecDeque<String>,
     emitted_text_tail: VecDeque<String>,
+    previous_hypothesis: Option<String>,
 }
 
 impl LiveChannelState {
@@ -1327,6 +1328,7 @@ impl LiveChannelState {
             last_emitted_end_ms: 0,
             prompt_tail: VecDeque::with_capacity(8),
             emitted_text_tail: VecDeque::with_capacity(LIVE_DUPLICATE_RECENT_SEGMENTS),
+            previous_hypothesis: None,
         }
     }
 
@@ -1359,6 +1361,24 @@ impl LiveChannelState {
         while self.emitted_text_tail.len() > LIVE_DUPLICATE_RECENT_SEGMENTS {
             self.emitted_text_tail.pop_front();
         }
+    }
+
+    fn agreed_text(&mut self, text: &str, final_flush: bool) -> Option<String> {
+        let hypothesis = text.trim();
+        if hypothesis.is_empty() {
+            self.previous_hypothesis = None;
+            return None;
+        }
+
+        let agreed = if final_flush {
+            Some(hypothesis.to_string())
+        } else {
+            self.previous_hypothesis
+                .as_deref()
+                .and_then(|previous| common_transcript_prefix(previous, hypothesis))
+        };
+        self.previous_hypothesis = Some(hypothesis.to_string());
+        agreed
     }
 }
 
@@ -1516,7 +1536,13 @@ fn process_live_channel(
         .map(|segment| segment.text.as_str())
         .collect::<Vec<_>>()
         .join(" ");
-    let emitted = if let Some(unique_text) = state.unique_text(&decoded_text) {
+    let Some(agreed_text) = state.agreed_text(&decoded_text, final_flush) else {
+        state.committed_until_ms = commit_until_ms;
+        state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
+        return Ok(0);
+    };
+
+    let emitted = if let Some(unique_text) = state.unique_text(&agreed_text) {
         let unique_text = completed_transcript_text(&unique_text, final_flush);
         if unique_text.is_empty() {
             state.committed_until_ms = commit_until_ms;
@@ -1554,10 +1580,6 @@ fn process_live_channel(
         0
     };
 
-    if emitted == 0 {
-        state.last_emitted_end_ms = state.last_emitted_end_ms.max(commit_until_ms);
-    }
-
     state.committed_until_ms = commit_until_ms;
     state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
     Ok(emitted)
@@ -1589,6 +1611,18 @@ fn transcript_text_is_complete(text: &str) -> bool {
         .next_back()
         .map(|character| matches!(character, '.' | '!' | '?'))
         .unwrap_or(false)
+}
+
+fn common_transcript_prefix(left: &str, right: &str) -> Option<String> {
+    let left_words = normalized_words(left);
+    let right_words = transcript_words(right);
+    let prefix_len = left_words
+        .iter()
+        .zip(right_words.iter())
+        .take_while(|(left, right)| left.as_str() == right.normalized.as_str())
+        .count();
+
+    (prefix_len > 0).then(|| join_original_words(&right_words[..prefix_len]))
 }
 
 fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> Option<String> {
@@ -2222,6 +2256,39 @@ mod tests {
         assert_eq!(
             completed_transcript_text("Section 2 says the yellow", true),
             "Section 2 says the yellow".to_string(),
+        );
+    }
+
+    #[test]
+    fn common_transcript_prefix_returns_agreed_words_from_latest_text() {
+        assert_eq!(
+            common_transcript_prefix(
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow",
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow folder stayed under the quiet monitor.",
+            ),
+            Some(
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow"
+                    .to_string()
+            ),
+        );
+    }
+
+    #[test]
+    fn live_channel_state_requires_two_matching_hypotheses() {
+        let mut state = LiveChannelState::new("system", "Others", 48_000);
+        assert_eq!(
+            state.agreed_text(
+                "Section 1 says the green calendar moved beside the copper lamp.",
+                false,
+            ),
+            None,
+        );
+        assert_eq!(
+            state.agreed_text(
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow folder.",
+                false,
+            ),
+            Some("Section 1 says the green calendar moved beside the copper lamp.".to_string()),
         );
     }
 }
