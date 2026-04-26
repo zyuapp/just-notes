@@ -428,6 +428,30 @@ fn touch_thread(thread_dir: &Path) -> Result<(), String> {
     save_thread_metadata(thread_dir, &metadata)
 }
 
+fn reset_stale_recording_threads(paths: &AppPaths) -> Result<(), String> {
+    paths.ensure()?;
+    for entry in fs::read_dir(&paths.threads_dir)
+        .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?
+    {
+        let entry =
+            entry.map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?;
+        let thread_dir = entry.path();
+        if !thread_dir.is_dir() {
+            continue;
+        }
+        let metadata_path = thread_dir.join("thread.json");
+        if !metadata_path.is_file() {
+            continue;
+        }
+        let mut metadata = read_thread_metadata(&metadata_path)?;
+        if metadata.status == ThreadStatus::Recording {
+            metadata.status = ThreadStatus::Idle;
+            save_thread_metadata(&thread_dir, &metadata)?;
+        }
+    }
+    Ok(())
+}
+
 fn start_recording_inner(
     app: AppHandle,
     paths: AppPaths,
@@ -1530,7 +1554,7 @@ pub fn run() {
         .manage(paths)
         .manage(RecorderState::default())
         .setup(|app| {
-            app.state::<AppPaths>().ensure()?;
+            reset_stale_recording_threads(app.state::<AppPaths>().inner())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
