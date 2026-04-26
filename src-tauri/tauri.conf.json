@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Just Notes",
+  "version": "0.1.0",
+  "identifier": "dev.just-notes.app",
+  "build": {
+    "beforeDevCommand": "bun dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Just Notes",
+        "width": 1120,
+        "height": 720,
+        "minWidth": 900,
+        "minHeight": 620,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": false,
+    "targets": "all",
+    "macOS": {
+      "minimumSystemVersion": "14.4",
+      "entitlements": "./Entitlements.plist",
+      "signingIdentity": "-"
+    }
+  }
+}

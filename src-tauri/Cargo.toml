@@ -1,0 +1,24 @@
+[package]
+name = "just-notes"
+version = "0.1.0"
+description = "Local-first live transcription notes"
+authors = ["Just Notes"]
+edition = "2021"
+rust-version = "1.78"
+
+[lib]
+name = "just_notes_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.1", features = [] }
+
+[dependencies]
+block2 = "0.6.2"
+cpal = "0.17.3"
+hound = "3.5.1"
+objc2 = "0.6.4"
+objc2-av-foundation = { version = "0.3.2", default-features = false, features = ["AVCaptureDevice", "AVMediaFormat", "block2", "std"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "2.9.3", features = [] }
