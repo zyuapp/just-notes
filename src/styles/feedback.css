@@ -1,0 +1,16 @@
+.error {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  max-width: min(640px, calc(100vw - 36px));
+  max-height: 160px;
+  margin: 0;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid rgba(255, 102, 95, 0.36);
+  border-radius: 8px;
+  background: rgba(52, 17, 17, 0.96);
+  color: #ffd0cc;
+  font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+}

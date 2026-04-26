@@ -1,0 +1,58 @@
+.meters {
+  display: grid;
+  gap: 10px;
+  padding: 0 18px 16px;
+}
+
+.meter {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.meter-heading {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  color: #c5cec8;
+  font-size: 12px;
+}
+
+.meter-heading strong {
+  color: var(--dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.meter-grid {
+  display: grid;
+  grid-template-columns: repeat(18, 1fr);
+  gap: 3px;
+  height: 24px;
+  align-items: end;
+}
+
+.meter-grid span {
+  display: block;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(233, 238, 233, 0.12);
+}
+
+.meter-grid span:nth-child(3n) {
+  height: 14px;
+}
+
+.meter-grid span:nth-child(4n) {
+  height: 20px;
+}
+
+.meter-grid span.active {
+  background: var(--green);
+  box-shadow: 0 0 12px rgba(119, 217, 138, 0.28);
+}

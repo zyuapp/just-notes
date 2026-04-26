@@ -10,11 +10,13 @@
     "bindings:rs:check": "scripts/check-bindings-clean.sh",
     "test:fe": "bun test ./src/**/*.test.ts",
     "lint:fe:boundary": "scripts/check-frontend-api-boundary.sh",
+    "lint:fe:components": "scripts/check-frontend-component-boundary.sh",
+    "lint:fe:files": "scripts/check-frontend-file-lines.sh",
     "fmt:rs": "cd src-tauri && cargo fmt -- --check",
     "lint:rs": "cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings -W clippy::cognitive-complexity -W clippy::too-many-lines",
     "lint:rs:files": "scripts/check-rust-file-lines.sh",
     "test:rs": "cd src-tauri && cargo test --all-features",
-    "verify": "bun run bindings:rs:check && bun run build && bun run lint:fe:boundary && bun run test:fe && bun run fmt:rs && bun run lint:rs && bun run lint:rs:files && bun run test:rs",
+    "verify": "bun run bindings:rs:check && bun run build && bun run lint:fe:boundary && bun run lint:fe:components && bun run lint:fe:files && bun run test:fe && bun run fmt:rs && bun run lint:rs && bun run lint:rs:files && bun run test:rs",
     "tauri": "tauri"
   },
   "dependencies": {

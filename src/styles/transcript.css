@@ -1,0 +1,145 @@
+.thread-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  min-width: 0;
+  background: var(--panel);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 30px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow,
+.panel-head h1 {
+  margin: 0;
+}
+
+.eyebrow {
+  margin-bottom: 6px;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.panel-head h1 {
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.panel-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 100px;
+  height: 38px;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: #ccd5cf;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-light {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #48524c;
+}
+
+.status-light.live {
+  background: var(--red);
+  box-shadow: 0 0 0 3px rgba(255, 102, 95, 0.18);
+}
+
+.engine-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 11px 30px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.engine-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transcript-surface {
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 30px 28px;
+}
+
+.segment {
+  display: grid;
+  grid-template-columns: 58px 76px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(233, 238, 233, 0.07);
+}
+
+.segment time,
+.segment strong {
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 1.55;
+  font-variant-numeric: tabular-nums;
+}
+
+.segment strong {
+  color: #cbd5cf;
+  font-weight: 700;
+}
+
+.segment p {
+  min-width: 0;
+  margin: 0;
+  color: #eef4ef;
+  font-size: 14px;
+  line-height: 1.58;
+  overflow-wrap: anywhere;
+}
+
+.empty-state {
+  display: grid;
+  height: 100%;
+  min-height: 280px;
+  place-content: center;
+  gap: 10px;
+  color: var(--dim);
+  font-size: 13px;
+  text-align: center;
+}
+
+.panel-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px 30px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font: 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.panel-foot span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-foot span:last-child {
+  text-align: right;
+}
