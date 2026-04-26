@@ -47,7 +47,7 @@ const LIVE_DUPLICATE_COVERAGE_THRESHOLD: f32 = 0.72;
 const LIVE_DUPLICATE_MIN_KEEP_WORDS: usize = 4;
 const LIVE_DUPLICATE_MIN_TRIM_WORDS: usize = 6;
 const MAX_ROLLING_BUFFER_MS: u64 = 120_000;
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 const FIXTURE_CHUNK_MS: u64 = 50;
 const SYSTEM_CAPTURE_DEVICE_NAME: &str = "Just Notes System Audio";
 const WHISPER_MODEL_CANDIDATES: [WhisperModelCandidate; 3] = [
@@ -177,11 +177,11 @@ enum ActiveAudioCapture {
         _mic_stream: Stream,
         _system_capture: SystemAudioCapture,
     },
-    #[cfg(debug_assertions)]
+    #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
     Fixture(FixtureAudioCapture),
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 struct FixtureAudioCapture {
     should_stop: Arc<AtomicBool>,
     workers: Vec<JoinHandle<()>>,
@@ -189,7 +189,7 @@ struct FixtureAudioCapture {
 
 enum RecordingInputMode {
     Devices,
-    #[cfg(debug_assertions)]
+    #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
     Fixture {
         mic_path: PathBuf,
         system_path: PathBuf,
@@ -314,6 +314,7 @@ struct ThreadDetail {
 struct AppInfo {
     data_dir: String,
     threads_dir: String,
+    fixture_mode: bool,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -386,6 +387,7 @@ fn get_app_info(paths: tauri::State<'_, AppPaths>) -> AppInfo {
     AppInfo {
         data_dir: paths.data_dir.display().to_string(),
         threads_dir: paths.threads_dir.display().to_string(),
+        fixture_mode: cfg!(any(debug_assertions, feature = "qa-fixtures")),
     }
 }
 
@@ -445,7 +447,7 @@ async fn start_recording(
     .map_err(|err| format!("Audio startup task failed: {err}"))?
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 #[tauri::command]
 async fn start_fixture_recording(
     app: AppHandle,
@@ -1086,7 +1088,7 @@ fn prepare_audio_input(
 ) -> Result<PreparedAudioInput, String> {
     match input_mode {
         RecordingInputMode::Devices => prepare_device_audio_input(app),
-        #[cfg(debug_assertions)]
+        #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
         RecordingInputMode::Fixture {
             mic_path,
             system_path,
@@ -1157,7 +1159,7 @@ fn start_audio_capture(audio_capture: &mut ActiveAudioCapture) -> Result<(), Str
                 .play()
                 .map_err(|err| format!("Failed to start system loopback stream: {err}"))
         }
-        #[cfg(debug_assertions)]
+        #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
         ActiveAudioCapture::Fixture(_) => Ok(()),
     }
 }
@@ -1171,7 +1173,7 @@ fn stop_audio_capture(audio_capture: ActiveAudioCapture) {
             drop(_mic_stream);
             drop(_system_capture);
         }
-        #[cfg(debug_assertions)]
+        #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
         ActiveAudioCapture::Fixture(fixture) => {
             fixture.should_stop.store(true, Ordering::Relaxed);
             for worker in fixture.workers {
@@ -1181,13 +1183,13 @@ fn stop_audio_capture(audio_capture: ActiveAudioCapture) {
     }
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 struct FixtureTrack {
     sample_rate: u32,
     samples: Vec<f32>,
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 fn prepare_fixture_audio_input(
     mic_path: PathBuf,
     system_path: PathBuf,
@@ -1225,14 +1227,14 @@ fn prepare_fixture_audio_input(
     })
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 fn read_wav_sample_rate(path: &Path) -> Result<u32, String> {
     let reader = hound::WavReader::open(path)
         .map_err(|err| format!("Failed to open fixture audio {}: {err}", path.display()))?;
     Ok(reader.spec().sample_rate)
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 fn read_fixture_track(path: &Path) -> Result<FixtureTrack, String> {
     let mut reader = hound::WavReader::open(path).map_err(|err| {
         format!(
@@ -1290,7 +1292,7 @@ fn read_fixture_track(path: &Path) -> Result<FixtureTrack, String> {
     })
 }
 
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 fn spawn_fixture_audio_worker(
     track: FixtureTrack,
     buffers: Arc<Mutex<SharedBuffers>>,
@@ -2754,7 +2756,7 @@ pub fn run() {
             Ok(())
         });
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         get_app_info,
         list_threads,
@@ -2766,7 +2768,7 @@ pub fn run() {
         stop_recording
     ]);
 
-    #[cfg(not(debug_assertions))]
+    #[cfg(not(any(debug_assertions, feature = "qa-fixtures")))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         get_app_info,
         list_threads,

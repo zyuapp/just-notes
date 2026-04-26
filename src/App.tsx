@@ -13,14 +13,13 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-const isDev = Boolean((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV);
-
 type ThreadStatus = "idle" | "recording";
 type RecorderState = "idle" | "starting" | "recording" | "stopping";
 
 type AppInfo = {
   dataDir: string;
   threadsDir: string;
+  fixtureMode: boolean;
 };
 
 type ThreadSummary = {
@@ -351,7 +350,7 @@ export default function App() {
             <span>{recorderState === "recording" ? "Stop" : "Record"}</span>
           </button>
           <div className="capture-state">{statusLabel}</div>
-          {isDev && (
+          {appInfo?.fixtureMode && (
             <button
               type="button"
               className="fixture-button"
