@@ -34,7 +34,9 @@ Use this when changing thread persistence, transcript ordering, markdown output,
 
 - `model.rs`: capture session models, prepared input, shared rolling buffers, channel state, and capture source.
 - `device.rs`: real microphone and system-loopback device preparation.
-- `system_loopback.rs`: macOS CoreAudio process tap and aggregate device setup.
+- `system_loopback/mod.rs`: system-loopback facade and CPAL device discovery.
+- `system_loopback/tap.rs`: CoreAudio process tap lifecycle.
+- `system_loopback/aggregate.rs`: CoreAudio aggregate device description, attachment, and property helpers.
 - `permission.rs`: microphone authorization.
 - `samples.rs`: CPAL input stream construction and sample conversion into mono rolling buffers.
 - `fixture.rs`: QA fixture WAV loading and simulated audio workers.
