@@ -10,7 +10,6 @@ use std::{
 };
 
 use tauri::{AppHandle, Emitter, Manager};
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
 mod app;
 mod capture;
@@ -35,10 +34,9 @@ use threads::repository::{
 use threads::transcript_store::append_live_segment;
 use threads::{ThreadDetail, ThreadStatus, ThreadSummary, TranscriptSegment};
 use transcription::{
-    clean_transcript_text, common_transcript_prefix, completed_transcript_text,
-    estimate_text_end_ms, first_audible_ms, is_ignored_transcript_text, ms_to_samples,
-    resample_to_rate, rms, samples_to_ms, unique_transcript_text, TranscriptionPaths,
-    TranscriptionStatusPayload, LIVE_DUPLICATE_RECENT_SEGMENTS,
+    common_transcript_prefix, completed_transcript_text, estimate_text_end_ms, first_audible_ms,
+    ms_to_samples, resample_to_rate, rms, samples_to_ms, unique_transcript_text,
+    TranscriptionPaths, TranscriptionStatusPayload, WhisperRuntime, LIVE_DUPLICATE_RECENT_SEGMENTS,
 };
 
 type LiveSampleWindow = Option<Vec<f32>>;
@@ -624,75 +622,6 @@ impl LiveChannelState {
     }
 }
 
-struct WhisperRuntime {
-    ctx: WhisperContext,
-}
-
-impl WhisperRuntime {
-    fn load(model_path: &Path) -> Result<Self, String> {
-        let ctx = WhisperContext::new_with_params(model_path, WhisperContextParameters::default())
-            .map_err(|err| {
-                format!(
-                    "Failed to load local transcription model {}: {err}",
-                    model_path.display()
-                )
-            })?;
-        Ok(Self { ctx })
-    }
-
-    fn transcribe(
-        &self,
-        samples_16k: &[f32],
-        prompt: &str,
-        source: &str,
-        speaker: &str,
-    ) -> Result<Vec<TranscriptSegment>, String> {
-        let mut state = self
-            .ctx
-            .create_state()
-            .map_err(|err| format!("Failed to create transcription state: {err}"))?;
-        let mut params = FullParams::new(SamplingStrategy::BeamSearch {
-            beam_size: 5,
-            patience: -1.0,
-        });
-        params.set_language(Some("en"));
-        params.set_n_threads(default_thread_count() as i32);
-        params.set_no_context(true);
-        params.set_single_segment(false);
-        params.set_print_special(false);
-        params.set_print_progress(false);
-        params.set_print_realtime(false);
-        params.set_print_timestamps(false);
-        let _ = prompt;
-
-        state
-            .full(params, samples_16k)
-            .map_err(|err| format!("Failed to transcribe {source} audio: {err}"))?;
-
-        let mut segments = Vec::new();
-        for segment in state.as_iter() {
-            let text = clean_transcript_text(&segment.to_string());
-            if text.is_empty() || is_ignored_transcript_text(&text) {
-                continue;
-            }
-            let start_ms = (segment.start_timestamp().max(0) as u64) * 10;
-            let end_ms = (segment
-                .end_timestamp()
-                .max(segment.start_timestamp())
-                .max(0) as u64)
-                * 10;
-            segments.push(TranscriptSegment {
-                speaker: speaker.to_string(),
-                source: source.to_string(),
-                start_ms,
-                end_ms,
-                text,
-            });
-        }
-        Ok(segments)
-    }
-}
-
 struct LiveChannelContext<'a> {
     app: &'a AppHandle,
     whisper: &'a WhisperRuntime,
@@ -944,12 +873,6 @@ pub(crate) fn now_ms() -> Result<u64, String> {
         .as_millis() as u64)
 }
 
-fn default_thread_count() -> usize {
-    thread::available_parallelism()
-        .map(|count| count.get().clamp(2, 8))
-        .unwrap_or(4)
-}
-
 pub fn run() {
     let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
 
@@ -1181,7 +1104,9 @@ mod tests {
     #[test]
     fn clean_transcript_text_removes_leading_non_speech_marker() {
         assert_eq!(
-            clean_transcript_text("(no audio) Long recording quality test begins now."),
+            transcription::clean_transcript_text(
+                "(no audio) Long recording quality test begins now."
+            ),
             "Long recording quality test begins now.".to_string(),
         );
     }
