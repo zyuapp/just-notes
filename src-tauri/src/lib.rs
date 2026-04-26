@@ -43,6 +43,8 @@ const LIVE_SILENCE_RMS_THRESHOLD: f32 = 0.005;
 const LIVE_DUPLICATE_RECENT_SEGMENTS: usize = 8;
 const LIVE_DUPLICATE_NGRAM_SIZE: usize = 3;
 const LIVE_DUPLICATE_COVERAGE_THRESHOLD: f32 = 0.72;
+const LIVE_DUPLICATE_MIN_KEEP_WORDS: usize = 4;
+const LIVE_DUPLICATE_MIN_TRIM_WORDS: usize = 6;
 const MAX_ROLLING_BUFFER_MS: u64 = 120_000;
 const SYSTEM_CAPTURE_DEVICE_NAME: &str = "Just Notes System Audio";
 
@@ -1279,8 +1281,8 @@ impl LiveChannelState {
         }
     }
 
-    fn is_duplicate_text(&self, text: &str) -> bool {
-        is_repeated_transcript_text(text, &self.emitted_text_tail)
+    fn unique_text(&self, text: &str) -> Option<String> {
+        unique_transcript_text(text, &self.emitted_text_tail)
     }
 
     fn remember_emitted_text(&mut self, text: &str) {
@@ -1452,9 +1454,10 @@ fn process_live_channel(
         if segment.end_ms <= state.last_emitted_end_ms || segment.end_ms > commit_until_ms {
             continue;
         }
-        if state.is_duplicate_text(&segment.text) {
+        let Some(unique_text) = state.unique_text(&segment.text) else {
             continue;
-        }
+        };
+        segment.text = unique_text;
 
         append_live_segment(jsonl_path, &segment)?;
         touch_thread(thread_dir)?;
@@ -1478,18 +1481,23 @@ fn process_live_channel(
     Ok(emitted)
 }
 
-fn is_repeated_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> bool {
+fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> Option<String> {
     if recent_texts.is_empty() {
-        return false;
+        return Some(candidate.to_string());
     }
 
-    let candidate_words = normalized_words(candidate);
+    let candidate_word_pairs = transcript_words(candidate);
+    let candidate_words = candidate_word_pairs
+        .iter()
+        .map(|word| word.normalized.clone())
+        .collect::<Vec<_>>();
     if candidate_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
-        return recent_texts
+        return (!recent_texts
             .iter()
             .rev()
             .take(LIVE_DUPLICATE_RECENT_SEGMENTS)
-            .any(|text| normalized_words(text) == candidate_words);
+            .any(|text| normalized_words(text) == candidate_words))
+        .then(|| candidate.to_string());
     }
 
     let recent = recent_texts
@@ -1504,33 +1512,119 @@ fn is_repeated_transcript_text(candidate: &str, recent_texts: &VecDeque<String>)
         .join(" ");
     let recent_words = normalized_words(&recent);
     if recent_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
-        return false;
+        return Some(candidate.to_string());
     }
 
-    let candidate_ngrams = word_ngrams(&candidate_words, LIVE_DUPLICATE_NGRAM_SIZE);
+    if duplicate_coverage(&candidate_words, &recent_words) >= LIVE_DUPLICATE_COVERAGE_THRESHOLD {
+        return None;
+    }
+
+    if let Some(text) = trim_duplicate_suffix(&candidate_word_pairs, &recent_words) {
+        return Some(text);
+    }
+    if let Some(text) = trim_duplicate_prefix(&candidate_word_pairs, &recent_words) {
+        return Some(text);
+    }
+
+    Some(candidate.to_string())
+}
+
+fn trim_duplicate_suffix(words: &[TranscriptWord], recent_words: &[String]) -> Option<String> {
+    if words.len() < LIVE_DUPLICATE_MIN_KEEP_WORDS + LIVE_DUPLICATE_MIN_TRIM_WORDS {
+        return None;
+    }
+
+    let mut first_valid_split = None;
+    for split in LIVE_DUPLICATE_MIN_KEEP_WORDS..=(words.len() - LIVE_DUPLICATE_MIN_TRIM_WORDS) {
+        let suffix = words[split..]
+            .iter()
+            .map(|word| word.normalized.clone())
+            .collect::<Vec<_>>();
+        if duplicate_coverage(&suffix, recent_words) >= LIVE_DUPLICATE_COVERAGE_THRESHOLD {
+            if sentence_ends_after(&words[split - 1].original) {
+                return Some(join_original_words(&words[..split]));
+            }
+            first_valid_split.get_or_insert(split);
+        }
+    }
+
+    first_valid_split.map(|split| join_original_words(&words[..split]))
+}
+
+fn trim_duplicate_prefix(words: &[TranscriptWord], recent_words: &[String]) -> Option<String> {
+    if words.len() < LIVE_DUPLICATE_MIN_KEEP_WORDS + LIVE_DUPLICATE_MIN_TRIM_WORDS {
+        return None;
+    }
+
+    for split in LIVE_DUPLICATE_MIN_TRIM_WORDS..=(words.len() - LIVE_DUPLICATE_MIN_KEEP_WORDS) {
+        let prefix = words[..split]
+            .iter()
+            .map(|word| word.normalized.clone())
+            .collect::<Vec<_>>();
+        if duplicate_coverage(&prefix, recent_words) >= LIVE_DUPLICATE_COVERAGE_THRESHOLD {
+            return Some(join_original_words(&words[split..]));
+        }
+    }
+
+    None
+}
+
+fn duplicate_coverage(candidate_words: &[String], recent_words: &[String]) -> f32 {
+    let candidate_ngrams = word_ngrams(candidate_words, LIVE_DUPLICATE_NGRAM_SIZE);
     if candidate_ngrams.is_empty() {
-        return false;
+        return 0.0;
     }
 
-    let recent_ngrams = word_ngrams(&recent_words, LIVE_DUPLICATE_NGRAM_SIZE);
+    let recent_ngrams = word_ngrams(recent_words, LIVE_DUPLICATE_NGRAM_SIZE);
     let covered = candidate_ngrams
         .iter()
         .filter(|ngram| recent_ngrams.contains(ngram))
         .count();
-    let coverage = covered as f32 / candidate_ngrams.len() as f32;
-    coverage >= LIVE_DUPLICATE_COVERAGE_THRESHOLD
+    covered as f32 / candidate_ngrams.len() as f32
+}
+
+struct TranscriptWord {
+    original: String,
+    normalized: String,
+}
+
+fn transcript_words(text: &str) -> Vec<TranscriptWord> {
+    text.split_whitespace()
+        .filter_map(|word| {
+            let normalized = normalize_word(word);
+            (!normalized.is_empty()).then(|| TranscriptWord {
+                original: word.to_string(),
+                normalized,
+            })
+        })
+        .collect()
+}
+
+fn sentence_ends_after(word: &str) -> bool {
+    word.ends_with('.') || word.ends_with('!') || word.ends_with('?')
+}
+
+fn join_original_words(words: &[TranscriptWord]) -> String {
+    words
+        .iter()
+        .map(|word| word.original.as_str())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn normalized_words(text: &str) -> Vec<String> {
     text.split_whitespace()
         .filter_map(|word| {
-            let normalized = word
-                .chars()
-                .filter(|character| character.is_ascii_alphanumeric())
-                .flat_map(|character| character.to_lowercase())
-                .collect::<String>();
+            let normalized = normalize_word(word);
             (!normalized.is_empty()).then_some(normalized)
         })
+        .collect()
+}
+
+fn normalize_word(word: &str) -> String {
+    word.chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .flat_map(|character| character.to_lowercase())
         .collect()
 }
 
@@ -1769,10 +1863,10 @@ mod tests {
                 .to_string(),
         );
 
-        assert!(is_repeated_transcript_text(
+        assert_eq!(unique_transcript_text(
             "This is a Just Notes quality assurance test. The blue notebook is beside the silver microphone. Every local transcript should preserve these exact words.",
             &recent,
-        ));
+        ), None);
     }
 
     #[test]
@@ -1780,10 +1874,36 @@ mod tests {
         let mut recent = VecDeque::new();
         recent.push_back("This is a Just Notes quality assurance test.".to_string());
 
-        assert!(!is_repeated_transcript_text(
-            "Chapter two begins with a calendar reminder and a project checkpoint.",
-            &recent,
-        ));
+        assert_eq!(
+            unique_transcript_text(
+                "Chapter two begins with a calendar reminder and a project checkpoint.",
+                &recent,
+            ),
+            Some(
+                "Chapter two begins with a calendar reminder and a project checkpoint.".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn unique_transcript_text_trims_repeated_suffix() {
+        let mut recent = VecDeque::new();
+        recent.push_back(
+            "Section 4 says the design notes mention a purple marker and a glass keyboard."
+                .to_string(),
+        );
+        recent.push_back(
+            "Section 5 says the engineering plan includes local storage. Audio can also include an"
+                .to_string(),
+        );
+
+        assert_eq!(
+            unique_transcript_text(
+                "audio capture and live transcription. Section 4 says the design notes mention a purple marker and a glass keyboard. Section 5 says the engineering plan includes local storage, audio capture, and live transcription.",
+                &recent,
+            ),
+            Some("audio capture and live transcription.".to_string()),
+        );
     }
 }
 
