@@ -1715,6 +1715,9 @@ fn estimate_text_end_ms(
 
 fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> Option<String> {
     let candidate = remove_internal_repeated_sentences(candidate);
+    if candidate.trim().is_empty() {
+        return None;
+    }
     if recent_texts.is_empty() {
         return Some(candidate);
     }
@@ -1725,12 +1728,19 @@ fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> O
         .map(|word| word.normalized.clone())
         .collect::<Vec<_>>();
     if candidate_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
-        return (!recent_texts
+        let recent = recent_texts
             .iter()
             .rev()
             .take(LIVE_DUPLICATE_RECENT_SEGMENTS)
-            .any(|text| normalized_words(text) == candidate_words))
-        .then(|| candidate.to_string());
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let recent_words = normalized_words(&recent);
+        return (!contains_word_sequence(&recent_words, &candidate_words))
+            .then(|| candidate.to_string());
     }
 
     let recent = recent_texts
@@ -1904,6 +1914,19 @@ fn duplicate_coverage(candidate_words: &[String], recent_words: &[String]) -> f3
     covered as f32 / candidate_ngrams.len() as f32
 }
 
+fn contains_word_sequence(words: &[String], sequence: &[String]) -> bool {
+    if sequence.is_empty() {
+        return true;
+    }
+    if sequence.len() > words.len() {
+        return false;
+    }
+
+    words
+        .windows(sequence.len())
+        .any(|window| window == sequence)
+}
+
 struct TranscriptWord {
     original: String,
     normalized: String,
@@ -1948,6 +1971,12 @@ fn remove_internal_repeated_sentences(text: &str) -> String {
 
     for sentence in sentences {
         let normalized = normalized_words(&sentence);
+        if normalized
+            .iter()
+            .all(|word| word.chars().all(|character| character.is_ascii_digit()))
+        {
+            continue;
+        }
         if normalized.len() >= LIVE_DUPLICATE_MIN_KEEP_WORDS && seen.contains(&normalized) {
             continue;
         }
@@ -2325,6 +2354,33 @@ mod tests {
                 &recent,
             ),
             Some("Section 21 says the navy notebook contains project tasks.".to_string()),
+        );
+    }
+
+    #[test]
+    fn unique_transcript_text_drops_short_duplicate_fragments() {
+        let mut recent = VecDeque::new();
+        recent.push_back(
+            "Section 7 says the transcript should advance steadily without repeating earlier phrases."
+                .to_string(),
+        );
+
+        assert_eq!(unique_transcript_text("phrases.", &recent), None);
+    }
+
+    #[test]
+    fn unique_transcript_text_removes_numeric_sentence_artifacts() {
+        let recent = VecDeque::new();
+
+        assert_eq!(
+            unique_transcript_text(
+                "3. Section 4 says the design notes mention a purple marker and a glass keyboard. 4.",
+                &recent,
+            ),
+            Some(
+                "Section 4 says the design notes mention a purple marker and a glass keyboard."
+                    .to_string()
+            ),
         );
     }
 
