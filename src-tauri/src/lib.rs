@@ -1,9 +1,12 @@
 use std::{
     collections::VecDeque,
-    env, fs,
+    env,
+    ffi::CStr,
+    fs,
     fs::OpenOptions,
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
+    ptr::NonNull,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -16,6 +19,17 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device, SampleFormat, Stream, StreamConfig, SupportedStreamConfig,
 };
+use objc2::AnyThread;
+use objc2_core_audio::{
+    kAudioAggregateDeviceIsPrivateKey, kAudioAggregateDeviceNameKey,
+    kAudioAggregateDeviceTapAutoStartKey, kAudioAggregateDeviceTapListKey,
+    kAudioAggregateDeviceUIDKey, kAudioHardwareNoError, kAudioSubTapUIDKey,
+    AudioHardwareCreateAggregateDevice, AudioHardwareCreateProcessTap,
+    AudioHardwareDestroyAggregateDevice, AudioHardwareDestroyProcessTap, AudioObjectID,
+    CATapDescription, CATapMuteBehavior,
+};
+use objc2_core_foundation::{CFArray, CFBoolean, CFDictionary, CFString, CFType};
+use objc2_foundation::{NSArray, NSNumber, NSString};
 use tauri::{AppHandle, Emitter, Manager};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
@@ -25,6 +39,7 @@ const LIVE_TRANSCRIPTION_STABILITY_DELAY_MS: u64 = 2_000;
 const LIVE_TRANSCRIPTION_POLL_MS: u64 = 250;
 const LIVE_SILENCE_RMS_THRESHOLD: f32 = 0.005;
 const MAX_ROLLING_BUFFER_MS: u64 = 120_000;
+const SYSTEM_CAPTURE_DEVICE_NAME: &str = "Just Notes System Audio";
 
 #[derive(Clone)]
 struct AppPaths {
@@ -96,7 +111,7 @@ struct RecorderSession {
     meter_thread: Option<JoinHandle<()>>,
     live_transcription_thread: Option<JoinHandle<()>>,
     _mic_stream: Stream,
-    _system_stream: Stream,
+    _system_capture: SystemAudioCapture,
 }
 
 struct SharedBuffers {
@@ -493,16 +508,15 @@ fn prepare_recording_session(
     let mic_device = host
         .default_input_device()
         .ok_or_else(|| "No default microphone input device is available".to_string())?;
-    let system_device = host
-        .default_output_device()
-        .ok_or_else(|| "No default system output device is available".to_string())?;
+    let system_device = prepare_system_loopback_device(&host)?;
 
     let mic_config = mic_device
         .default_input_config()
         .map_err(|err| format!("Failed to read microphone config: {err}"))?;
     let system_config = system_device
-        .default_output_config()
-        .map_err(|err| format!("Failed to read system output config: {err}"))?;
+        .device
+        .default_input_config()
+        .map_err(|err| format!("Failed to read system loopback config: {err}"))?;
 
     let mic_sample_rate = mic_config.sample_rate();
     let system_sample_rate = system_config.sample_rate();
@@ -518,18 +532,20 @@ fn prepare_recording_session(
         CaptureSource::Mic,
     )?;
     let system_stream = build_capture_stream(
-        system_device,
+        system_device.device,
         system_config,
         Arc::clone(&buffers),
         CaptureSource::System,
     )?;
+    let system_capture = SystemAudioCapture::new(system_stream, system_device.tap);
 
     set_thread_status(&thread_dir, ThreadStatus::Recording)?;
 
     mic_stream
         .play()
         .map_err(|err| format!("Failed to start microphone stream: {err}"))?;
-    system_stream
+    system_capture
+        .stream()
         .play()
         .map_err(|err| format!("Failed to start system loopback stream: {err}"))?;
 
@@ -573,7 +589,7 @@ fn prepare_recording_session(
         meter_thread: Some(meter_thread),
         live_transcription_thread,
         _mic_stream: mic_stream,
-        _system_stream: system_stream,
+        _system_capture: system_capture,
     });
 
     Ok(RecordingPayload {
@@ -625,7 +641,7 @@ fn stop_recording_inner(paths: AppPaths, recorder: RecorderState) -> Result<Thre
         mut meter_thread,
         mut live_transcription_thread,
         _mic_stream,
-        _system_stream,
+        _system_capture,
     } = session;
 
     should_stop_meter.store(true, Ordering::Relaxed);
@@ -634,7 +650,7 @@ fn stop_recording_inner(paths: AppPaths, recorder: RecorderState) -> Result<Thre
         let _ = thread.join();
     }
     drop(_mic_stream);
-    drop(_system_stream);
+    drop(_system_capture);
     if let Some(thread) = live_transcription_thread.take() {
         let _ = thread.join();
     }
@@ -704,6 +720,201 @@ fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
         engine_path: "embedded whisper.cpp runtime".to_string(),
         model_path: transcription_paths.model_path.display().to_string(),
         message,
+    }
+}
+
+struct PreparedSystemLoopbackDevice {
+    device: Device,
+    tap: CoreAudioSystemTap,
+}
+
+struct SystemAudioCapture {
+    stream: Option<Stream>,
+    tap: Option<CoreAudioSystemTap>,
+}
+
+impl SystemAudioCapture {
+    fn new(stream: Stream, tap: CoreAudioSystemTap) -> Self {
+        Self {
+            stream: Some(stream),
+            tap: Some(tap),
+        }
+    }
+
+    fn stream(&self) -> &Stream {
+        self.stream
+            .as_ref()
+            .expect("system capture stream should exist until drop")
+    }
+}
+
+impl Drop for SystemAudioCapture {
+    fn drop(&mut self) {
+        self.stream.take();
+        self.tap.take();
+    }
+}
+
+struct CoreAudioSystemTap {
+    tap_id: AudioObjectID,
+    aggregate_device_id: AudioObjectID,
+}
+
+impl CoreAudioSystemTap {
+    fn create() -> Result<Self, String> {
+        let empty_processes = NSArray::<NSNumber>::new();
+        let description = unsafe {
+            CATapDescription::initMonoGlobalTapButExcludeProcesses(
+                CATapDescription::alloc(),
+                &empty_processes,
+            )
+        };
+        unsafe {
+            description.setName(&NSString::from_str(SYSTEM_CAPTURE_DEVICE_NAME));
+            description.setPrivate(true);
+            description.setMuteBehavior(CATapMuteBehavior::Unmuted);
+        }
+
+        let mut tap_id = 0;
+        let status = unsafe { AudioHardwareCreateProcessTap(Some(&description), &mut tap_id) };
+        if status != kAudioHardwareNoError {
+            return Err(format!(
+                "Failed to create macOS system audio tap: {}",
+                coreaudio_status(status)
+            ));
+        }
+
+        let tap_uuid = unsafe { description.UUID() };
+        let aggregate_uid = format!("com.just-notes.system-audio.{}", now_ms()?);
+        let aggregate_description = create_aggregate_device_description(
+            SYSTEM_CAPTURE_DEVICE_NAME,
+            &aggregate_uid,
+            &format!("{tap_uuid}"),
+        )?;
+
+        let mut aggregate_device_id = 0;
+        let status = unsafe {
+            AudioHardwareCreateAggregateDevice(
+                aggregate_description.as_ref(),
+                NonNull::from(&mut aggregate_device_id),
+            )
+        };
+        if status != kAudioHardwareNoError {
+            unsafe {
+                AudioHardwareDestroyProcessTap(tap_id);
+            }
+            return Err(format!(
+                "Failed to create macOS system audio aggregate device: {}",
+                coreaudio_status(status)
+            ));
+        }
+
+        Ok(Self {
+            tap_id,
+            aggregate_device_id,
+        })
+    }
+}
+
+impl Drop for CoreAudioSystemTap {
+    fn drop(&mut self) {
+        unsafe {
+            AudioHardwareDestroyAggregateDevice(self.aggregate_device_id);
+            AudioHardwareDestroyProcessTap(self.tap_id);
+        }
+    }
+}
+
+fn create_aggregate_device_description(
+    device_name: &str,
+    aggregate_uid: &str,
+    tap_uid: &str,
+) -> Result<objc2_core_foundation::CFRetained<CFDictionary<CFType, CFType>>, String> {
+    let subtap_uid_key = cf_audio_key(kAudioSubTapUIDKey)?;
+    let subtap_uid = CFString::from_str(tap_uid);
+    let subtap_description = CFDictionary::<CFType, CFType>::from_slices(
+        &[subtap_uid_key.as_ref()],
+        &[subtap_uid.as_ref()],
+    );
+    let tap_list =
+        CFArray::<CFDictionary<CFType, CFType>>::from_objects(&[subtap_description.as_ref()]);
+
+    let name_key = cf_audio_key(kAudioAggregateDeviceNameKey)?;
+    let uid_key = cf_audio_key(kAudioAggregateDeviceUIDKey)?;
+    let private_key = cf_audio_key(kAudioAggregateDeviceIsPrivateKey)?;
+    let tap_list_key = cf_audio_key(kAudioAggregateDeviceTapListKey)?;
+    let tap_autostart_key = cf_audio_key(kAudioAggregateDeviceTapAutoStartKey)?;
+    let name = CFString::from_str(device_name);
+    let uid = CFString::from_str(aggregate_uid);
+    let private = CFBoolean::new(true);
+    let tap_autostart = CFBoolean::new(true);
+
+    Ok(CFDictionary::<CFType, CFType>::from_slices(
+        &[
+            name_key.as_ref(),
+            uid_key.as_ref(),
+            private_key.as_ref(),
+            tap_list_key.as_ref(),
+            tap_autostart_key.as_ref(),
+        ],
+        &[
+            name.as_ref(),
+            uid.as_ref(),
+            private.as_ref(),
+            tap_list.as_ref(),
+            tap_autostart.as_ref(),
+        ],
+    ))
+}
+
+fn cf_audio_key(key: &CStr) -> Result<objc2_core_foundation::CFRetained<CFString>, String> {
+    let key = key
+        .to_str()
+        .map_err(|err| format!("Invalid CoreAudio dictionary key: {err}"))?;
+    Ok(CFString::from_str(key))
+}
+
+fn prepare_system_loopback_device(
+    host: &cpal::Host,
+) -> Result<PreparedSystemLoopbackDevice, String> {
+    let tap = CoreAudioSystemTap::create()?;
+
+    for _ in 0..20 {
+        if let Some(device) = find_system_loopback_device(host)? {
+            return Ok(PreparedSystemLoopbackDevice { device, tap });
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+
+    Err(format!(
+        "Created macOS system audio tap, but CPAL did not expose the {SYSTEM_CAPTURE_DEVICE_NAME} input device"
+    ))
+}
+
+fn find_system_loopback_device(host: &cpal::Host) -> Result<Option<Device>, String> {
+    let devices = host
+        .input_devices()
+        .map_err(|err| format!("Failed to enumerate audio input devices: {err}"))?;
+    for device in devices {
+        let Ok(description) = device.description() else {
+            continue;
+        };
+        if description.name() == SYSTEM_CAPTURE_DEVICE_NAME {
+            return Ok(Some(device));
+        }
+    }
+    Ok(None)
+}
+
+fn coreaudio_status(status: i32) -> String {
+    let bytes = status.to_be_bytes();
+    if bytes
+        .iter()
+        .all(|byte| byte.is_ascii_graphic() || *byte == b' ')
+    {
+        format!("{status} ('{}')", String::from_utf8_lossy(&bytes))
+    } else {
+        status.to_string()
     }
 }
 
