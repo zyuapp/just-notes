@@ -5,10 +5,10 @@ use tauri::AppHandle;
 
 use super::{
     model::{ActiveAudioCapture, CaptureSource, PreparedAudioInput, SharedBuffers},
+    permission::ensure_microphone_permission,
     samples::build_capture_stream,
     system_loopback::{prepare_system_loopback_device, SystemAudioCapture},
 };
-use crate::ensure_microphone_permission;
 
 pub(super) fn prepare_device_audio_input(app: &AppHandle) -> Result<PreparedAudioInput, String> {
     let host = cpal::default_host();

@@ -2,6 +2,7 @@ mod device;
 #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 mod fixture;
 mod model;
+mod permission;
 mod samples;
 mod system_loopback;
 
