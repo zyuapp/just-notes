@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
+  FlaskConical,
   Circle,
   FileText,
   Mic,
@@ -11,6 +12,8 @@ import {
   Waves,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+
+const isDev = Boolean((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV);
 
 type ThreadStatus = "idle" | "recording";
 type RecorderState = "idle" | "starting" | "recording" | "stopping";
@@ -282,6 +285,26 @@ export default function App() {
     }
   }
 
+  async function startFixtureRecording() {
+    setError(null);
+    setRecorderState("starting");
+    setMeters({ threadId: "", micLevel: 0, systemLevel: 0, elapsedMs: 0 });
+
+    try {
+      const result = await invoke<RecordingPayload>("start_fixture_recording", {
+        threadId: selectedThreadId,
+      });
+      setSelectedThreadId(result.thread.summary.id);
+      setSelectedThread(result.thread);
+      setTranscriptionStatus(result.transcription);
+      setRecorderState("recording");
+      await refreshThreads(result.thread.summary.id);
+    } catch (err) {
+      setError(String(err));
+      setRecorderState("idle");
+    }
+  }
+
   async function stopRecording() {
     setError(null);
     setRecorderState("stopping");
@@ -328,6 +351,18 @@ export default function App() {
             <span>{recorderState === "recording" ? "Stop" : "Record"}</span>
           </button>
           <div className="capture-state">{statusLabel}</div>
+          {isDev && (
+            <button
+              type="button"
+              className="fixture-button"
+              onClick={startFixtureRecording}
+              disabled={!canStart}
+              aria-label="Start QA fixture recording"
+            >
+              <FlaskConical size={15} aria-hidden="true" />
+              <span>QA fixture</span>
+            </button>
+          )}
         </div>
 
         <div className="meters">

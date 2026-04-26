@@ -47,6 +47,8 @@ const LIVE_DUPLICATE_COVERAGE_THRESHOLD: f32 = 0.72;
 const LIVE_DUPLICATE_MIN_KEEP_WORDS: usize = 4;
 const LIVE_DUPLICATE_MIN_TRIM_WORDS: usize = 6;
 const MAX_ROLLING_BUFFER_MS: u64 = 120_000;
+#[cfg(debug_assertions)]
+const FIXTURE_CHUNK_MS: u64 = 50;
 const SYSTEM_CAPTURE_DEVICE_NAME: &str = "Just Notes System Audio";
 const WHISPER_MODEL_CANDIDATES: [WhisperModelCandidate; 3] = [
     WhisperModelCandidate {
@@ -167,8 +169,38 @@ struct RecorderSession {
     should_stop_live_transcription: Arc<AtomicBool>,
     meter_thread: Option<JoinHandle<()>>,
     live_transcription_thread: Option<JoinHandle<()>>,
-    _mic_stream: Stream,
-    _system_capture: SystemAudioCapture,
+    audio_capture: ActiveAudioCapture,
+}
+
+enum ActiveAudioCapture {
+    Devices {
+        _mic_stream: Stream,
+        _system_capture: SystemAudioCapture,
+    },
+    #[cfg(debug_assertions)]
+    Fixture(FixtureAudioCapture),
+}
+
+#[cfg(debug_assertions)]
+struct FixtureAudioCapture {
+    should_stop: Arc<AtomicBool>,
+    workers: Vec<JoinHandle<()>>,
+}
+
+enum RecordingInputMode {
+    Devices,
+    #[cfg(debug_assertions)]
+    Fixture {
+        mic_path: PathBuf,
+        system_path: PathBuf,
+    },
+}
+
+struct PreparedAudioInput {
+    mic_sample_rate: u32,
+    system_sample_rate: u32,
+    buffers: Arc<Mutex<SharedBuffers>>,
+    audio_capture: ActiveAudioCapture,
 }
 
 struct SharedBuffers {
@@ -413,6 +445,33 @@ async fn start_recording(
     .map_err(|err| format!("Audio startup task failed: {err}"))?
 }
 
+#[cfg(debug_assertions)]
+#[tauri::command]
+async fn start_fixture_recording(
+    app: AppHandle,
+    paths: tauri::State<'_, AppPaths>,
+    recorder: tauri::State<'_, RecorderState>,
+    thread_id: Option<String>,
+) -> Result<RecordingPayload, String> {
+    let paths = paths.inner().clone();
+    let recorder = recorder.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let fixture_dir = paths.data_dir.join("fixtures");
+        start_recording_inner_with_mode(
+            app,
+            paths,
+            recorder,
+            thread_id,
+            RecordingInputMode::Fixture {
+                mic_path: fixture_dir.join("qa-mic.wav"),
+                system_path: fixture_dir.join("qa-system.wav"),
+            },
+        )
+    })
+    .await
+    .map_err(|err| format!("Fixture startup task failed: {err}"))?
+}
+
 #[tauri::command]
 async fn stop_recording(
     paths: tauri::State<'_, AppPaths>,
@@ -543,11 +602,27 @@ fn start_recording_inner(
     recorder: RecorderState,
     requested_thread_id: Option<String>,
 ) -> Result<RecordingPayload, String> {
+    start_recording_inner_with_mode(
+        app,
+        paths,
+        recorder,
+        requested_thread_id,
+        RecordingInputMode::Devices,
+    )
+}
+
+fn start_recording_inner_with_mode(
+    app: AppHandle,
+    paths: AppPaths,
+    recorder: RecorderState,
+    requested_thread_id: Option<String>,
+    input_mode: RecordingInputMode,
+) -> Result<RecordingPayload, String> {
     if recorder.is_starting.swap(true, Ordering::SeqCst) {
         return Err("Audio startup is already in progress".to_string());
     }
 
-    let result = prepare_recording_session(app, paths, &recorder, requested_thread_id);
+    let result = prepare_recording_session(app, paths, &recorder, requested_thread_id, input_mode);
     recorder.is_starting.store(false, Ordering::SeqCst);
     result
 }
@@ -557,6 +632,7 @@ fn prepare_recording_session(
     paths: AppPaths,
     recorder: &RecorderState,
     requested_thread_id: Option<String>,
+    input_mode: RecordingInputMode,
 ) -> Result<RecordingPayload, String> {
     if recorder
         .session
@@ -574,52 +650,16 @@ fn prepare_recording_session(
     prepare_work_dir(&thread_dir)?;
 
     let started = Instant::now();
-    let host = cpal::default_host();
-    ensure_microphone_permission(&app)?;
-
-    let mic_device = host
-        .default_input_device()
-        .ok_or_else(|| "No default microphone input device is available".to_string())?;
-    let system_device = prepare_system_loopback_device(&host)?;
-
-    let mic_config = mic_device
-        .default_input_config()
-        .map_err(|err| format!("Failed to read microphone config: {err}"))?;
-    let system_config = system_device
-        .device
-        .default_input_config()
-        .map_err(|err| format!("Failed to read system loopback config: {err}"))?;
-
-    let mic_sample_rate = mic_config.sample_rate();
-    let system_sample_rate = system_config.sample_rate();
-    let buffers = Arc::new(Mutex::new(SharedBuffers::new(
+    let PreparedAudioInput {
         mic_sample_rate,
         system_sample_rate,
-    )));
-
-    let mic_stream = build_capture_stream(
-        mic_device,
-        mic_config,
-        Arc::clone(&buffers),
-        CaptureSource::Mic,
-    )?;
-    let system_stream = build_capture_stream(
-        system_device.device,
-        system_config,
-        Arc::clone(&buffers),
-        CaptureSource::System,
-    )?;
-    let system_capture = SystemAudioCapture::new(system_stream, system_device.tap);
+        buffers,
+        mut audio_capture,
+    } = prepare_audio_input(&app, input_mode)?;
 
     set_thread_status(&thread_dir, ThreadStatus::Recording)?;
 
-    mic_stream
-        .play()
-        .map_err(|err| format!("Failed to start microphone stream: {err}"))?;
-    system_capture
-        .stream()
-        .play()
-        .map_err(|err| format!("Failed to start system loopback stream: {err}"))?;
+    start_audio_capture(&mut audio_capture)?;
 
     let should_stop_meter = Arc::new(AtomicBool::new(false));
     let meter_thread = spawn_meter_thread(
@@ -660,8 +700,7 @@ fn prepare_recording_session(
         should_stop_live_transcription,
         meter_thread: Some(meter_thread),
         live_transcription_thread,
-        _mic_stream: mic_stream,
-        _system_capture: system_capture,
+        audio_capture,
     });
 
     Ok(RecordingPayload {
@@ -712,8 +751,7 @@ fn stop_recording_inner(paths: AppPaths, recorder: RecorderState) -> Result<Thre
         should_stop_live_transcription,
         mut meter_thread,
         mut live_transcription_thread,
-        _mic_stream,
-        _system_capture,
+        audio_capture,
     } = session;
 
     should_stop_meter.store(true, Ordering::Relaxed);
@@ -721,8 +759,7 @@ fn stop_recording_inner(paths: AppPaths, recorder: RecorderState) -> Result<Thre
     if let Some(thread) = meter_thread.take() {
         let _ = thread.join();
     }
-    drop(_mic_stream);
-    drop(_system_capture);
+    stop_audio_capture(audio_capture);
     if let Some(thread) = live_transcription_thread.take() {
         let _ = thread.join();
     }
@@ -1041,6 +1078,236 @@ fn coreaudio_status(status: i32) -> String {
 enum CaptureSource {
     Mic,
     System,
+}
+
+fn prepare_audio_input(
+    app: &AppHandle,
+    input_mode: RecordingInputMode,
+) -> Result<PreparedAudioInput, String> {
+    match input_mode {
+        RecordingInputMode::Devices => prepare_device_audio_input(app),
+        #[cfg(debug_assertions)]
+        RecordingInputMode::Fixture {
+            mic_path,
+            system_path,
+        } => prepare_fixture_audio_input(mic_path, system_path),
+    }
+}
+
+fn prepare_device_audio_input(app: &AppHandle) -> Result<PreparedAudioInput, String> {
+    let host = cpal::default_host();
+    ensure_microphone_permission(app)?;
+
+    let mic_device = host
+        .default_input_device()
+        .ok_or_else(|| "No default microphone input device is available".to_string())?;
+    let system_device = prepare_system_loopback_device(&host)?;
+
+    let mic_config = mic_device
+        .default_input_config()
+        .map_err(|err| format!("Failed to read microphone config: {err}"))?;
+    let system_config = system_device
+        .device
+        .default_input_config()
+        .map_err(|err| format!("Failed to read system loopback config: {err}"))?;
+
+    let mic_sample_rate = mic_config.sample_rate();
+    let system_sample_rate = system_config.sample_rate();
+    let buffers = Arc::new(Mutex::new(SharedBuffers::new(
+        mic_sample_rate,
+        system_sample_rate,
+    )));
+
+    let mic_stream = build_capture_stream(
+        mic_device,
+        mic_config,
+        Arc::clone(&buffers),
+        CaptureSource::Mic,
+    )?;
+    let system_stream = build_capture_stream(
+        system_device.device,
+        system_config,
+        Arc::clone(&buffers),
+        CaptureSource::System,
+    )?;
+    let system_capture = SystemAudioCapture::new(system_stream, system_device.tap);
+
+    Ok(PreparedAudioInput {
+        mic_sample_rate,
+        system_sample_rate,
+        buffers,
+        audio_capture: ActiveAudioCapture::Devices {
+            _mic_stream: mic_stream,
+            _system_capture: system_capture,
+        },
+    })
+}
+
+fn start_audio_capture(audio_capture: &mut ActiveAudioCapture) -> Result<(), String> {
+    match audio_capture {
+        ActiveAudioCapture::Devices {
+            _mic_stream,
+            _system_capture,
+        } => {
+            _mic_stream
+                .play()
+                .map_err(|err| format!("Failed to start microphone stream: {err}"))?;
+            _system_capture
+                .stream()
+                .play()
+                .map_err(|err| format!("Failed to start system loopback stream: {err}"))
+        }
+        #[cfg(debug_assertions)]
+        ActiveAudioCapture::Fixture(_) => Ok(()),
+    }
+}
+
+fn stop_audio_capture(audio_capture: ActiveAudioCapture) {
+    match audio_capture {
+        ActiveAudioCapture::Devices {
+            _mic_stream,
+            _system_capture,
+        } => {
+            drop(_mic_stream);
+            drop(_system_capture);
+        }
+        #[cfg(debug_assertions)]
+        ActiveAudioCapture::Fixture(fixture) => {
+            fixture.should_stop.store(true, Ordering::Relaxed);
+            for worker in fixture.workers {
+                let _ = worker.join();
+            }
+        }
+    }
+}
+
+#[cfg(debug_assertions)]
+struct FixtureTrack {
+    sample_rate: u32,
+    samples: Vec<f32>,
+}
+
+#[cfg(debug_assertions)]
+fn prepare_fixture_audio_input(
+    mic_path: PathBuf,
+    system_path: PathBuf,
+) -> Result<PreparedAudioInput, String> {
+    let mic_track = read_fixture_track(&mic_path)?;
+    let system_track = read_fixture_track(&system_path)?;
+    let buffers = Arc::new(Mutex::new(SharedBuffers::new(
+        mic_track.sample_rate,
+        system_track.sample_rate,
+    )));
+    let should_stop = Arc::new(AtomicBool::new(false));
+    let workers = vec![
+        spawn_fixture_audio_worker(
+            mic_track,
+            Arc::clone(&buffers),
+            CaptureSource::Mic,
+            Arc::clone(&should_stop),
+        ),
+        spawn_fixture_audio_worker(
+            system_track,
+            Arc::clone(&buffers),
+            CaptureSource::System,
+            Arc::clone(&should_stop),
+        ),
+    ];
+
+    Ok(PreparedAudioInput {
+        mic_sample_rate: read_wav_sample_rate(&mic_path)?,
+        system_sample_rate: read_wav_sample_rate(&system_path)?,
+        buffers,
+        audio_capture: ActiveAudioCapture::Fixture(FixtureAudioCapture {
+            should_stop,
+            workers,
+        }),
+    })
+}
+
+#[cfg(debug_assertions)]
+fn read_wav_sample_rate(path: &Path) -> Result<u32, String> {
+    let reader = hound::WavReader::open(path)
+        .map_err(|err| format!("Failed to open fixture audio {}: {err}", path.display()))?;
+    Ok(reader.spec().sample_rate)
+}
+
+#[cfg(debug_assertions)]
+fn read_fixture_track(path: &Path) -> Result<FixtureTrack, String> {
+    let mut reader = hound::WavReader::open(path).map_err(|err| {
+        format!(
+            "Failed to open fixture audio {}. Create qa-mic.wav and qa-system.wav in ~/.just-notes/fixtures: {err}",
+            path.display()
+        )
+    })?;
+    let spec = reader.spec();
+    if spec.channels == 0 {
+        return Err(format!("Fixture audio {} has no channels", path.display()));
+    }
+
+    let channels = spec.channels as usize;
+    let raw_samples = match spec.sample_format {
+        hound::SampleFormat::Float => reader
+            .samples::<f32>()
+            .map(|sample| {
+                sample.map(|value| value.clamp(-1.0, 1.0)).map_err(|err| {
+                    format!("Failed to read fixture audio {}: {err}", path.display())
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        hound::SampleFormat::Int if spec.bits_per_sample <= 16 => reader
+            .samples::<i16>()
+            .map(|sample| {
+                sample
+                    .map(|value| value as f32 / i16::MAX as f32)
+                    .map_err(|err| {
+                        format!("Failed to read fixture audio {}: {err}", path.display())
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        hound::SampleFormat::Int => {
+            let denom = ((1_i64 << (spec.bits_per_sample.saturating_sub(1) as u32)) - 1) as f32;
+            reader
+                .samples::<i32>()
+                .map(|sample| {
+                    sample
+                        .map(|value| (value as f32 / denom).clamp(-1.0, 1.0))
+                        .map_err(|err| {
+                            format!("Failed to read fixture audio {}: {err}", path.display())
+                        })
+                })
+                .collect::<Result<Vec<_>, _>>()?
+        }
+    };
+
+    let samples = raw_samples
+        .chunks(channels)
+        .map(average_f32)
+        .collect::<Vec<_>>();
+    Ok(FixtureTrack {
+        sample_rate: spec.sample_rate,
+        samples,
+    })
+}
+
+#[cfg(debug_assertions)]
+fn spawn_fixture_audio_worker(
+    track: FixtureTrack,
+    buffers: Arc<Mutex<SharedBuffers>>,
+    source: CaptureSource,
+    should_stop: Arc<AtomicBool>,
+) -> JoinHandle<()> {
+    thread::spawn(move || {
+        let chunk_samples = ((track.sample_rate as u64 * FIXTURE_CHUNK_MS) / 1000).max(1) as usize;
+        for chunk in track.samples.chunks(chunk_samples) {
+            if should_stop.load(Ordering::Relaxed) {
+                break;
+            }
+            push_mono_frames(chunk.iter().copied(), &buffers, source);
+            let chunk_ms = samples_to_ms(chunk.len() as u64, track.sample_rate);
+            thread::sleep(Duration::from_millis(chunk_ms.max(1)));
+        }
+    })
 }
 
 fn build_capture_stream(
@@ -2479,22 +2746,38 @@ mod tests {
 pub fn run() {
     let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(paths)
         .manage(RecorderState::default())
         .setup(|app| {
             reset_stale_recording_threads(app.state::<AppPaths>().inner())?;
             Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
-            get_app_info,
-            list_threads,
-            create_thread,
-            get_thread,
-            get_transcription_status,
-            start_recording,
-            stop_recording
-        ])
+        });
+
+    #[cfg(debug_assertions)]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        get_app_info,
+        list_threads,
+        create_thread,
+        get_thread,
+        get_transcription_status,
+        start_recording,
+        start_fixture_recording,
+        stop_recording
+    ]);
+
+    #[cfg(not(debug_assertions))]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        get_app_info,
+        list_threads,
+        create_thread,
+        get_thread,
+        get_transcription_status,
+        start_recording,
+        stop_recording
+    ]);
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running Just Notes");
 }
