@@ -1,13 +1,10 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import type { AppInfo } from "./bindings/AppInfo";
-import type { LiveTranscriptSegmentPayload } from "./bindings/LiveTranscriptSegmentPayload";
 import type { LiveTranscriptStatusPayload } from "./bindings/LiveTranscriptStatusPayload";
 import type { MeterPayload } from "./bindings/MeterPayload";
-import type { RecordingPayload } from "./bindings/RecordingPayload";
 import type { ThreadDetail } from "./bindings/ThreadDetail";
 import type { ThreadSummary } from "./bindings/ThreadSummary";
 import type { TranscriptionStatusPayload as TranscriptionStatus } from "./bindings/TranscriptionStatusPayload";
+import { api, getApiErrorMessage } from "./api";
 import {
   FlaskConical,
   Circle,
@@ -82,54 +79,45 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unlistenMeter = listen<MeterPayload>("meter-update", (event) => {
-      setMeters(event.payload);
+    const unlistenMeter = api.events.onMeter((payload) => {
+      setMeters(payload);
     });
-    const unlistenSegment = listen<LiveTranscriptSegmentPayload>(
-      "live-transcript-segment",
-      (event) => {
-        setSelectedThread((current) => {
-          if (!current || current.summary.id !== event.payload.threadId) return current;
-          const segments = [...current.segments, event.payload.segment].sort((left, right) => {
-            if (left.startMs !== right.startMs) return left.startMs - right.startMs;
-            return left.source.localeCompare(right.source);
-          });
-          return {
-            ...current,
-            segments,
-            summary: {
-              ...current.summary,
-              segmentCount: segments.length,
-              updatedAtMs: Date.now(),
-            },
-          };
+    const unlistenSegment = api.events.onLiveTranscriptSegment((payload) => {
+      setSelectedThread((current) => {
+        if (!current || current.summary.id !== payload.threadId) return current;
+        const segments = [...current.segments, payload.segment].sort((left, right) => {
+          if (left.startMs !== right.startMs) return left.startMs - right.startMs;
+          return left.source.localeCompare(right.source);
         });
-        setThreads((current) =>
-          current.map((thread) =>
-            thread.id === event.payload.threadId
-              ? {
-                  ...thread,
-                  segmentCount: thread.segmentCount + 1,
-                  updatedAtMs: Date.now(),
-                }
-              : thread,
-          ),
-        );
-      },
-    );
-    const unlistenStatus = listen<LiveTranscriptStatusPayload>(
-      "live-transcript-status",
-      (event) => {
-        setLiveStatus(event.payload);
-      },
-    );
-    const unlistenError = listen<LiveTranscriptStatusPayload>(
-      "live-transcript-error",
-      (event) => {
-        setLiveStatus(event.payload);
-        setError(event.payload.message);
-      },
-    );
+        return {
+          ...current,
+          segments,
+          summary: {
+            ...current.summary,
+            segmentCount: segments.length,
+            updatedAtMs: Date.now(),
+          },
+        };
+      });
+      setThreads((current) =>
+        current.map((thread) =>
+          thread.id === payload.threadId
+            ? {
+                ...thread,
+                segmentCount: thread.segmentCount + 1,
+                updatedAtMs: Date.now(),
+              }
+            : thread,
+        ),
+      );
+    });
+    const unlistenStatus = api.events.onLiveTranscriptStatus((payload) => {
+      setLiveStatus(payload);
+    });
+    const unlistenError = api.events.onLiveTranscriptError((payload) => {
+      setLiveStatus(payload);
+      setError(payload.message);
+    });
 
     return () => {
       unlistenMeter.then((dispose) => dispose()).catch(() => undefined);
@@ -153,9 +141,9 @@ export default function App() {
     setError(null);
     try {
       const [info, status, threadList] = await Promise.all([
-        invoke<AppInfo>("get_app_info"),
-        invoke<TranscriptionStatus>("get_transcription_status"),
-        invoke<ThreadSummary[]>("list_threads"),
+        api.app.getInfo(),
+        api.transcription.getStatus(),
+        api.threads.list(),
       ]);
       setAppInfo(info);
       setTranscriptionStatus(status);
@@ -164,12 +152,12 @@ export default function App() {
         await selectThread(threadList[0].id);
       }
     } catch (err) {
-      setError(String(err));
+      setError(getApiErrorMessage(err));
     }
   }
 
   async function refreshThreads(nextSelectedId?: string) {
-    const threadList = await invoke<ThreadSummary[]>("list_threads");
+    const threadList = await api.threads.list();
     setThreads(threadList);
     const id = nextSelectedId ?? selectedThreadId ?? threadList[0]?.id ?? null;
     if (id) {
@@ -179,7 +167,7 @@ export default function App() {
 
   async function selectThread(threadId: string) {
     setError(null);
-    const detail = await invoke<ThreadDetail>("get_thread", { threadId });
+    const detail = await api.threads.get(threadId);
     setSelectedThreadId(threadId);
     setSelectedThread(detail);
   }
@@ -187,12 +175,12 @@ export default function App() {
   async function createThread() {
     setError(null);
     try {
-      const detail = await invoke<ThreadDetail>("create_thread");
+      const detail = await api.threads.create();
       setSelectedThreadId(detail.summary.id);
       setSelectedThread(detail);
       await refreshThreads(detail.summary.id);
     } catch (err) {
-      setError(String(err));
+      setError(getApiErrorMessage(err));
     }
   }
 
@@ -202,16 +190,14 @@ export default function App() {
     setMeters({ threadId: "", micLevel: 0, systemLevel: 0, elapsedMs: 0 });
 
     try {
-      const result = await invoke<RecordingPayload>("start_recording", {
-        threadId: selectedThreadId,
-      });
+      const result = await api.recording.start(selectedThreadId);
       setSelectedThreadId(result.thread.summary.id);
       setSelectedThread(result.thread);
       setTranscriptionStatus(result.transcription);
       setRecorderState("recording");
       await refreshThreads(result.thread.summary.id);
     } catch (err) {
-      setError(String(err));
+      setError(getApiErrorMessage(err));
       setRecorderState("idle");
     }
   }
@@ -222,16 +208,14 @@ export default function App() {
     setMeters({ threadId: "", micLevel: 0, systemLevel: 0, elapsedMs: 0 });
 
     try {
-      const result = await invoke<RecordingPayload>("start_fixture_recording", {
-        threadId: selectedThreadId,
-      });
+      const result = await api.recording.startFixture(selectedThreadId);
       setSelectedThreadId(result.thread.summary.id);
       setSelectedThread(result.thread);
       setTranscriptionStatus(result.transcription);
       setRecorderState("recording");
       await refreshThreads(result.thread.summary.id);
     } catch (err) {
-      setError(String(err));
+      setError(getApiErrorMessage(err));
       setRecorderState("idle");
     }
   }
@@ -241,14 +225,14 @@ export default function App() {
     setRecorderState("stopping");
 
     try {
-      const detail = await invoke<ThreadDetail>("stop_recording");
+      const detail = await api.recording.stop();
       setSelectedThreadId(detail.summary.id);
       setSelectedThread(detail);
       setMeters((current) => ({ ...current, micLevel: 0, systemLevel: 0 }));
       setRecorderState("idle");
       await refreshThreads(detail.summary.id);
     } catch (err) {
-      setError(String(err));
+      setError(getApiErrorMessage(err));
       setRecorderState("recording");
     }
   }
