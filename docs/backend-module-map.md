@@ -9,9 +9,10 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 ## `src-tauri/src/app`
 
 - `paths.rs`: discovers and stores app filesystem paths.
+- `time.rs`: shared wall-clock helpers.
 - `mod.rs`: exports the app context API.
 
-Use this when changing where Just Notes stores data, threads, fixtures, or local transcription models.
+Use this when changing where Just Notes stores data, threads, fixtures, or shared app-level utilities.
 
 ## `src-tauri/src/ipc`
 
@@ -43,7 +44,7 @@ Use this when changing how audio is acquired, buffered, leveled, or fixture-driv
 
 ## `src-tauri/src/transcription`
 
-- `models.rs`: transcription status payloads, model paths, and available model discovery.
+- `models.rs`: transcription status payloads, model path selection, and available model discovery.
 - `status.rs`: current transcription readiness/status assembly.
 - `runtime.rs`: Whisper model loading and raw Whisper segment transcription.
 - `audio.rs`: sample/time conversion, RMS, audible-start detection, and resampling.
@@ -72,4 +73,3 @@ Use this when changing the lifecycle of a recording session or how capture/trans
 - Change transcript quality: start in `transcription/text` or `transcription/live`.
 - Change thread files or markdown: start in `threads`.
 - Change recording start/stop behavior: start in `recording`.
-

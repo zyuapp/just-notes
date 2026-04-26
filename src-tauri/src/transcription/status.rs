@@ -1,9 +1,9 @@
 use crate::app::AppPaths;
 
-use super::TranscriptionStatusPayload;
+use super::{transcription_paths, TranscriptionStatusPayload};
 
 pub(crate) fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
-    let transcription_paths = paths.transcription_paths();
+    let transcription_paths = transcription_paths(paths);
     let model_exists = transcription_paths.model_path.is_file();
     let message = match model_exists {
         true => format!(

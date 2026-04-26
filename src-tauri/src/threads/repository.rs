@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use crate::{app::AppPaths, now_ms};
+use crate::app::{now_ms, AppPaths};
 
 use super::{
     transcript_store::{count_jsonl_lines, read_transcript_jsonl, write_text_atomic},

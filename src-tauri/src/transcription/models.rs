@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use crate::app::AppPaths;
+
 const WHISPER_MODEL_CANDIDATES: [WhisperModelCandidate; 3] = [
     WhisperModelCandidate {
         name: "medium.en",
@@ -67,4 +69,28 @@ pub(crate) fn discover_whisper_models(model_dir: &Path) -> Vec<WhisperModelStatu
             }
         })
         .collect()
+}
+
+pub(crate) fn transcription_paths(paths: &AppPaths) -> TranscriptionPaths {
+    let mut available_models =
+        discover_whisper_models(&paths.data_dir.join("models").join("whisper"));
+    let selected_model = available_models
+        .iter()
+        .find(|model| model.installed)
+        .cloned()
+        .unwrap_or_else(|| {
+            available_models
+                .last()
+                .expect("whisper model candidates")
+                .clone()
+        });
+    for model in &mut available_models {
+        model.selected = model.filename == selected_model.filename;
+    }
+
+    TranscriptionPaths {
+        model_path: selected_model.path.clone(),
+        model_name: selected_model.name.clone(),
+        available_models,
+    }
 }

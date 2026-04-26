@@ -27,8 +27,8 @@ use crate::{
         ThreadDetail, ThreadStatus,
     },
     transcription::{
-        spawn_live_transcription_thread, transcription_status, LiveTranscriptionThreadConfig,
-        TranscriptionPaths,
+        spawn_live_transcription_thread, transcription_paths, transcription_status,
+        LiveTranscriptionThreadConfig, TranscriptionPaths,
     },
 };
 use meter::spawn_meter_thread;
@@ -184,7 +184,7 @@ fn prepare_recording_session(
         thread_dir,
         started,
         input,
-        transcription_paths: paths.transcription_paths(),
+        transcription_paths: transcription_paths(&paths),
     });
     store_recording_session(recorder, session)?;
 

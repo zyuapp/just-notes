@@ -23,7 +23,7 @@ use objc2_core_audio::{
 use objc2_core_foundation::{CFArray, CFBoolean, CFDictionary, CFString, CFType};
 use objc2_foundation::{NSArray, NSNumber, NSString};
 
-use crate::now_ms;
+use crate::app::now_ms;
 
 type RetainedAudioDictionary = objc2_core_foundation::CFRetained<CFDictionary<CFType, CFType>>;
 

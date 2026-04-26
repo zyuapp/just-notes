@@ -1,5 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use tauri::{AppHandle, Manager};
 
 mod app;
@@ -97,13 +95,6 @@ async fn stop_recording(
     tauri::async_runtime::spawn_blocking(move || recording::stop_recording(paths, recorder))
         .await
         .map_err(|err| format!("Audio stop task failed: {err}"))?
-}
-
-pub(crate) fn now_ms() -> Result<u64, String> {
-    Ok(SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|err| format!("System clock is before UNIX epoch: {err}"))?
-        .as_millis() as u64)
 }
 
 pub fn run() {

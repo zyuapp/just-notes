@@ -1,7 +1,5 @@
 use std::{env, fs, path::PathBuf};
 
-use crate::transcription::models::{discover_whisper_models, TranscriptionPaths};
-
 #[derive(Clone)]
 pub(crate) struct AppPaths {
     pub(crate) data_dir: PathBuf,
@@ -43,29 +41,5 @@ impl AppPaths {
 
     pub(crate) fn thread_dir(&self, thread_id: &str) -> PathBuf {
         self.threads_dir.join(thread_id)
-    }
-
-    pub(crate) fn transcription_paths(&self) -> TranscriptionPaths {
-        let mut available_models =
-            discover_whisper_models(&self.data_dir.join("models").join("whisper"));
-        let selected_model = available_models
-            .iter()
-            .find(|model| model.installed)
-            .cloned()
-            .unwrap_or_else(|| {
-                available_models
-                    .last()
-                    .expect("whisper model candidates")
-                    .clone()
-            });
-        for model in &mut available_models {
-            model.selected = model.filename == selected_model.filename;
-        }
-
-        TranscriptionPaths {
-            model_path: selected_model.path.clone(),
-            model_name: selected_model.name.clone(),
-            available_models,
-        }
     }
 }
