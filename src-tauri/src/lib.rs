@@ -37,6 +37,7 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 
 const LIVE_TRANSCRIPTION_STEP_MS: u64 = 2_000;
 const LIVE_TRANSCRIPTION_WINDOW_MS: u64 = 12_000;
+const LIVE_TRANSCRIPTION_MAX_AGREEMENT_BUFFER_MS: u64 = 30_000;
 const LIVE_TRANSCRIPTION_STABILITY_DELAY_MS: u64 = 2_000;
 const LIVE_TRANSCRIPTION_POLL_MS: u64 = 250;
 const LIVE_SILENCE_RMS_THRESHOLD: f32 = 0.005;
@@ -1310,6 +1311,7 @@ struct LiveChannelState {
     speaker: &'static str,
     sample_rate: u32,
     next_decode_ms: u64,
+    decode_start_ms: u64,
     committed_until_ms: u64,
     last_emitted_end_ms: u64,
     prompt_tail: VecDeque<String>,
@@ -1324,6 +1326,7 @@ impl LiveChannelState {
             speaker,
             sample_rate,
             next_decode_ms: LIVE_TRANSCRIPTION_STEP_MS,
+            decode_start_ms: 0,
             committed_until_ms: 0,
             last_emitted_end_ms: 0,
             prompt_tail: VecDeque::with_capacity(8),
@@ -1379,6 +1382,12 @@ impl LiveChannelState {
         };
         self.previous_hypothesis = Some(hypothesis.to_string());
         agreed
+    }
+
+    fn mark_emitted_until(&mut self, end_ms: u64) {
+        self.last_emitted_end_ms = self.last_emitted_end_ms.max(end_ms);
+        self.decode_start_ms = self.decode_start_ms.max(end_ms);
+        self.previous_hypothesis = None;
     }
 }
 
@@ -1494,7 +1503,13 @@ fn process_live_channel(
         return Ok(0);
     }
 
-    let window_start_ms = target_end_ms.saturating_sub(LIVE_TRANSCRIPTION_WINDOW_MS);
+    let max_window_start_ms =
+        target_end_ms.saturating_sub(LIVE_TRANSCRIPTION_MAX_AGREEMENT_BUFFER_MS);
+    if state.decode_start_ms < max_window_start_ms {
+        state.decode_start_ms = max_window_start_ms;
+        state.previous_hypothesis = None;
+    }
+    let window_start_ms = state.decode_start_ms;
     let start_index = ms_to_samples(window_start_ms, state.sample_rate) as u64;
     let end_index = ms_to_samples(target_end_ms, state.sample_rate) as u64;
 
@@ -1571,7 +1586,7 @@ fn process_live_channel(
                     segment,
                 },
             );
-            state.last_emitted_end_ms = state.last_emitted_end_ms.max(commit_until_ms);
+            state.mark_emitted_until(commit_until_ms);
             1
         } else {
             0
