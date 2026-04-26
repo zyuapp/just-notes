@@ -35,6 +35,9 @@ use objc2_foundation::{NSArray, NSNumber, NSString};
 use tauri::{AppHandle, Emitter, Manager};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
+type RetainedAudioDictionary = objc2_core_foundation::CFRetained<CFDictionary<CFType, CFType>>;
+type LiveSampleWindow = Option<Vec<f32>>;
+
 const LIVE_TRANSCRIPTION_STEP_MS: u64 = 2_000;
 const LIVE_TRANSCRIPTION_WINDOW_MS: u64 = 12_000;
 const LIVE_TRANSCRIPTION_MAX_AGREEMENT_BUFFER_MS: u64 = 30_000;
@@ -203,6 +206,15 @@ struct PreparedAudioInput {
     audio_capture: ActiveAudioCapture,
 }
 
+struct RecordingSessionConfig {
+    app: AppHandle,
+    thread_id: String,
+    thread_dir: PathBuf,
+    started: Instant,
+    input: PreparedAudioInput,
+    transcription_paths: TranscriptionPaths,
+}
+
 struct SharedBuffers {
     mic: RollingChannel,
     system: RollingChannel,
@@ -272,15 +284,17 @@ struct ThreadMetadata {
     status: ThreadStatus,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 enum ThreadStatus {
     Idle,
     Recording,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct ThreadSummary {
     id: String,
     title: String,
@@ -291,8 +305,9 @@ struct ThreadSummary {
     path: String,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct TranscriptSegment {
     speaker: String,
     source: String,
@@ -301,24 +316,27 @@ struct TranscriptSegment {
     text: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct ThreadDetail {
     summary: ThreadSummary,
     segments: Vec<TranscriptSegment>,
     transcript_markdown_path: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct AppInfo {
     data_dir: String,
     threads_dir: String,
     fixture_mode: bool,
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct MeterPayload {
     thread_id: String,
     mic_level: f32,
@@ -326,23 +344,26 @@ struct MeterPayload {
     elapsed_ms: u64,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct RecordingPayload {
     thread: ThreadDetail,
     transcription: TranscriptionStatusPayload,
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct LiveTranscriptSegmentPayload {
     thread_id: String,
     committed_until_ms: u64,
     segment: TranscriptSegment,
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct LiveTranscriptStatusPayload {
     thread_id: String,
     active: bool,
@@ -351,8 +372,9 @@ struct LiveTranscriptStatusPayload {
     overlap_ms: u64,
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct TranscriptionStatusPayload {
     ready: bool,
     engine_exists: bool,
@@ -364,11 +386,13 @@ struct TranscriptionStatusPayload {
     message: String,
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 struct WhisperModelStatus {
     name: String,
     filename: String,
+    #[ts(type = "string")]
     path: PathBuf,
     installed: bool,
     selected: bool,
@@ -636,33 +660,62 @@ fn prepare_recording_session(
     requested_thread_id: Option<String>,
     input_mode: RecordingInputMode,
 ) -> Result<RecordingPayload, String> {
-    if recorder
-        .session
-        .lock()
-        .map_err(|_| "Recorder state lock was poisoned".to_string())?
-        .is_some()
-    {
-        return Err("Recording is already active".to_string());
-    }
-
+    ensure_recorder_idle(recorder)?;
     paths.ensure()?;
+
     let thread = select_recording_thread(&paths, requested_thread_id)?;
     let thread_id = thread.summary.id.clone();
     let thread_dir = paths.thread_dir(&thread_id);
     prepare_work_dir(&thread_dir)?;
 
     let started = Instant::now();
+    let mut input = prepare_audio_input(&app, input_mode)?;
+    set_thread_status(&thread_dir, ThreadStatus::Recording)?;
+    start_audio_capture(&mut input.audio_capture)?;
+
+    let transcription = transcription_status(&paths);
+    let session = build_recording_session(RecordingSessionConfig {
+        app,
+        thread_id: thread_id.clone(),
+        thread_dir,
+        started,
+        input,
+        transcription_paths: paths.transcription_paths(),
+    });
+    store_recording_session(recorder, session)?;
+
+    Ok(RecordingPayload {
+        thread: load_thread_by_id(&paths, &thread_id)?,
+        transcription,
+    })
+}
+
+fn ensure_recorder_idle(recorder: &RecorderState) -> Result<(), String> {
+    let session = recorder
+        .session
+        .lock()
+        .map_err(|_| "Recorder state lock was poisoned".to_string())?;
+    if session.is_some() {
+        return Err("Recording is already active".to_string());
+    }
+    Ok(())
+}
+
+fn build_recording_session(config: RecordingSessionConfig) -> RecorderSession {
+    let RecordingSessionConfig {
+        app,
+        thread_id,
+        thread_dir,
+        started,
+        input,
+        transcription_paths,
+    } = config;
     let PreparedAudioInput {
         mic_sample_rate,
         system_sample_rate,
         buffers,
-        mut audio_capture,
-    } = prepare_audio_input(&app, input_mode)?;
-
-    set_thread_status(&thread_dir, ThreadStatus::Recording)?;
-
-    start_audio_capture(&mut audio_capture)?;
-
+        audio_capture,
+    } = input;
     let should_stop_meter = Arc::new(AtomicBool::new(false));
     let meter_thread = spawn_meter_thread(
         app.clone(),
@@ -672,12 +725,11 @@ fn prepare_recording_session(
         started,
     );
 
-    let transcription = transcription_status(&paths);
     let should_stop_live_transcription = Arc::new(AtomicBool::new(false));
     let live_transcription_thread =
         spawn_live_transcription_thread(LiveTranscriptionThreadConfig {
             app,
-            paths: paths.transcription_paths(),
+            paths: transcription_paths,
             buffers: Arc::clone(&buffers),
             should_stop: Arc::clone(&should_stop_live_transcription),
             thread_id: thread_id.clone(),
@@ -686,16 +738,8 @@ fn prepare_recording_session(
             system_sample_rate,
         });
 
-    let mut slot = recorder
-        .session
-        .lock()
-        .map_err(|_| "Recorder state lock was poisoned".to_string())?;
-    if slot.is_some() {
-        return Err("Recording is already active".to_string());
-    }
-
-    *slot = Some(RecorderSession {
-        thread_id: thread_id.clone(),
+    RecorderSession {
+        thread_id,
         thread_dir,
         started,
         buffers,
@@ -704,12 +748,23 @@ fn prepare_recording_session(
         meter_thread: Some(meter_thread),
         live_transcription_thread,
         audio_capture,
-    });
+    }
+}
 
-    Ok(RecordingPayload {
-        thread: load_thread_by_id(&paths, &thread_id)?,
-        transcription,
-    })
+fn store_recording_session(
+    recorder: &RecorderState,
+    session: RecorderSession,
+) -> Result<(), String> {
+    let mut slot = recorder
+        .session
+        .lock()
+        .map_err(|_| "Recorder state lock was poisoned".to_string())?;
+    if slot.is_some() {
+        return Err("Recording is already active".to_string());
+    }
+
+    *slot = Some(session);
+    Ok(())
 }
 
 fn select_recording_thread(
@@ -949,7 +1004,7 @@ impl Drop for CoreAudioSystemTap {
 fn create_aggregate_device_description(
     device_name: &str,
     aggregate_uid: &str,
-) -> Result<objc2_core_foundation::CFRetained<CFDictionary<CFType, CFType>>, String> {
+) -> Result<RetainedAudioDictionary, String> {
     let name_key = cf_audio_key(kAudioAggregateDeviceNameKey)?;
     let uid_key = cf_audio_key(kAudioAggregateDeviceUIDKey)?;
     let private_key = cf_audio_key(kAudioAggregateDeviceIsPrivateKey)?;
@@ -1249,6 +1304,24 @@ fn read_fixture_track(path: &Path) -> Result<FixtureTrack, String> {
     }
 
     let channels = spec.channels as usize;
+    let raw_samples = read_fixture_samples(&mut reader, spec, path)?;
+    let samples = raw_samples
+        .chunks(channels)
+        .map(average_f32)
+        .collect::<Vec<_>>();
+
+    Ok(FixtureTrack {
+        sample_rate: spec.sample_rate,
+        samples,
+    })
+}
+
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
+fn read_fixture_samples<R: std::io::Read>(
+    reader: &mut hound::WavReader<R>,
+    spec: hound::WavSpec,
+    path: &Path,
+) -> Result<Vec<f32>, String> {
     let raw_samples = match spec.sample_format {
         hound::SampleFormat::Float => reader
             .samples::<f32>()
@@ -1282,15 +1355,7 @@ fn read_fixture_track(path: &Path) -> Result<FixtureTrack, String> {
                 .collect::<Result<Vec<_>, _>>()?
         }
     };
-
-    let samples = raw_samples
-        .chunks(channels)
-        .map(average_f32)
-        .collect::<Vec<_>>();
-    Ok(FixtureTrack {
-        sample_rate: spec.sample_rate,
-        samples,
-    })
+    Ok(raw_samples)
 }
 
 #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
@@ -1850,7 +1915,7 @@ fn live_samples(
     source: &str,
     start_index: u64,
     end_index: u64,
-) -> Result<Option<Vec<f32>>, String> {
+) -> Result<LiveSampleWindow, String> {
     let shared = buffers
         .lock()
         .map_err(|_| "Audio buffer lock was poisoned".to_string())?;
@@ -2080,32 +2145,12 @@ fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> O
         .map(|word| word.normalized.clone())
         .collect::<Vec<_>>();
     if candidate_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
-        let recent = recent_texts
-            .iter()
-            .rev()
-            .take(LIVE_DUPLICATE_RECENT_SEGMENTS)
-            .cloned()
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect::<Vec<_>>()
-            .join(" ");
-        let recent_words = normalized_words(&recent);
+        let recent_words = recent_transcript_words(recent_texts);
         return (!contains_word_sequence(&recent_words, &candidate_words))
             .then(|| candidate.to_string());
     }
 
-    let recent = recent_texts
-        .iter()
-        .rev()
-        .take(LIVE_DUPLICATE_RECENT_SEGMENTS)
-        .cloned()
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect::<Vec<_>>()
-        .join(" ");
-    let recent_words = normalized_words(&recent);
+    let recent_words = recent_transcript_words(recent_texts);
     if recent_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
         return Some(candidate);
     }
@@ -2125,6 +2170,20 @@ fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> O
     }
 
     Some(candidate)
+}
+
+fn recent_transcript_words(recent_texts: &VecDeque<String>) -> Vec<String> {
+    let recent = recent_texts
+        .iter()
+        .rev()
+        .take(LIVE_DUPLICATE_RECENT_SEGMENTS)
+        .cloned()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>()
+        .join(" ");
+    normalized_words(&recent)
 }
 
 fn remove_duplicate_word_spans(
@@ -2593,65 +2652,66 @@ fn default_thread_count() -> usize {
 fn ensure_microphone_permission(app: &AppHandle) -> Result<(), String> {
     use std::sync::mpsc;
 
-    use block2::RcBlock;
-    use objc2::runtime::Bool;
-    use objc2_av_foundation::{AVAuthorizationStatus, AVCaptureDevice, AVMediaTypeAudio};
-
     let (sender, receiver) = mpsc::channel();
 
-    app.run_on_main_thread(move || {
-        let media_type = match unsafe { AVMediaTypeAudio } {
-            Some(media_type) => media_type,
-            None => {
-                let _ = sender.send(Err("AVMediaTypeAudio is unavailable".to_string()));
-                return;
-            }
-        };
-        let status = unsafe { AVCaptureDevice::authorizationStatusForMediaType(media_type) };
-
-        match status {
-            AVAuthorizationStatus::Authorized => {
-                let _ = sender.send(Ok(()));
-            }
-            AVAuthorizationStatus::Denied => {
-                let _ = sender.send(Err(
-                    "Microphone access is denied in macOS Privacy & Security settings".to_string(),
-                ));
-            }
-            AVAuthorizationStatus::Restricted => {
-                let _ = sender.send(Err(
-                    "Microphone access is restricted by macOS policy".to_string()
-                ));
-            }
-            AVAuthorizationStatus::NotDetermined => {
-                let block = RcBlock::new(move |granted: Bool| {
-                    let result = if granted.as_bool() {
-                        Ok(())
-                    } else {
-                        Err("Microphone permission was not granted".to_string())
-                    };
-                    let _ = sender.send(result);
-                });
-
-                unsafe {
-                    AVCaptureDevice::requestAccessForMediaType_completionHandler(
-                        media_type, &block,
-                    );
-                }
-                std::mem::forget(block);
-            }
-            other => {
-                let _ = sender.send(Err(format!(
-                    "Unknown microphone authorization status: {other:?}"
-                )));
-            }
-        }
-    })
-    .map_err(|err| format!("Failed to request microphone permission on main thread: {err}"))?;
+    app.run_on_main_thread(move || request_microphone_permission(sender))
+        .map_err(|err| format!("Failed to request microphone permission on main thread: {err}"))?;
 
     receiver
         .recv_timeout(Duration::from_secs(120))
         .map_err(|_| "Timed out waiting for microphone permission".to_string())?
+}
+
+#[cfg(target_os = "macos")]
+fn request_microphone_permission(sender: std::sync::mpsc::Sender<Result<(), String>>) {
+    use block2::RcBlock;
+    use objc2::runtime::Bool;
+    use objc2_av_foundation::{AVAuthorizationStatus, AVCaptureDevice, AVMediaTypeAudio};
+
+    let media_type = match unsafe { AVMediaTypeAudio } {
+        Some(media_type) => media_type,
+        None => {
+            let _ = sender.send(Err("AVMediaTypeAudio is unavailable".to_string()));
+            return;
+        }
+    };
+    let status = unsafe { AVCaptureDevice::authorizationStatusForMediaType(media_type) };
+
+    match status {
+        AVAuthorizationStatus::Authorized => {
+            let _ = sender.send(Ok(()));
+        }
+        AVAuthorizationStatus::Denied => {
+            let _ = sender.send(Err(
+                "Microphone access is denied in macOS Privacy & Security settings".to_string(),
+            ));
+        }
+        AVAuthorizationStatus::Restricted => {
+            let _ = sender.send(Err(
+                "Microphone access is restricted by macOS policy".to_string()
+            ));
+        }
+        AVAuthorizationStatus::NotDetermined => {
+            let block = RcBlock::new(move |granted: Bool| {
+                let result = if granted.as_bool() {
+                    Ok(())
+                } else {
+                    Err("Microphone permission was not granted".to_string())
+                };
+                let _ = sender.send(result);
+            });
+
+            unsafe {
+                AVCaptureDevice::requestAccessForMediaType_completionHandler(media_type, &block);
+            }
+            std::mem::forget(block);
+        }
+        other => {
+            let _ = sender.send(Err(format!(
+                "Unknown microphone authorization status: {other:?}"
+            )));
+        }
+    }
 }
 
 #[cfg(not(target_os = "macos"))]

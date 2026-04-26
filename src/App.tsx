@@ -1,5 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { AppInfo } from "./bindings/AppInfo";
+import type { LiveTranscriptSegmentPayload } from "./bindings/LiveTranscriptSegmentPayload";
+import type { LiveTranscriptStatusPayload } from "./bindings/LiveTranscriptStatusPayload";
+import type { MeterPayload } from "./bindings/MeterPayload";
+import type { RecordingPayload } from "./bindings/RecordingPayload";
+import type { ThreadDetail } from "./bindings/ThreadDetail";
+import type { ThreadSummary } from "./bindings/ThreadSummary";
+import type { TranscriptionStatusPayload as TranscriptionStatus } from "./bindings/TranscriptionStatusPayload";
 import {
   FlaskConical,
   Circle,
@@ -13,83 +21,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-type ThreadStatus = "idle" | "recording";
 type RecorderState = "idle" | "starting" | "recording" | "stopping";
-
-type AppInfo = {
-  dataDir: string;
-  threadsDir: string;
-  fixtureMode: boolean;
-};
-
-type ThreadSummary = {
-  id: string;
-  title: string;
-  createdAtMs: number;
-  updatedAtMs: number;
-  status: ThreadStatus;
-  segmentCount: number;
-  path: string;
-};
-
-type TranscriptSegment = {
-  speaker: string;
-  source: string;
-  startMs: number;
-  endMs: number;
-  text: string;
-};
-
-type ThreadDetail = {
-  summary: ThreadSummary;
-  segments: TranscriptSegment[];
-  transcriptMarkdownPath: string;
-};
-
-type TranscriptionStatus = {
-  ready: boolean;
-  engineExists: boolean;
-  modelExists: boolean;
-  enginePath: string;
-  modelPath: string;
-  modelName: string;
-  availableModels: WhisperModelStatus[];
-  message: string;
-};
-
-type WhisperModelStatus = {
-  name: string;
-  filename: string;
-  path: string;
-  installed: boolean;
-  selected: boolean;
-};
-
-type RecordingPayload = {
-  thread: ThreadDetail;
-  transcription: TranscriptionStatus;
-};
-
-type MeterPayload = {
-  threadId: string;
-  micLevel: number;
-  systemLevel: number;
-  elapsedMs: number;
-};
-
-type LiveTranscriptSegmentPayload = {
-  threadId: string;
-  committedUntilMs: number;
-  segment: TranscriptSegment;
-};
-
-type LiveTranscriptStatusPayload = {
-  threadId: string;
-  active: boolean;
-  message: string;
-  chunkMs: number;
-  overlapMs: number;
-};
 
 const meterBars = Array.from({ length: 18 }, (_, index) => index);
 
