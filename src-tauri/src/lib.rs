@@ -1,9 +1,6 @@
 use std::{
     collections::VecDeque,
     ffi::{c_void, CStr},
-    fs,
-    fs::OpenOptions,
-    io::{BufRead, BufReader, Write},
     mem,
     path::{Path, PathBuf},
     ptr::{self, NonNull},
@@ -44,7 +41,13 @@ use ipc::{
     AppInfo, LiveTranscriptSegmentPayload, LiveTranscriptStatusPayload, MeterPayload,
     RecordingPayload,
 };
-use threads::{ThreadDetail, ThreadMetadata, ThreadStatus, ThreadSummary, TranscriptSegment};
+use threads::{ThreadDetail, ThreadStatus, ThreadSummary, TranscriptSegment};
+use threads::repository::{
+    create_thread as create_thread_record, list_threads as list_thread_records,
+    load_thread_by_id, prepare_work_dir, render_thread_markdown, reset_stale_recording_threads,
+    set_thread_status, touch_thread,
+};
+use threads::transcript_store::append_live_segment;
 use transcription::{TranscriptionPaths, TranscriptionStatusPayload};
 
 type RetainedAudioDictionary = objc2_core_foundation::CFRetained<CFDictionary<CFType, CFType>>;
@@ -195,27 +198,12 @@ fn get_app_info(paths: tauri::State<'_, AppPaths>) -> AppInfo {
 
 #[tauri::command]
 fn list_threads(paths: tauri::State<'_, AppPaths>) -> Result<Vec<ThreadSummary>, String> {
-    let paths = paths.inner();
-    paths.ensure()?;
-
-    let mut threads = fs::read_dir(&paths.threads_dir)
-        .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?
-        .filter_map(Result::ok)
-        .filter_map(|entry| load_thread_summary(&entry.path()).ok())
-        .collect::<Vec<_>>();
-
-    threads.sort_by(|left, right| {
-        right
-            .updated_at_ms
-            .cmp(&left.updated_at_ms)
-            .then_with(|| right.created_at_ms.cmp(&left.created_at_ms))
-    });
-    Ok(threads)
+    list_thread_records(paths.inner())
 }
 
 #[tauri::command]
 fn create_thread(paths: tauri::State<'_, AppPaths>) -> Result<ThreadDetail, String> {
-    create_thread_inner(paths.inner())
+    create_thread_record(paths.inner())
 }
 
 #[tauri::command]
@@ -286,118 +274,6 @@ async fn stop_recording(
     tauri::async_runtime::spawn_blocking(move || stop_recording_inner(paths, recorder))
         .await
         .map_err(|err| format!("Audio stop task failed: {err}"))?
-}
-
-fn create_thread_inner(paths: &AppPaths) -> Result<ThreadDetail, String> {
-    paths.ensure()?;
-
-    let now = now_ms()?;
-    let id = format!("thread-{now}");
-    let thread_dir = paths.thread_dir(&id);
-    fs::create_dir_all(thread_dir.join("work")).map_err(|err| {
-        format!(
-            "Failed to create thread folder at {}: {err}",
-            thread_dir.display()
-        )
-    })?;
-
-    let metadata = ThreadMetadata {
-        id,
-        title: "Untitled thread".to_string(),
-        created_at_ms: now,
-        updated_at_ms: now,
-        status: ThreadStatus::Idle,
-    };
-    save_thread_metadata(&thread_dir, &metadata)?;
-    write_text_atomic(&thread_dir.join("transcript.md"), "# Untitled thread\n\n")?;
-
-    load_thread_detail(&thread_dir)
-}
-
-fn load_thread_by_id(paths: &AppPaths, thread_id: &str) -> Result<ThreadDetail, String> {
-    let thread_dir = paths.thread_dir(thread_id);
-    if !thread_dir.is_dir() {
-        return Err(format!("Thread does not exist: {thread_id}"));
-    }
-
-    load_thread_detail(&thread_dir)
-}
-
-fn load_thread_detail(thread_dir: &Path) -> Result<ThreadDetail, String> {
-    let summary = load_thread_summary(thread_dir)?;
-    let segments = read_transcript_jsonl(&thread_dir.join("transcript.jsonl"))?;
-    Ok(ThreadDetail {
-        summary,
-        segments,
-        transcript_markdown_path: thread_dir.join("transcript.md").display().to_string(),
-    })
-}
-
-fn load_thread_summary(thread_dir: &Path) -> Result<ThreadSummary, String> {
-    if !thread_dir.is_dir() {
-        return Err(format!("Not a thread folder: {}", thread_dir.display()));
-    }
-
-    let metadata_path = thread_dir.join("thread.json");
-    let metadata = read_thread_metadata(&metadata_path)?;
-    Ok(ThreadSummary {
-        id: metadata.id,
-        title: metadata.title,
-        created_at_ms: metadata.created_at_ms,
-        updated_at_ms: metadata.updated_at_ms,
-        status: metadata.status,
-        segment_count: count_jsonl_lines(&thread_dir.join("transcript.jsonl"))?,
-        path: thread_dir.display().to_string(),
-    })
-}
-
-fn read_thread_metadata(path: &Path) -> Result<ThreadMetadata, String> {
-    let json = fs::read_to_string(path)
-        .map_err(|err| format!("Failed to read {}: {err}", path.display()))?;
-    serde_json::from_str(&json).map_err(|err| format!("Invalid {}: {err}", path.display()))
-}
-
-fn save_thread_metadata(thread_dir: &Path, metadata: &ThreadMetadata) -> Result<(), String> {
-    let json = serde_json::to_string_pretty(metadata)
-        .map_err(|err| format!("Failed to encode thread metadata: {err}"))?;
-    write_text_atomic(&thread_dir.join("thread.json"), &json)
-}
-
-fn set_thread_status(thread_dir: &Path, status: ThreadStatus) -> Result<(), String> {
-    let mut metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
-    metadata.status = status;
-    metadata.updated_at_ms = now_ms()?;
-    save_thread_metadata(thread_dir, &metadata)
-}
-
-fn touch_thread(thread_dir: &Path) -> Result<(), String> {
-    let mut metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
-    metadata.updated_at_ms = now_ms()?;
-    save_thread_metadata(thread_dir, &metadata)
-}
-
-fn reset_stale_recording_threads(paths: &AppPaths) -> Result<(), String> {
-    paths.ensure()?;
-    for entry in fs::read_dir(&paths.threads_dir)
-        .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?
-    {
-        let entry = entry
-            .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?;
-        let thread_dir = entry.path();
-        if !thread_dir.is_dir() {
-            continue;
-        }
-        let metadata_path = thread_dir.join("thread.json");
-        if !metadata_path.is_file() {
-            continue;
-        }
-        let mut metadata = read_thread_metadata(&metadata_path)?;
-        if metadata.status == ThreadStatus::Recording {
-            metadata.status = ThreadStatus::Idle;
-            save_thread_metadata(&thread_dir, &metadata)?;
-        }
-    }
-    Ok(())
 }
 
 fn start_recording_inner(
@@ -550,7 +426,7 @@ fn select_recording_thread(
     requested_thread_id: Option<String>,
 ) -> Result<ThreadDetail, String> {
     let Some(thread_id) = requested_thread_id else {
-        return create_thread_inner(paths);
+        return create_thread_record(paths);
     };
 
     let thread = load_thread_by_id(paths, &thread_id)?;
@@ -558,7 +434,7 @@ fn select_recording_thread(
         return Err("The selected thread is already recording".to_string());
     }
     if thread.summary.segment_count > 0 {
-        return create_thread_inner(paths);
+        return create_thread_record(paths);
     }
 
     Ok(thread)
@@ -605,47 +481,6 @@ fn stop_recording_inner(paths: AppPaths, recorder: RecorderState) -> Result<Thre
     set_thread_status(&thread_dir, ThreadStatus::Idle)?;
     render_thread_markdown(&thread_dir, duration_ms)?;
     load_thread_by_id(&paths, &thread_id)
-}
-
-fn prepare_work_dir(thread_dir: &Path) -> Result<(), String> {
-    let work_dir = thread_dir.join("work");
-    if work_dir.exists() {
-        fs::remove_dir_all(&work_dir).map_err(|err| {
-            format!(
-                "Failed to clear transcription work directory {}: {err}",
-                work_dir.display()
-            )
-        })?;
-    }
-    fs::create_dir_all(&work_dir).map_err(|err| {
-        format!(
-            "Failed to create transcription work directory {}: {err}",
-            work_dir.display()
-        )
-    })
-}
-
-fn render_thread_markdown(thread_dir: &Path, duration_ms: u64) -> Result<(), String> {
-    let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
-    let segments = read_transcript_jsonl(&thread_dir.join("transcript.jsonl"))?;
-    let mut markdown = String::new();
-    markdown.push_str(&format!("# {}\n\n", metadata.title));
-    markdown.push_str(&format!("Thread: `{}`\n\n", metadata.id));
-    markdown.push_str(&format!(
-        "Duration: `{}`\n\n",
-        format_transcript_time(duration_ms)
-    ));
-
-    for segment in segments {
-        markdown.push_str(&format!(
-            "[{}] **{}:** {}\n\n",
-            format_transcript_time(segment.start_ms),
-            segment.speaker,
-            segment.text
-        ));
-    }
-
-    write_text_atomic(&thread_dir.join("transcript.md"), &markdown)
 }
 
 fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
@@ -2225,67 +2060,6 @@ fn word_ngrams(words: &[String], size: usize) -> Vec<String> {
     words.windows(size).map(|window| window.join(" ")).collect()
 }
 
-fn append_live_segment(path: &Path, segment: &TranscriptSegment) -> Result<(), String> {
-    if let Some(last) = read_last_transcript_segment(path)? {
-        if transcript_segment_order(&last, segment).is_gt() {
-            let mut segments = read_transcript_jsonl(path)?;
-            segments.push(segment.clone());
-            segments.sort_by(transcript_segment_order);
-            return write_transcript_jsonl(path, &segments);
-        }
-    }
-
-    append_transcript_jsonl_line(path, segment)
-}
-
-fn append_transcript_jsonl_line(path: &Path, segment: &TranscriptSegment) -> Result<(), String> {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|err| format!("Failed to open transcript {}: {err}", path.display()))?;
-    let line = serde_json::to_string(segment)
-        .map_err(|err| format!("Failed to encode transcript segment: {err}"))?;
-    writeln!(file, "{line}")
-        .map_err(|err| format!("Failed to append transcript {}: {err}", path.display()))
-}
-
-fn read_last_transcript_segment(path: &Path) -> Result<Option<TranscriptSegment>, String> {
-    if !path.is_file() {
-        return Ok(None);
-    }
-
-    let content = fs::read_to_string(path)
-        .map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
-    let Some(line) = content.lines().rev().find(|line| !line.trim().is_empty()) else {
-        return Ok(None);
-    };
-    serde_json::from_str(line)
-        .map(Some)
-        .map_err(|err| format!("Invalid transcript line in {}: {err}", path.display()))
-}
-
-fn write_transcript_jsonl(path: &Path, segments: &[TranscriptSegment]) -> Result<(), String> {
-    let mut content = String::new();
-    for segment in segments {
-        let line = serde_json::to_string(segment)
-            .map_err(|err| format!("Failed to encode transcript segment: {err}"))?;
-        content.push_str(&line);
-        content.push('\n');
-    }
-    write_text_atomic(path, &content)
-}
-
-fn transcript_segment_order(
-    left: &TranscriptSegment,
-    right: &TranscriptSegment,
-) -> std::cmp::Ordering {
-    left.start_ms
-        .cmp(&right.start_ms)
-        .then_with(|| left.end_ms.cmp(&right.end_ms))
-        .then_with(|| left.source.cmp(&right.source))
-}
-
 fn emit_live_status(app: &AppHandle, thread_id: &str, active: bool, message: impl Into<String>) {
     let _ = app.emit(
         "live-transcript-status",
@@ -2299,67 +2073,7 @@ fn emit_live_status(app: &AppHandle, thread_id: &str, active: bool, message: imp
     );
 }
 
-fn read_transcript_jsonl(path: &Path) -> Result<Vec<TranscriptSegment>, String> {
-    if !path.is_file() {
-        return Ok(Vec::new());
-    }
-
-    let file = fs::File::open(path)
-        .map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
-    let reader = BufReader::new(file);
-    let mut segments = Vec::new();
-
-    for line in reader.lines() {
-        let line =
-            line.map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
-        if line.trim().is_empty() {
-            continue;
-        }
-        segments.push(
-            serde_json::from_str::<TranscriptSegment>(&line)
-                .map_err(|err| format!("Invalid transcript line in {}: {err}", path.display()))?,
-        );
-    }
-
-    segments.sort_by(|left, right| {
-        left.start_ms
-            .cmp(&right.start_ms)
-            .then_with(|| left.source.cmp(&right.source))
-    });
-    Ok(segments)
-}
-
-fn count_jsonl_lines(path: &Path) -> Result<usize, String> {
-    if !path.is_file() {
-        return Ok(0);
-    }
-
-    let file = fs::File::open(path)
-        .map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
-    Ok(BufReader::new(file)
-        .lines()
-        .filter(|line| line.is_ok())
-        .count())
-}
-
-fn write_text_atomic(path: &Path, content: &str) -> Result<(), String> {
-    let tmp_path = path.with_extension("tmp");
-    let mut file = fs::File::create(&tmp_path)
-        .map_err(|err| format!("Failed to create {}: {err}", tmp_path.display()))?;
-    file.write_all(content.as_bytes())
-        .map_err(|err| format!("Failed to write {}: {err}", tmp_path.display()))?;
-    file.sync_all()
-        .map_err(|err| format!("Failed to sync {}: {err}", tmp_path.display()))?;
-    fs::rename(&tmp_path, path).map_err(|err| {
-        format!(
-            "Failed to replace {} with {}: {err}",
-            path.display(),
-            tmp_path.display()
-        )
-    })
-}
-
-fn now_ms() -> Result<u64, String> {
+pub(crate) fn now_ms() -> Result<u64, String> {
     Ok(SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|err| format!("System clock is before UNIX epoch: {err}"))?
@@ -2411,13 +2125,6 @@ fn resample_to_rate(samples: &[f32], source_rate: u32, target_rate: u32) -> Vec<
     }
 
     output
-}
-
-fn format_transcript_time(ms: u64) -> String {
-    let total_seconds = ms / 1000;
-    let minutes = total_seconds / 60;
-    let seconds = total_seconds % 60;
-    format!("{minutes:02}:{seconds:02}")
 }
 
 fn default_thread_count() -> usize {
@@ -2538,9 +2245,10 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use std::{env, fs};
 
     use super::*;
+    use crate::threads::transcript_store::read_transcript_jsonl;
 
     #[test]
     fn repeated_transcript_text_matches_overlapping_rollup() {
