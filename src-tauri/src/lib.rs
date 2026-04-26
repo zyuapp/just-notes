@@ -1326,15 +1326,13 @@ impl WhisperRuntime {
         });
         params.set_language(Some("en"));
         params.set_n_threads(default_thread_count() as i32);
-        params.set_no_context(false);
+        params.set_no_context(true);
         params.set_single_segment(false);
         params.set_print_special(false);
         params.set_print_progress(false);
         params.set_print_realtime(false);
         params.set_print_timestamps(false);
-        if !prompt.trim().is_empty() {
-            params.set_initial_prompt(prompt);
-        }
+        let _ = prompt;
 
         state
             .full(params, samples_16k)
@@ -1390,7 +1388,7 @@ fn process_live_channel(
         return Ok(0);
     }
 
-    let decode_end_ms = if final_flush {
+    let target_end_ms = if final_flush {
         available_ms
     } else if available_ms >= state.next_decode_ms {
         state.next_decode_ms
@@ -1398,18 +1396,18 @@ fn process_live_channel(
         return Ok(0);
     };
     let commit_until_ms = if final_flush {
-        decode_end_ms
+        target_end_ms
     } else {
-        decode_end_ms.saturating_sub(LIVE_TRANSCRIPTION_STABILITY_DELAY_MS)
+        target_end_ms.saturating_sub(LIVE_TRANSCRIPTION_STABILITY_DELAY_MS)
     };
     if commit_until_ms <= state.committed_until_ms {
         state.next_decode_ms += LIVE_TRANSCRIPTION_STEP_MS;
         return Ok(0);
     }
 
-    let window_start_ms = decode_end_ms.saturating_sub(LIVE_TRANSCRIPTION_WINDOW_MS);
+    let window_start_ms = commit_until_ms.saturating_sub(LIVE_TRANSCRIPTION_WINDOW_MS);
     let start_index = ms_to_samples(window_start_ms, state.sample_rate) as u64;
-    let end_index = ms_to_samples(decode_end_ms, state.sample_rate) as u64;
+    let end_index = ms_to_samples(commit_until_ms, state.sample_rate) as u64;
 
     let samples = {
         let shared = buffers
@@ -1425,13 +1423,13 @@ fn process_live_channel(
 
     let Some(samples) = samples else {
         state.committed_until_ms = commit_until_ms;
-        state.next_decode_ms = decode_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
+        state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
         return Ok(0);
     };
 
     if rms(&samples) < LIVE_SILENCE_RMS_THRESHOLD {
         state.committed_until_ms = commit_until_ms;
-        state.next_decode_ms = decode_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
+        state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
         return Ok(0);
     }
 
@@ -1448,10 +1446,10 @@ fn process_live_channel(
     for mut segment in segments {
         segment.start_ms += window_start_ms;
         segment.end_ms += window_start_ms;
-        segment.start_ms = segment.start_ms.min(decode_end_ms);
-        segment.end_ms = segment.end_ms.min(decode_end_ms).max(segment.start_ms);
+        segment.start_ms = segment.start_ms.min(commit_until_ms);
+        segment.end_ms = segment.end_ms.min(commit_until_ms).max(segment.start_ms);
 
-        if segment.end_ms <= state.last_emitted_end_ms || segment.end_ms > commit_until_ms {
+        if segment.end_ms <= state.last_emitted_end_ms {
             continue;
         }
         let Some(unique_text) = state.unique_text(&segment.text) else {
@@ -1477,7 +1475,7 @@ fn process_live_channel(
     }
 
     state.committed_until_ms = commit_until_ms;
-    state.next_decode_ms = decode_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
+    state.next_decode_ms = target_end_ms + LIVE_TRANSCRIPTION_STEP_MS;
     Ok(emitted)
 }
 
