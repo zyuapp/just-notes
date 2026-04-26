@@ -52,6 +52,7 @@ Use this when changing how audio is acquired, buffered, leveled, or fixture-driv
 - `audio.rs`: sample/time conversion, RMS, audible-start detection, and resampling.
 - `live/worker.rs`: live transcription thread lifecycle and status/error event emission.
 - `live/channel.rs`: per-source live channel state, hypothesis agreement, segment emission, and transcript append.
+- `live/sink.rs`: committed live segment persistence and frontend event emission.
 - `live/window.rs`: decode-window selection and silence gating.
 - `text/cleanup.rs`: transcript cleanup, partial sentence handling, prefix agreement, and end-time estimation.
 - `text/dedupe.rs`: duplicate suppression policy across recent transcript text.

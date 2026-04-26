@@ -1,24 +1,13 @@
-use std::{
-    collections::VecDeque,
-    path::Path,
-    sync::{Arc, Mutex},
-};
-
-use tauri::{AppHandle, Emitter};
+use std::collections::VecDeque;
 
 use super::{
-    window::{advance_live_decode, prepare_live_decode_window, LiveDecodeWindow},
+    sink::{emit_unique_live_segment, LiveChannelContext},
+    window::{advance_live_decode, prepare_live_decode_window},
     LIVE_TRANSCRIPTION_STEP_MS,
 };
-use crate::threads::repository::touch_thread;
-use crate::{
-    capture::SharedBuffers,
-    ipc::LiveTranscriptSegmentPayload,
-    threads::{transcript_store::append_live_segment, TranscriptSegment},
-    transcription::{
-        common_transcript_prefix, completed_transcript_text, estimate_text_end_ms,
-        resample_to_rate, unique_transcript_text, WhisperRuntime, LIVE_DUPLICATE_RECENT_SEGMENTS,
-    },
+use crate::transcription::{
+    common_transcript_prefix, completed_transcript_text, estimate_text_end_ms, resample_to_rate,
+    unique_transcript_text, LIVE_DUPLICATE_RECENT_SEGMENTS,
 };
 
 pub(crate) struct LiveChannelState {
@@ -63,18 +52,18 @@ impl LiveChannelState {
             .join(" ")
     }
 
-    fn remember_prompt_text(&mut self, text: &str) {
+    pub(super) fn remember_prompt_text(&mut self, text: &str) {
         self.prompt_tail.push_back(text.to_string());
         while self.prompt_tail.len() > 8 {
             self.prompt_tail.pop_front();
         }
     }
 
-    fn unique_text(&self, text: &str) -> Option<String> {
+    pub(super) fn unique_text(&self, text: &str) -> Option<String> {
         unique_transcript_text(text, &self.emitted_text_tail)
     }
 
-    fn remember_emitted_text(&mut self, text: &str) {
+    pub(super) fn remember_emitted_text(&mut self, text: &str) {
         self.emitted_text_tail.push_back(text.to_string());
         while self.emitted_text_tail.len() > LIVE_DUPLICATE_RECENT_SEGMENTS {
             self.emitted_text_tail.pop_front();
@@ -99,20 +88,11 @@ impl LiveChannelState {
         agreed
     }
 
-    fn mark_emitted_until(&mut self, end_ms: u64) {
+    pub(super) fn mark_emitted_until(&mut self, end_ms: u64) {
         self.last_emitted_end_ms = self.last_emitted_end_ms.max(end_ms);
         self.decode_start_ms = self.decode_start_ms.max(end_ms);
         self.previous_hypothesis = None;
     }
-}
-
-pub(super) struct LiveChannelContext<'a> {
-    pub(super) app: &'a AppHandle,
-    pub(super) whisper: &'a WhisperRuntime,
-    pub(super) buffers: &'a Arc<Mutex<SharedBuffers>>,
-    pub(super) jsonl_path: &'a Path,
-    pub(super) thread_dir: &'a Path,
-    pub(super) thread_id: &'a str,
 }
 
 pub(super) fn process_live_channel(
@@ -164,55 +144,6 @@ pub(super) fn process_live_channel(
     )?;
     advance_live_decode(state, window.commit_until_ms, window.target_end_ms);
     Ok(emitted)
-}
-
-fn emit_unique_live_segment(
-    context: &LiveChannelContext<'_>,
-    state: &mut LiveChannelState,
-    window: &LiveDecodeWindow,
-    text: &str,
-    stable_end_ms: u64,
-) -> Result<usize, String> {
-    let Some(unique_text) = state.unique_text(text) else {
-        state.mark_emitted_until(stable_end_ms);
-        return Ok(0);
-    };
-
-    let unique_text = unique_text.trim().to_string();
-    if unique_text.is_empty() {
-        state.mark_emitted_until(stable_end_ms);
-        return Ok(0);
-    }
-
-    let segment = TranscriptSegment {
-        speaker: state.speaker.to_string(),
-        source: state.source.to_string(),
-        start_ms: state
-            .last_emitted_end_ms
-            .max(window.window_start_ms)
-            .max(window.audible_start_ms.unwrap_or(window.window_start_ms)),
-        end_ms: stable_end_ms,
-        text: unique_text,
-    };
-
-    if segment.end_ms <= segment.start_ms {
-        return Ok(0);
-    }
-
-    append_live_segment(context.jsonl_path, &segment)?;
-    touch_thread(context.thread_dir)?;
-    state.remember_prompt_text(&segment.text);
-    state.remember_emitted_text(&segment.text);
-    let _ = context.app.emit(
-        "live-transcript-segment",
-        LiveTranscriptSegmentPayload {
-            thread_id: context.thread_id.to_string(),
-            committed_until_ms: window.commit_until_ms,
-            segment,
-        },
-    );
-    state.mark_emitted_until(stable_end_ms);
-    Ok(1)
 }
 
 #[cfg(test)]

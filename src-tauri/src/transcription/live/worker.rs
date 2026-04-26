@@ -11,7 +11,8 @@ use std::{
 use tauri::{AppHandle, Emitter};
 
 use super::{
-    channel::{process_live_channel, LiveChannelContext, LiveChannelState},
+    channel::{process_live_channel, LiveChannelState},
+    sink::LiveChannelContext,
     LIVE_TRANSCRIPTION_POLL_MS, LIVE_TRANSCRIPTION_STABILITY_DELAY_MS,
     LIVE_TRANSCRIPTION_WINDOW_MS,
 };
