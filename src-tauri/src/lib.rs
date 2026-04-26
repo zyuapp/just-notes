@@ -1482,11 +1482,12 @@ fn process_live_channel(
 }
 
 fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> Option<String> {
+    let candidate = remove_internal_repeated_sentences(candidate);
     if recent_texts.is_empty() {
-        return Some(candidate.to_string());
+        return Some(candidate);
     }
 
-    let candidate_word_pairs = transcript_words(candidate);
+    let candidate_word_pairs = transcript_words(&candidate);
     let candidate_words = candidate_word_pairs
         .iter()
         .map(|word| word.normalized.clone())
@@ -1512,7 +1513,7 @@ fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> O
         .join(" ");
     let recent_words = normalized_words(&recent);
     if recent_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
-        return Some(candidate.to_string());
+        return Some(candidate);
     }
 
     if duplicate_coverage(&candidate_words, &recent_words) >= LIVE_DUPLICATE_COVERAGE_THRESHOLD {
@@ -1525,8 +1526,89 @@ fn unique_transcript_text(candidate: &str, recent_texts: &VecDeque<String>) -> O
     if let Some(text) = trim_duplicate_prefix(&candidate_word_pairs, &recent_words) {
         return Some(text);
     }
+    if let Some(text) = remove_duplicate_word_spans(&candidate_word_pairs, &recent_words) {
+        return Some(remove_internal_repeated_sentences(&text));
+    }
 
-    Some(candidate.to_string())
+    Some(candidate)
+}
+
+fn remove_duplicate_word_spans(
+    words: &[TranscriptWord],
+    recent_words: &[String],
+) -> Option<String> {
+    let mut keep = vec![true; words.len()];
+    let normalized = words
+        .iter()
+        .map(|word| word.normalized.clone())
+        .collect::<Vec<_>>();
+    let mut changed = false;
+
+    loop {
+        let Some(span) = longest_common_word_span(&normalized, recent_words, &keep) else {
+            break;
+        };
+        for item in keep.iter_mut().take(span.end).skip(span.start) {
+            *item = false;
+        }
+        changed = true;
+    }
+
+    if !changed {
+        return None;
+    }
+
+    let kept_words = words
+        .iter()
+        .zip(keep.iter())
+        .filter_map(|(word, keep)| keep.then_some(word))
+        .collect::<Vec<_>>();
+    (kept_words.len() >= LIVE_DUPLICATE_MIN_KEEP_WORDS)
+        .then(|| join_original_word_refs(&kept_words))
+}
+
+struct WordSpan {
+    start: usize,
+    end: usize,
+}
+
+fn longest_common_word_span(
+    candidate_words: &[String],
+    recent_words: &[String],
+    keep: &[bool],
+) -> Option<WordSpan> {
+    let mut best = None;
+    for start in 0..candidate_words.len() {
+        if !keep[start] {
+            continue;
+        }
+
+        for recent_start in 0..recent_words.len() {
+            let mut length = 0usize;
+            while start + length < candidate_words.len()
+                && recent_start + length < recent_words.len()
+                && keep[start + length]
+                && candidate_words[start + length] == recent_words[recent_start + length]
+            {
+                length += 1;
+            }
+
+            if length >= LIVE_DUPLICATE_MIN_TRIM_WORDS {
+                let should_replace = best
+                    .as_ref()
+                    .map(|span: &WordSpan| length > span.end - span.start)
+                    .unwrap_or(true);
+                if should_replace {
+                    best = Some(WordSpan {
+                        start,
+                        end: start + length,
+                    });
+                }
+            }
+        }
+    }
+
+    best
 }
 
 fn trim_duplicate_suffix(words: &[TranscriptWord], recent_words: &[String]) -> Option<String> {
@@ -1610,6 +1692,56 @@ fn join_original_words(words: &[TranscriptWord]) -> String {
         .map(|word| word.original.as_str())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn join_original_word_refs(words: &[&TranscriptWord]) -> String {
+    words
+        .iter()
+        .map(|word| word.original.as_str())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn remove_internal_repeated_sentences(text: &str) -> String {
+    let sentences = split_transcript_sentences(text);
+    let mut seen = Vec::<Vec<String>>::new();
+    let mut kept = Vec::new();
+
+    for sentence in sentences {
+        let normalized = normalized_words(&sentence);
+        if normalized.len() >= LIVE_DUPLICATE_MIN_KEEP_WORDS && seen.contains(&normalized) {
+            continue;
+        }
+        if !normalized.is_empty() {
+            seen.push(normalized);
+        }
+        kept.push(sentence);
+    }
+
+    kept.join(" ")
+}
+
+fn split_transcript_sentences(text: &str) -> Vec<String> {
+    let mut sentences = Vec::new();
+    let mut start = 0usize;
+
+    for (index, character) in text.char_indices() {
+        if character == '.' || character == '!' || character == '?' {
+            let end = index + character.len_utf8();
+            let sentence = text[start..end].trim();
+            if !sentence.is_empty() {
+                sentences.push(sentence.to_string());
+            }
+            start = end;
+        }
+    }
+
+    let tail = text[start..].trim();
+    if !tail.is_empty() {
+        sentences.push(tail.to_string());
+    }
+
+    sentences
 }
 
 fn normalized_words(text: &str) -> Vec<String> {
@@ -1903,6 +2035,39 @@ mod tests {
                 &recent,
             ),
             Some("audio capture and live transcription.".to_string()),
+        );
+    }
+
+    #[test]
+    fn unique_transcript_text_removes_repeated_middle_span() {
+        let mut recent = VecDeque::new();
+        recent.push_back(
+            "Section 18 says the test is half-way through and the steady voice should continue."
+                .to_string(),
+        );
+
+        assert_eq!(
+            unique_transcript_text(
+                "the local application and long-running stability. Section 18 says the test is half-way through and the steady voice should continue. Section 19 says the local app must not require cloud services for the transcript.",
+                &recent,
+            ),
+            Some(
+                "the local application and long-running stability. Section 19 says the local app must not require cloud services for the transcript."
+                    .to_string()
+            ),
+        );
+    }
+
+    #[test]
+    fn unique_transcript_text_removes_internal_repeated_sentence() {
+        let recent = VecDeque::new();
+
+        assert_eq!(
+            unique_transcript_text(
+                "Section 21 says the navy notebook contains project tasks. Section 21 says the navy notebook contains project tasks.",
+                &recent,
+            ),
+            Some("Section 21 says the navy notebook contains project tasks.".to_string()),
         );
     }
 }
