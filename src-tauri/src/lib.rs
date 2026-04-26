@@ -1,6 +1,5 @@
 use std::{
     collections::VecDeque,
-    env,
     ffi::{c_void, CStr},
     fs,
     fs::OpenOptions,
@@ -35,6 +34,19 @@ use objc2_foundation::{NSArray, NSNumber, NSString};
 use tauri::{AppHandle, Emitter, Manager};
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
+mod app;
+mod ipc;
+mod threads;
+mod transcription;
+
+use app::AppPaths;
+use ipc::{
+    AppInfo, LiveTranscriptSegmentPayload, LiveTranscriptStatusPayload, MeterPayload,
+    RecordingPayload,
+};
+use threads::{ThreadDetail, ThreadMetadata, ThreadStatus, ThreadSummary, TranscriptSegment};
+use transcription::{TranscriptionPaths, TranscriptionStatusPayload};
+
 type RetainedAudioDictionary = objc2_core_foundation::CFRetained<CFDictionary<CFType, CFType>>;
 type LiveSampleWindow = Option<Vec<f32>>;
 
@@ -53,109 +65,6 @@ const MAX_ROLLING_BUFFER_MS: u64 = 120_000;
 #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 const FIXTURE_CHUNK_MS: u64 = 50;
 const SYSTEM_CAPTURE_DEVICE_NAME: &str = "Just Notes System Audio";
-const WHISPER_MODEL_CANDIDATES: [WhisperModelCandidate; 3] = [
-    WhisperModelCandidate {
-        name: "medium.en",
-        filename: "ggml-medium.en.bin",
-    },
-    WhisperModelCandidate {
-        name: "small.en",
-        filename: "ggml-small.en.bin",
-    },
-    WhisperModelCandidate {
-        name: "base.en",
-        filename: "ggml-base.en.bin",
-    },
-];
-
-struct WhisperModelCandidate {
-    name: &'static str,
-    filename: &'static str,
-}
-
-#[derive(Clone)]
-struct AppPaths {
-    data_dir: PathBuf,
-    threads_dir: PathBuf,
-}
-
-impl AppPaths {
-    fn discover() -> Result<Self, String> {
-        let home = env::var_os("HOME")
-            .map(PathBuf::from)
-            .ok_or_else(|| "HOME is not set; cannot locate ~/.just-notes".to_string())?;
-        let data_dir = home.join(".just-notes");
-        Ok(Self {
-            threads_dir: data_dir.join("threads"),
-            data_dir,
-        })
-    }
-
-    fn ensure(&self) -> Result<(), String> {
-        fs::create_dir_all(&self.threads_dir).map_err(|err| {
-            format!(
-                "Failed to create thread storage at {}: {err}",
-                self.threads_dir.display()
-            )
-        })?;
-        fs::create_dir_all(self.data_dir.join("engine")).map_err(|err| {
-            format!(
-                "Failed to create engine storage at {}: {err}",
-                self.data_dir.join("engine").display()
-            )
-        })?;
-        fs::create_dir_all(self.data_dir.join("models").join("whisper")).map_err(|err| {
-            format!(
-                "Failed to create model storage at {}: {err}",
-                self.data_dir.join("models").join("whisper").display()
-            )
-        })
-    }
-
-    fn thread_dir(&self, thread_id: &str) -> PathBuf {
-        self.threads_dir.join(thread_id)
-    }
-
-    fn transcription_paths(&self) -> TranscriptionPaths {
-        let mut available_models =
-            discover_whisper_models(&self.data_dir.join("models").join("whisper"));
-        let selected_model = available_models
-            .iter()
-            .find(|model| model.installed)
-            .cloned()
-            .unwrap_or_else(|| {
-                available_models
-                    .last()
-                    .expect("whisper model candidates")
-                    .clone()
-            });
-        for model in &mut available_models {
-            model.selected = model.filename == selected_model.filename;
-        }
-
-        TranscriptionPaths {
-            model_path: selected_model.path.clone(),
-            model_name: selected_model.name.clone(),
-            available_models,
-        }
-    }
-}
-
-fn discover_whisper_models(model_dir: &Path) -> Vec<WhisperModelStatus> {
-    WHISPER_MODEL_CANDIDATES
-        .iter()
-        .map(|candidate| {
-            let path = model_dir.join(candidate.filename);
-            WhisperModelStatus {
-                name: candidate.name.to_string(),
-                filename: candidate.filename.to_string(),
-                installed: path.is_file(),
-                path,
-                selected: false,
-            }
-        })
-        .collect()
-}
 
 #[derive(Clone, Default)]
 struct RecorderState {
@@ -272,137 +181,6 @@ impl RollingChannel {
         }
         Some(self.samples.range(start..end).copied().collect())
     }
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct ThreadMetadata {
-    id: String,
-    title: String,
-    created_at_ms: u64,
-    updated_at_ms: u64,
-    status: ThreadStatus,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-enum ThreadStatus {
-    Idle,
-    Recording,
-}
-
-#[derive(serde::Serialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct ThreadSummary {
-    id: String,
-    title: String,
-    created_at_ms: u64,
-    updated_at_ms: u64,
-    status: ThreadStatus,
-    segment_count: usize,
-    path: String,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct TranscriptSegment {
-    speaker: String,
-    source: String,
-    start_ms: u64,
-    end_ms: u64,
-    text: String,
-}
-
-#[derive(serde::Serialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct ThreadDetail {
-    summary: ThreadSummary,
-    segments: Vec<TranscriptSegment>,
-    transcript_markdown_path: String,
-}
-
-#[derive(serde::Serialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct AppInfo {
-    data_dir: String,
-    threads_dir: String,
-    fixture_mode: bool,
-}
-
-#[derive(serde::Serialize, ts_rs::TS, Clone)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct MeterPayload {
-    thread_id: String,
-    mic_level: f32,
-    system_level: f32,
-    elapsed_ms: u64,
-}
-
-#[derive(serde::Serialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct RecordingPayload {
-    thread: ThreadDetail,
-    transcription: TranscriptionStatusPayload,
-}
-
-#[derive(serde::Serialize, ts_rs::TS, Clone)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct LiveTranscriptSegmentPayload {
-    thread_id: String,
-    committed_until_ms: u64,
-    segment: TranscriptSegment,
-}
-
-#[derive(serde::Serialize, ts_rs::TS, Clone)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct LiveTranscriptStatusPayload {
-    thread_id: String,
-    active: bool,
-    message: String,
-    chunk_ms: u64,
-    overlap_ms: u64,
-}
-
-#[derive(serde::Serialize, ts_rs::TS, Clone)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct TranscriptionStatusPayload {
-    ready: bool,
-    engine_exists: bool,
-    model_exists: bool,
-    engine_path: String,
-    model_path: String,
-    model_name: String,
-    available_models: Vec<WhisperModelStatus>,
-    message: String,
-}
-
-#[derive(serde::Serialize, ts_rs::TS, Clone)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct WhisperModelStatus {
-    name: String,
-    filename: String,
-    #[ts(type = "string")]
-    path: PathBuf,
-    installed: bool,
-    selected: bool,
-}
-
-#[derive(Clone)]
-struct TranscriptionPaths {
-    model_path: PathBuf,
-    model_name: String,
-    available_models: Vec<WhisperModelStatus>,
 }
 
 #[tauri::command]
@@ -2760,6 +2538,8 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use super::*;
 
     #[test]
