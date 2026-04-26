@@ -1658,17 +1658,24 @@ fn trim_duplicate_prefix(words: &[TranscriptWord], recent_words: &[String]) -> O
         return None;
     }
 
+    let mut best_split = None;
+    let mut best_sentence_split = None;
     for split in LIVE_DUPLICATE_MIN_TRIM_WORDS..=(words.len() - LIVE_DUPLICATE_MIN_KEEP_WORDS) {
         let prefix = words[..split]
             .iter()
             .map(|word| word.normalized.clone())
             .collect::<Vec<_>>();
         if duplicate_coverage(&prefix, recent_words) >= LIVE_DUPLICATE_COVERAGE_THRESHOLD {
-            return Some(join_original_words(&words[split..]));
+            best_split = Some(split);
+            if sentence_ends_after(&words[split - 1].original) {
+                best_sentence_split = Some(split);
+            }
         }
     }
 
-    None
+    best_sentence_split
+        .or(best_split)
+        .map(|split| join_original_words(&words[split..]))
 }
 
 fn duplicate_coverage(candidate_words: &[String], recent_words: &[String]) -> f32 {
@@ -2074,6 +2081,24 @@ mod tests {
             Some(
                 "the local application and long-running stability. Section 19 says the local app must not require cloud services for the transcript."
                     .to_string()
+            ),
+        );
+    }
+
+    #[test]
+    fn unique_transcript_text_trims_longest_repeated_prefix() {
+        let mut recent = VecDeque::new();
+        recent.push_back(
+            "Section 1 says the green calendar moved beside the copper lamp.".to_string(),
+        );
+
+        assert_eq!(
+            unique_transcript_text(
+                "Section 1 says the green calendar moved beside the copper lamp. Section 2 says the yellow folder stayed under the quiet monitor.",
+                &recent,
+            ),
+            Some(
+                "Section 2 says the yellow folder stayed under the quiet monitor.".to_string()
             ),
         );
     }
