@@ -25,8 +25,29 @@
   letter-spacing: 0;
 }
 
-.brand svg {
-  color: var(--green);
+.brand-mark {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  overflow: visible;
+  filter: drop-shadow(0 1px 4px rgba(36, 82, 255, 0.35));
+}
+
+.brand-mark-shape {
+  fill: url("#brand-mark-gradient");
+}
+
+.brand-mark-line,
+.brand-mark-wave {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.brand-mark-wave {
+  stroke-width: 1.7;
 }
 
 .icon-button {

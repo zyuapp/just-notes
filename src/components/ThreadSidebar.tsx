@@ -1,4 +1,4 @@
-import { Plus, Search, Waves } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
@@ -40,7 +40,7 @@ export function ThreadSidebar({
     <aside className="thread-sidebar" aria-label="Threads">
       <header className="sidebar-head">
         <div className="brand">
-          <Waves size={18} aria-hidden="true" />
+          <BrandMark />
           <span>Just Notes</span>
         </div>
         <button type="button" className="icon-button" onClick={onCreateThread} aria-label="New thread">
@@ -76,5 +76,26 @@ export function ThreadSidebar({
 
       <footer className="storage-path">{appInfo?.dataDir ?? "~/.just-notes"}</footer>
     </aside>
+  );
+}
+
+function BrandMark() {
+  return (
+    <svg className="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="brand-mark-gradient" x1="6" y1="2" x2="18" y2="22" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#b8b4ff" />
+          <stop offset="0.46" stopColor="#637eff" />
+          <stop offset="1" stopColor="#1746f5" />
+        </linearGradient>
+      </defs>
+      <path
+        className="brand-mark-shape"
+        d="M6.3 4.5h10.1c.7 0 1.3.2 1.8.7l1.1 1.1c.5.5.8 1.2.8 1.9v7.3c0 2.2-1.8 4-4 4H9.2l-3.1 2.1c-.8.5-1.8 0-1.8-.9V6.5c0-1.1.9-2 2-2Z"
+      />
+      <path className="brand-mark-line" d="M8 9.1h8" />
+      <path className="brand-mark-line" d="M8 12h6.8" />
+      <path className="brand-mark-wave" d="M7.9 15.4h2.2l.8-1.2 1.3 3 1.4-4.2 1.3 2.4h2" />
+    </svg>
   );
 }
