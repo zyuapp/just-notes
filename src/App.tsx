@@ -23,26 +23,24 @@ export default function App() {
       <ThreadSidebar
         activeThreadId={activeThreadId}
         appInfo={state.appInfo}
-        meters={state.meters}
-        recorderState={state.recorderState}
         selectedThreadId={state.selectedThreadId}
-        statusLabel={statusLabel}
         threads={state.threads}
         onCreateThread={actions.createThread}
         onSelectThread={(threadId) => void actions.selectThread(threadId)}
-        onStartFixtureRecording={actions.startFixtureRecording}
-        onStartRecording={actions.startRecording}
-        onStopRecording={actions.stopRecording}
       />
       <TranscriptPanel
         error={state.error}
         liveStatus={state.liveStatus}
         meters={state.meters}
         onCreateThread={actions.createThread}
+        onStartFixtureRecording={actions.startFixtureRecording}
         onStartRecording={actions.startRecording}
+        onStopRecording={actions.stopRecording}
         recorderState={state.recorderState}
         selectedThread={state.selectedThread}
+        statusLabel={statusLabel}
         transcriptionStatus={state.transcriptionStatus}
+        fixtureMode={state.appInfo?.fixtureMode ?? false}
       />
     </main>
   );
