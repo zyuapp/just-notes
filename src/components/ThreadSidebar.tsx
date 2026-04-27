@@ -39,11 +39,6 @@ export function ThreadSidebar({
         </div>
       </header>
 
-      <button type="button" className="new-thread-button" onClick={onCreateThread}>
-        <Plus size={24} aria-hidden="true" />
-        <span>New thread</span>
-      </button>
-
       <div className="thread-search" aria-hidden="true">Threads</div>
 
       <ThreadList

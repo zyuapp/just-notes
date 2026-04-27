@@ -90,29 +90,8 @@
   background: rgba(111, 216, 255, 0.07);
 }
 
-.new-thread-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  height: 56px;
-  margin: 0 20px;
-  border: 1px solid rgba(232, 236, 239, 0.14);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.018);
-  color: #edf1f4;
-  cursor: pointer;
-  font-size: 19px;
-  letter-spacing: 0;
-}
-
-.new-thread-button:hover {
-  border-color: rgba(111, 216, 255, 0.26);
-  background: rgba(111, 216, 255, 0.06);
-}
-
 .thread-search {
-  padding: 32px 20px 12px;
+  padding: 4px 20px 12px;
   color: #858c95;
   font-size: 14px;
   letter-spacing: 0.08em;
