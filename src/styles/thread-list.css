@@ -25,7 +25,7 @@
   min-width: 0;
   padding: 10px 9px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   color: var(--muted);
   text-align: left;
@@ -34,8 +34,8 @@
 
 .thread-item:hover,
 .thread-item.selected {
-  border-color: var(--line);
-  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(127, 151, 255, 0.16);
+  background: rgba(127, 151, 255, 0.07);
   color: var(--text);
 }
 

@@ -41,7 +41,6 @@ export function ThreadSidebar({
       <header className="sidebar-head">
         <div className="brand">
           <BrandMark />
-          <span>Just Notes</span>
         </div>
         <button type="button" className="icon-button" onClick={onCreateThread} aria-label="New thread">
           <Plus size={18} aria-hidden="true" />

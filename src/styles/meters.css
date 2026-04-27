@@ -7,9 +7,9 @@
 .meter {
   min-width: 0;
   padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(232, 236, 239, 0.075);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.026);
 }
 
 .meter-heading {
@@ -53,6 +53,6 @@
 }
 
 .meter-grid span.active {
-  background: var(--green);
-  box-shadow: 0 0 12px rgba(119, 217, 138, 0.28);
+  background: var(--blue);
+  box-shadow: 0 0 12px rgba(127, 151, 255, 0.25);
 }

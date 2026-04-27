@@ -13,6 +13,8 @@ type TranscriptPanelProps = {
   error: string | null;
   liveStatus: LiveTranscriptStatusPayload | null;
   meters: MeterPayload;
+  onCreateThread: () => void;
+  onStartRecording: () => void;
   recorderState: RecorderState;
   selectedThread: ThreadDetail | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
@@ -22,6 +24,8 @@ export function TranscriptPanel({
   error,
   liveStatus,
   meters,
+  onCreateThread,
+  onStartRecording,
   recorderState,
   selectedThread,
   transcriptionStatus,
@@ -46,7 +50,12 @@ export function TranscriptPanel({
         <span>{transcriptionStatus?.message ?? "Checking local transcription"}</span>
       </div>
 
-      <TranscriptSurface selectedThread={selectedThread} />
+      <TranscriptSurface
+        recorderState={recorderState}
+        selectedThread={selectedThread}
+        onCreateThread={onCreateThread}
+        onStartRecording={onStartRecording}
+      />
       <PanelFooter liveStatus={liveStatus} selectedThread={selectedThread} />
       <ErrorToast message={error} />
     </section>

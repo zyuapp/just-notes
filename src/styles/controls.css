@@ -12,10 +12,10 @@
   gap: 8px;
   min-width: 0;
   height: 40px;
-  border: 1px solid rgba(119, 217, 138, 0.34);
-  border-radius: 7px;
-  background: rgba(119, 217, 138, 0.12);
-  color: #c8f4d0;
+  border: 1px solid rgba(127, 151, 255, 0.34);
+  border-radius: 9px;
+  background: rgba(127, 151, 255, 0.13);
+  color: #d7defe;
   cursor: pointer;
 }
 
@@ -39,7 +39,7 @@
   min-width: 0;
   height: 34px;
   border: 1px solid rgba(134, 186, 255, 0.32);
-  border-radius: 7px;
+  border-radius: 9px;
   background: rgba(134, 186, 255, 0.08);
   color: #c6dcff;
   cursor: pointer;
@@ -56,8 +56,9 @@
   min-width: 78px;
   height: 40px;
   place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 7px;
+  border: 1px solid rgba(232, 236, 239, 0.08);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.02);
   color: var(--muted);
   font-size: 12px;
 }

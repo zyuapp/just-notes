@@ -38,6 +38,8 @@ export default function App() {
         error={state.error}
         liveStatus={state.liveStatus}
         meters={state.meters}
+        onCreateThread={actions.createThread}
+        onStartRecording={actions.startRecording}
         recorderState={state.recorderState}
         selectedThread={state.selectedThread}
         transcriptionStatus={state.transcriptionStatus}
