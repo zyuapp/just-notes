@@ -1,137 +1,111 @@
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Builder, Manager, Wry};
 
 mod app;
 mod capture;
+mod commands;
 mod ipc;
+mod platform;
 mod recording;
+mod settings;
 mod threads;
 mod transcription;
+mod tray;
 
 use app::AppPaths;
-use ipc::{AppInfo, RecordingPayload};
 use recording::RecorderState;
-use threads::repository::{
-    create_thread as create_thread_record, list_threads as list_thread_records, load_thread_by_id,
-    reset_stale_recording_threads,
-};
-use threads::{ThreadDetail, ThreadSummary};
-use transcription::{transcription_status, TranscriptionStatusPayload};
-
-#[tauri::command]
-fn get_app_info(paths: tauri::State<'_, AppPaths>) -> AppInfo {
-    let paths = paths.inner();
-    AppInfo {
-        data_dir: paths.data_dir.display().to_string(),
-        threads_dir: paths.threads_dir.display().to_string(),
-        fixture_mode: cfg!(any(debug_assertions, feature = "qa-fixtures")),
-    }
-}
-
-#[tauri::command]
-fn list_threads(paths: tauri::State<'_, AppPaths>) -> Result<Vec<ThreadSummary>, String> {
-    list_thread_records(paths.inner())
-}
-
-#[tauri::command]
-fn create_thread(paths: tauri::State<'_, AppPaths>) -> Result<ThreadDetail, String> {
-    create_thread_record(paths.inner())
-}
-
-#[tauri::command]
-fn get_thread(
-    paths: tauri::State<'_, AppPaths>,
-    thread_id: String,
-) -> Result<ThreadDetail, String> {
-    load_thread_by_id(paths.inner(), &thread_id)
-}
-
-#[tauri::command]
-fn get_transcription_status(
-    paths: tauri::State<'_, AppPaths>,
-) -> Result<TranscriptionStatusPayload, String> {
-    Ok(transcription_status(paths.inner()))
-}
-
-#[tauri::command]
-async fn start_recording(
-    app: AppHandle,
-    paths: tauri::State<'_, AppPaths>,
-    recorder: tauri::State<'_, RecorderState>,
-    thread_id: Option<String>,
-) -> Result<RecordingPayload, String> {
-    let paths = paths.inner().clone();
-    let recorder = recorder.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        recording::start_recording(app, paths, recorder, thread_id)
-    })
-    .await
-    .map_err(|err| format!("Audio startup task failed: {err}"))?
-}
-
-#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
-#[tauri::command]
-async fn start_fixture_recording(
-    app: AppHandle,
-    paths: tauri::State<'_, AppPaths>,
-    recorder: tauri::State<'_, RecorderState>,
-    thread_id: Option<String>,
-) -> Result<RecordingPayload, String> {
-    let paths = paths.inner().clone();
-    let recorder = recorder.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        recording::start_fixture_recording(app, paths, recorder, thread_id)
-    })
-    .await
-    .map_err(|err| format!("Fixture startup task failed: {err}"))?
-}
-
-#[tauri::command]
-async fn stop_recording(
-    paths: tauri::State<'_, AppPaths>,
-    recorder: tauri::State<'_, RecorderState>,
-) -> Result<ThreadDetail, String> {
-    let paths = paths.inner().clone();
-    let recorder = recorder.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || recording::stop_recording(paths, recorder))
-        .await
-        .map_err(|err| format!("Audio stop task failed: {err}"))?
-}
+use settings::SettingsState;
+use threads::repository::reset_stale_recording_threads;
+use transcription::FinalizeState;
 
 pub fn run() {
     let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
+    let initial_settings = settings::load_settings(&paths.data_dir);
 
-    let builder = tauri::Builder::default()
+    let builder = Builder::default()
         .manage(paths)
         .manage(RecorderState::default())
+        .manage(SettingsState::new(initial_settings))
+        .manage(FinalizeState::default())
         .setup(|app| {
-            reset_stale_recording_threads(app.state::<AppPaths>().inner())?;
+            let paths = app.state::<AppPaths>();
+            let settings = app.state::<SettingsState>().snapshot();
+            reset_stale_recording_threads(&settings::effective_paths(&paths, &settings))?;
+            tray::init_tray(app, stop_recording_from_tray)?;
             Ok(())
         });
 
-    #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        get_app_info,
-        list_threads,
-        create_thread,
-        get_thread,
-        get_transcription_status,
-        start_recording,
-        start_fixture_recording,
-        stop_recording
-    ]);
-
-    #[cfg(not(any(debug_assertions, feature = "qa-fixtures")))]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        get_app_info,
-        list_threads,
-        create_thread,
-        get_thread,
-        get_transcription_status,
-        start_recording,
-        stop_recording
-    ]);
-
-    builder
+    register_commands(builder)
         .run(tauri::generate_context!())
         .expect("error while running Just Notes");
+}
+
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
+fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
+    builder.invoke_handler(tauri::generate_handler![
+        commands::system::get_app_info,
+        commands::system::get_transcription_status,
+        commands::system::get_permissions_status,
+        commands::system::reveal_in_finder,
+        commands::system::copy_text_to_clipboard,
+        commands::system::open_privacy_settings,
+        commands::threads::list_threads,
+        commands::threads::create_thread,
+        commands::threads::get_thread,
+        commands::threads::rename_thread,
+        commands::threads::delete_thread,
+        commands::threads::rename_speaker,
+        commands::threads::update_segment_text,
+        commands::threads::search_threads,
+        commands::threads::export_thread_markdown,
+        commands::settings::get_settings,
+        commands::settings::update_settings,
+        commands::settings::pick_folder,
+        commands::recording::start_recording,
+        commands::recording::start_fixture_recording,
+        commands::recording::stop_recording,
+        commands::recording::cancel_finalization
+    ])
+}
+
+#[cfg(not(any(debug_assertions, feature = "qa-fixtures")))]
+fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
+    builder.invoke_handler(tauri::generate_handler![
+        commands::system::get_app_info,
+        commands::system::get_transcription_status,
+        commands::system::get_permissions_status,
+        commands::system::reveal_in_finder,
+        commands::system::copy_text_to_clipboard,
+        commands::system::open_privacy_settings,
+        commands::threads::list_threads,
+        commands::threads::create_thread,
+        commands::threads::get_thread,
+        commands::threads::rename_thread,
+        commands::threads::delete_thread,
+        commands::threads::rename_speaker,
+        commands::threads::update_segment_text,
+        commands::threads::search_threads,
+        commands::threads::export_thread_markdown,
+        commands::settings::get_settings,
+        commands::settings::update_settings,
+        commands::settings::pick_folder,
+        commands::recording::start_recording,
+        commands::recording::stop_recording,
+        commands::recording::cancel_finalization
+    ])
+}
+
+fn stop_recording_from_tray(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = app.state::<AppPaths>().inner().clone();
+        let recorder = app.state::<RecorderState>().inner().clone();
+        let finalize = app.state::<FinalizeState>().inner().clone();
+        let snapshot = app.state::<SettingsState>().snapshot();
+        let effective = settings::effective_paths(&paths, &snapshot);
+        if let Err(err) =
+            recording::stop_recording(app.clone(), effective, recorder, snapshot, finalize)
+        {
+            eprintln!("tray stop failed: {err}");
+        }
+    });
 }

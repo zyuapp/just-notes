@@ -15,6 +15,7 @@ use tauri::AppHandle;
 use fixture::prepare_fixture_audio_input;
 
 pub(crate) use model::{ActiveAudioCapture, PreparedAudioInput, RecordingInputMode, SharedBuffers};
+pub(crate) use permission::microphone_permission_status;
 
 use device::prepare_device_audio_input;
 

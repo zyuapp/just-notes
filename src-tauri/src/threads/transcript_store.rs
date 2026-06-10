@@ -50,6 +50,36 @@ pub(crate) fn read_transcript_jsonl(path: &Path) -> Result<Vec<TranscriptSegment
     Ok(segments)
 }
 
+pub(crate) fn read_first_segment_text(path: &Path) -> Result<Option<String>, String> {
+    const SNIPPET_MAX_CHARS: usize = 120;
+
+    if !path.is_file() {
+        return Ok(None);
+    }
+
+    let file = fs::File::open(path)
+        .map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
+    for line in BufReader::new(file).lines() {
+        let line =
+            line.map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let segment = serde_json::from_str::<TranscriptSegment>(&line)
+            .map_err(|err| format!("Invalid transcript line in {}: {err}", path.display()))?;
+        let text = segment.text.trim();
+        if text.is_empty() {
+            continue;
+        }
+        let mut snippet: String = text.chars().take(SNIPPET_MAX_CHARS).collect();
+        if text.chars().count() > SNIPPET_MAX_CHARS {
+            snippet.push('…');
+        }
+        return Ok(Some(snippet));
+    }
+    Ok(None)
+}
+
 pub(crate) fn count_jsonl_lines(path: &Path) -> Result<usize, String> {
     if !path.is_file() {
         return Ok(0);
@@ -107,7 +137,10 @@ fn read_last_transcript_segment(path: &Path) -> Result<Option<TranscriptSegment>
         .map_err(|err| format!("Invalid transcript line in {}: {err}", path.display()))
 }
 
-fn write_transcript_jsonl(path: &Path, segments: &[TranscriptSegment]) -> Result<(), String> {
+pub(crate) fn write_transcript_jsonl(
+    path: &Path,
+    segments: &[TranscriptSegment],
+) -> Result<(), String> {
     let mut content = String::new();
     for segment in segments {
         let line = serde_json::to_string(segment)

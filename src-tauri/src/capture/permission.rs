@@ -69,7 +69,44 @@ fn request_microphone_permission(sender: std::sync::mpsc::Sender<Result<(), Stri
     }
 }
 
+#[cfg(target_os = "macos")]
+pub(crate) fn microphone_permission_status(app: &AppHandle) -> Result<String, String> {
+    use std::sync::mpsc;
+
+    let (sender, receiver) = mpsc::channel();
+    app.run_on_main_thread(move || {
+        let _ = sender.send(query_microphone_status());
+    })
+    .map_err(|err| format!("Failed to read microphone permission status: {err}"))?;
+
+    receiver
+        .recv_timeout(Duration::from_secs(5))
+        .map_err(|_| "Timed out reading microphone permission status".to_string())
+}
+
+#[cfg(target_os = "macos")]
+fn query_microphone_status() -> String {
+    use objc2_av_foundation::{AVAuthorizationStatus, AVCaptureDevice, AVMediaTypeAudio};
+
+    let Some(media_type) = (unsafe { AVMediaTypeAudio }) else {
+        return "unknown".to_string();
+    };
+    match unsafe { AVCaptureDevice::authorizationStatusForMediaType(media_type) } {
+        AVAuthorizationStatus::Authorized => "authorized",
+        AVAuthorizationStatus::Denied => "denied",
+        AVAuthorizationStatus::Restricted => "restricted",
+        AVAuthorizationStatus::NotDetermined => "notDetermined",
+        _ => "unknown",
+    }
+    .to_string()
+}
+
 #[cfg(not(target_os = "macos"))]
 pub(super) fn ensure_microphone_permission(_app: &AppHandle) -> Result<(), String> {
     Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn microphone_permission_status(_app: &AppHandle) -> Result<String, String> {
+    Ok("authorized".to_string())
 }

@@ -8,6 +8,7 @@ use std::{
     time::Instant,
 };
 
+use super::audio_sink::AudioSink;
 use crate::{
     capture::{ActiveAudioCapture, SharedBuffers},
     threads::ThreadDetail,
@@ -29,6 +30,7 @@ pub(super) struct RecorderSession {
     pub(super) meter_thread: Option<JoinHandle<()>>,
     pub(super) live_transcription_thread: Option<JoinHandle<()>>,
     pub(super) audio_capture: ActiveAudioCapture,
+    pub(super) audio_sink: Option<AudioSink>,
 }
 
 impl RecorderState {
@@ -91,5 +93,5 @@ impl Drop for StartingGuard<'_> {
 }
 
 pub(super) fn selected_thread_is_reusable(thread: &ThreadDetail) -> bool {
-    !thread.summary.status.is_recording() && thread.summary.segment_count == 0
+    !thread.summary.status.is_busy() && thread.summary.segment_count == 0
 }

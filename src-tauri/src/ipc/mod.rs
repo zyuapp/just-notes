@@ -1,6 +1,6 @@
 pub(crate) mod dto;
 
 pub(crate) use dto::{
-    AppInfo, LiveTranscriptSegmentPayload, LiveTranscriptStatusPayload, MeterPayload,
-    RecordingPayload,
+    AppInfo, FinalizationStatusPayload, LiveTranscriptSegmentPayload, LiveTranscriptStatusPayload,
+    MeterPayload, PermissionsPayload, RecordingPayload,
 };

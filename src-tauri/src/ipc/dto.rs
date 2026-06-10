@@ -41,6 +41,23 @@ pub(crate) struct LiveTranscriptSegmentPayload {
 #[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
+pub(crate) struct FinalizationStatusPayload {
+    pub(crate) thread_id: String,
+    pub(crate) state: String,
+    pub(crate) message: String,
+}
+
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) struct PermissionsPayload {
+    pub(crate) microphone: String,
+    pub(crate) system_audio: String,
+}
+
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub(crate) struct LiveTranscriptStatusPayload {
     pub(crate) thread_id: String,
     pub(crate) active: bool,

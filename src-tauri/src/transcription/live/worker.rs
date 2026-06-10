@@ -107,18 +107,22 @@ fn run_live_transcription_loop(config: LiveTranscriptionThreadConfig) -> Result<
     let mut system = LiveChannelState::new("system", "Others", system_sample_rate);
     let mut emitted_count = 0usize;
 
+    let make_context = |cross_channel_tail| LiveChannelContext {
+        app: &app,
+        whisper: &whisper,
+        buffers: &buffers,
+        jsonl_path: &jsonl_path,
+        thread_dir: &thread_dir,
+        thread_id: &thread_id,
+        cross_channel_tail,
+    };
+
     loop {
-        let context = LiveChannelContext {
-            app: &app,
-            whisper: &whisper,
-            buffers: &buffers,
-            jsonl_path: &jsonl_path,
-            thread_dir: &thread_dir,
-            thread_id: &thread_id,
-        };
         let stopping = should_stop.load(Ordering::Relaxed);
-        emitted_count += process_live_channel(&context, &mut mic, stopping)?;
-        emitted_count += process_live_channel(&context, &mut system, stopping)?;
+        let mic_context = make_context(Some(system.emitted_text_tail.clone()));
+        emitted_count += process_live_channel(&mic_context, &mut mic, stopping)?;
+        let system_context = make_context(None);
+        emitted_count += process_live_channel(&system_context, &mut system, stopping)?;
 
         if stopping {
             break;

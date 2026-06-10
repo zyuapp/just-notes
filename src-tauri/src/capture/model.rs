@@ -89,6 +89,10 @@ impl RollingChannel {
         self.base_index + self.samples.len() as u64
     }
 
+    pub(crate) fn earliest_index(&self) -> u64 {
+        self.base_index
+    }
+
     pub(crate) fn window(&self, start_index: u64, end_index: u64) -> Option<Vec<f32>> {
         if start_index < self.base_index || end_index > self.available_end_index() {
             return None;

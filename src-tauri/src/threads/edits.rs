@@ -1,0 +1,133 @@
+use std::fs;
+
+use crate::app::AppPaths;
+
+use super::{
+    repository::{
+        list_threads, load_thread_by_id, load_thread_detail, render_thread_markdown,
+        update_thread_metadata,
+    },
+    transcript_store::{read_transcript_jsonl, write_transcript_jsonl},
+    ThreadDetail, ThreadSummary,
+};
+
+pub(crate) fn rename_thread(
+    paths: &AppPaths,
+    thread_id: &str,
+    title: &str,
+) -> Result<ThreadDetail, String> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err("Thread title cannot be empty".to_string());
+    }
+    if title.chars().count() > 120 {
+        return Err("Thread title must stay under 120 characters".to_string());
+    }
+
+    let thread_dir = existing_thread_dir(paths, thread_id)?;
+    update_thread_metadata(&thread_dir, |metadata| metadata.title = title.to_string())?;
+    rerender_markdown_if_present(&thread_dir)?;
+    load_thread_detail(&thread_dir)
+}
+
+pub(crate) fn delete_thread(paths: &AppPaths, thread_id: &str) -> Result<(), String> {
+    let detail = load_thread_by_id(paths, thread_id)?;
+    if detail.summary.status.is_busy() {
+        return Err(
+            "Stop the active recording or transcription before deleting this thread".to_string(),
+        );
+    }
+    let thread_dir = paths.thread_dir(thread_id);
+    fs::remove_dir_all(&thread_dir)
+        .map_err(|err| format!("Failed to delete {}: {err}", thread_dir.display()))
+}
+
+pub(crate) fn rename_speaker(
+    paths: &AppPaths,
+    thread_id: &str,
+    speaker: &str,
+    label: &str,
+) -> Result<ThreadDetail, String> {
+    let thread_dir = existing_thread_dir(paths, thread_id)?;
+    let speaker = speaker.to_string();
+    let label = label.trim().to_string();
+    if label.chars().count() > 60 {
+        return Err("Speaker labels must stay under 60 characters".to_string());
+    }
+
+    update_thread_metadata(&thread_dir, |metadata| {
+        if label.is_empty() || label == speaker {
+            metadata.speaker_labels.remove(&speaker);
+        } else {
+            metadata.speaker_labels.insert(speaker, label);
+        }
+    })?;
+    rerender_markdown_if_present(&thread_dir)?;
+    load_thread_detail(&thread_dir)
+}
+
+pub(crate) fn update_segment_text(
+    paths: &AppPaths,
+    thread_id: &str,
+    segment_index: usize,
+    text: &str,
+) -> Result<ThreadDetail, String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err("Transcript text cannot be empty".to_string());
+    }
+
+    let thread_dir = existing_thread_dir(paths, thread_id)?;
+    let jsonl_path = thread_dir.join("transcript.jsonl");
+    let mut segments = read_transcript_jsonl(&jsonl_path)?;
+    let segment = segments
+        .get_mut(segment_index)
+        .ok_or_else(|| "That transcript segment no longer exists".to_string())?;
+    segment.text = text.to_string();
+    write_transcript_jsonl(&jsonl_path, &segments)?;
+    update_thread_metadata(&thread_dir, |_| {})?;
+    rerender_markdown_if_present(&thread_dir)?;
+    load_thread_detail(&thread_dir)
+}
+
+pub(crate) fn search_threads(paths: &AppPaths, query: &str) -> Result<Vec<ThreadSummary>, String> {
+    let query = query.trim().to_lowercase();
+    let threads = list_threads(paths)?;
+    if query.is_empty() {
+        return Ok(threads);
+    }
+
+    Ok(threads
+        .into_iter()
+        .filter(|thread| {
+            thread.title.to_lowercase().contains(&query)
+                || transcript_contains(paths, &thread.id, &query)
+        })
+        .collect())
+}
+
+fn transcript_contains(paths: &AppPaths, thread_id: &str, query: &str) -> bool {
+    let jsonl_path = paths.thread_dir(thread_id).join("transcript.jsonl");
+    read_transcript_jsonl(&jsonl_path)
+        .map(|segments| {
+            segments
+                .iter()
+                .any(|segment| segment.text.to_lowercase().contains(query))
+        })
+        .unwrap_or(false)
+}
+
+fn existing_thread_dir(paths: &AppPaths, thread_id: &str) -> Result<std::path::PathBuf, String> {
+    let thread_dir = paths.thread_dir(thread_id);
+    if !thread_dir.is_dir() {
+        return Err(format!("Thread does not exist: {thread_id}"));
+    }
+    Ok(thread_dir)
+}
+
+fn rerender_markdown_if_present(thread_dir: &std::path::Path) -> Result<(), String> {
+    if thread_dir.join("transcript.md").is_file() {
+        render_thread_markdown(thread_dir)?;
+    }
+    Ok(())
+}

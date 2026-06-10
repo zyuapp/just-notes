@@ -5,13 +5,15 @@ use std::{
 
 use tauri::{AppHandle, Emitter};
 
+use std::collections::VecDeque;
+
 use super::{channel::LiveChannelState, window::LiveDecodeWindow};
 use crate::threads::repository::touch_thread;
 use crate::{
     capture::SharedBuffers,
     ipc::LiveTranscriptSegmentPayload,
     threads::{transcript_store::append_live_segment, TranscriptSegment},
-    transcription::WhisperRuntime,
+    transcription::{is_duplicate_of_recent, WhisperRuntime},
 };
 
 pub(super) struct LiveChannelContext<'a> {
@@ -21,6 +23,7 @@ pub(super) struct LiveChannelContext<'a> {
     pub(super) jsonl_path: &'a Path,
     pub(super) thread_dir: &'a Path,
     pub(super) thread_id: &'a str,
+    pub(super) cross_channel_tail: Option<VecDeque<String>>,
 }
 
 pub(super) fn emit_unique_live_segment(
@@ -39,6 +42,13 @@ pub(super) fn emit_unique_live_segment(
     if unique_text.is_empty() {
         state.mark_emitted_until(stable_end_ms);
         return Ok(0);
+    }
+
+    if let Some(tail) = &context.cross_channel_tail {
+        if is_duplicate_of_recent(&unique_text, tail) {
+            state.mark_emitted_until(stable_end_ms);
+            return Ok(0);
+        }
     }
 
     let segment = TranscriptSegment {

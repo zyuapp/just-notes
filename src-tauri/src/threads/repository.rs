@@ -1,9 +1,11 @@
-use std::{fs, path::Path};
+use std::{collections::BTreeMap, fs, path::Path};
 
 use crate::app::{now_ms, AppPaths};
 
 use super::{
-    transcript_store::{count_jsonl_lines, read_transcript_jsonl, write_text_atomic},
+    transcript_store::{
+        count_jsonl_lines, read_first_segment_text, read_transcript_jsonl, write_text_atomic,
+    },
     ThreadDetail, ThreadMetadata, ThreadStatus, ThreadSummary,
 };
 
@@ -44,6 +46,8 @@ pub(crate) fn create_thread(paths: &AppPaths) -> Result<ThreadDetail, String> {
         created_at_ms: now,
         updated_at_ms: now,
         status: ThreadStatus::Idle,
+        duration_ms: 0,
+        speaker_labels: BTreeMap::new(),
     };
     save_thread_metadata(&thread_dir, &metadata)?;
     write_text_atomic(&thread_dir.join("transcript.md"), "# Untitled thread\n\n")?;
@@ -61,14 +65,23 @@ pub(crate) fn load_thread_by_id(paths: &AppPaths, thread_id: &str) -> Result<Thr
 }
 
 pub(crate) fn set_thread_status(thread_dir: &Path, status: ThreadStatus) -> Result<(), String> {
-    let mut metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
-    metadata.status = status;
-    metadata.updated_at_ms = now_ms()?;
-    save_thread_metadata(thread_dir, &metadata)
+    update_thread_metadata(thread_dir, |metadata| metadata.status = status)
+}
+
+pub(crate) fn set_thread_duration(thread_dir: &Path, duration_ms: u64) -> Result<(), String> {
+    update_thread_metadata(thread_dir, |metadata| metadata.duration_ms = duration_ms)
 }
 
 pub(crate) fn touch_thread(thread_dir: &Path) -> Result<(), String> {
+    update_thread_metadata(thread_dir, |_| {})
+}
+
+pub(crate) fn update_thread_metadata(
+    thread_dir: &Path,
+    apply: impl FnOnce(&mut ThreadMetadata),
+) -> Result<(), String> {
     let mut metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
+    apply(&mut metadata);
     metadata.updated_at_ms = now_ms()?;
     save_thread_metadata(thread_dir, &metadata)
 }
@@ -81,17 +94,12 @@ pub(crate) fn reset_stale_recording_threads(paths: &AppPaths) -> Result<(), Stri
         let entry = entry
             .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?;
         let thread_dir = entry.path();
-        if !thread_dir.is_dir() {
+        if !thread_dir.is_dir() || !thread_dir.join("thread.json").is_file() {
             continue;
         }
-        let metadata_path = thread_dir.join("thread.json");
-        if !metadata_path.is_file() {
-            continue;
-        }
-        let mut metadata = read_thread_metadata(&metadata_path)?;
-        if metadata.status == ThreadStatus::Recording {
-            metadata.status = ThreadStatus::Idle;
-            save_thread_metadata(&thread_dir, &metadata)?;
+        let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
+        if metadata.status.is_busy() {
+            set_thread_status(&thread_dir, ThreadStatus::Idle)?;
         }
     }
     Ok(())
@@ -115,9 +123,12 @@ pub(crate) fn prepare_work_dir(thread_dir: &Path) -> Result<(), String> {
     })
 }
 
-pub(crate) fn render_thread_markdown(thread_dir: &Path, duration_ms: u64) -> Result<(), String> {
+pub(crate) fn render_thread_markdown(thread_dir: &Path) -> Result<(), String> {
     let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
     let segments = read_transcript_jsonl(&thread_dir.join("transcript.jsonl"))?;
+    let duration_ms = metadata
+        .duration_ms
+        .max(segments.last().map(|segment| segment.end_ms).unwrap_or(0));
     let mut markdown = String::new();
     markdown.push_str(&format!("# {}\n\n", metadata.title));
     markdown.push_str(&format!("Thread: `{}`\n\n", metadata.id));
@@ -127,10 +138,14 @@ pub(crate) fn render_thread_markdown(thread_dir: &Path, duration_ms: u64) -> Res
     ));
 
     for segment in segments {
+        let speaker = metadata
+            .speaker_labels
+            .get(&segment.speaker)
+            .unwrap_or(&segment.speaker);
         markdown.push_str(&format!(
             "[{}] **{}:** {}\n\n",
             format_transcript_time(segment.start_ms),
-            segment.speaker,
+            speaker,
             segment.text
         ));
     }
@@ -138,14 +153,20 @@ pub(crate) fn render_thread_markdown(thread_dir: &Path, duration_ms: u64) -> Res
     write_text_atomic(&thread_dir.join("transcript.md"), &markdown)
 }
 
-fn load_thread_detail(thread_dir: &Path) -> Result<ThreadDetail, String> {
+pub(crate) fn load_thread_detail(thread_dir: &Path) -> Result<ThreadDetail, String> {
     let summary = load_thread_summary(thread_dir)?;
+    let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
     let segments = read_transcript_jsonl(&thread_dir.join("transcript.jsonl"))?;
     Ok(ThreadDetail {
         summary,
         segments,
+        speaker_labels: metadata.speaker_labels,
         transcript_markdown_path: thread_dir.join("transcript.md").display().to_string(),
     })
+}
+
+pub(crate) fn thread_has_audio(thread_dir: &Path) -> bool {
+    thread_dir.join("mic.wav").is_file() || thread_dir.join("system.wav").is_file()
 }
 
 fn load_thread_summary(thread_dir: &Path) -> Result<ThreadSummary, String> {
@@ -155,18 +176,22 @@ fn load_thread_summary(thread_dir: &Path) -> Result<ThreadSummary, String> {
 
     let metadata_path = thread_dir.join("thread.json");
     let metadata = read_thread_metadata(&metadata_path)?;
+    let jsonl_path = thread_dir.join("transcript.jsonl");
     Ok(ThreadSummary {
         id: metadata.id,
         title: metadata.title,
         created_at_ms: metadata.created_at_ms,
         updated_at_ms: metadata.updated_at_ms,
         status: metadata.status,
-        segment_count: count_jsonl_lines(&thread_dir.join("transcript.jsonl"))?,
+        segment_count: count_jsonl_lines(&jsonl_path)?,
+        duration_ms: metadata.duration_ms,
+        snippet: read_first_segment_text(&jsonl_path)?.unwrap_or_default(),
+        has_audio: thread_has_audio(thread_dir),
         path: thread_dir.display().to_string(),
     })
 }
 
-fn read_thread_metadata(path: &Path) -> Result<ThreadMetadata, String> {
+pub(crate) fn read_thread_metadata(path: &Path) -> Result<ThreadMetadata, String> {
     let json = fs::read_to_string(path)
         .map_err(|err| format!("Failed to read {}: {err}", path.display()))?;
     serde_json::from_str(&json).map_err(|err| format!("Invalid {}: {err}", path.display()))

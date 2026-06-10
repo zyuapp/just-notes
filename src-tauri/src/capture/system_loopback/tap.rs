@@ -72,7 +72,9 @@ fn create_process_tap(device_name: &str) -> Result<AudioObjectID, String> {
     let status = unsafe { AudioHardwareCreateProcessTap(Some(&description), &mut tap_id) };
     if status != kAudioHardwareNoError {
         return Err(format!(
-            "Failed to create macOS system audio tap: {}",
+            "Failed to create macOS system audio tap: {}. If system audio access was denied, \
+             allow Just Notes under System Settings → Privacy & Security → Screen & System \
+             Audio Recording, then try again.",
             coreaudio_status(status)
         ));
     }

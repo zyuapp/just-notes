@@ -44,7 +44,10 @@ impl WhisperRuntime {
         params.set_print_progress(false);
         params.set_print_realtime(false);
         params.set_print_timestamps(false);
-        let _ = prompt;
+        let prompt = prompt.trim();
+        if !prompt.is_empty() {
+            params.set_initial_prompt(prompt);
+        }
 
         state
             .full(params, samples_16k)

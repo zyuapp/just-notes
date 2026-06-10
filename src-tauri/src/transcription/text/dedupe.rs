@@ -6,7 +6,8 @@ mod trimming;
 use std::collections::VecDeque;
 
 use super::words::{
-    normalized_words, remove_internal_repeated_sentences, transcript_words, word_ngrams,
+    contains_word_sequence, normalized_words, remove_internal_repeated_sentences, transcript_words,
+    word_ngrams,
 };
 use trimming::{remove_duplicate_word_spans, trim_duplicate_prefix, trim_duplicate_suffix};
 
@@ -65,6 +66,25 @@ pub(crate) fn unique_transcript_text(
     Some(candidate)
 }
 
+pub(crate) fn is_duplicate_of_recent(candidate: &str, recent_texts: &VecDeque<String>) -> bool {
+    if recent_texts.is_empty() {
+        return false;
+    }
+    let candidate_words = normalized_words(candidate);
+    if candidate_words.is_empty() {
+        return false;
+    }
+
+    let recent_words = recent_transcript_words(recent_texts);
+    if candidate_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
+        return contains_word_sequence(&recent_words, &candidate_words);
+    }
+    if recent_words.len() < LIVE_DUPLICATE_NGRAM_SIZE {
+        return false;
+    }
+    duplicate_coverage(&candidate_words, &recent_words) >= LIVE_DUPLICATE_COVERAGE_THRESHOLD
+}
+
 fn recent_transcript_words(recent_texts: &VecDeque<String>) -> Vec<String> {
     let recent = recent_texts
         .iter()
@@ -91,17 +111,4 @@ fn duplicate_coverage(candidate_words: &[String], recent_words: &[String]) -> f3
         .filter(|ngram| recent_ngrams.contains(ngram))
         .count();
     covered as f32 / candidate_ngrams.len() as f32
-}
-
-fn contains_word_sequence(words: &[String], sequence: &[String]) -> bool {
-    if sequence.is_empty() {
-        return true;
-    }
-    if sequence.len() > words.len() {
-        return false;
-    }
-
-    words
-        .windows(sequence.len())
-        .any(|window| window == sequence)
 }

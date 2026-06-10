@@ -99,6 +99,19 @@ pub(super) fn split_transcript_sentences(text: &str) -> Vec<String> {
     sentences
 }
 
+pub(super) fn contains_word_sequence(words: &[String], sequence: &[String]) -> bool {
+    if sequence.is_empty() {
+        return true;
+    }
+    if sequence.len() > words.len() {
+        return false;
+    }
+
+    words
+        .windows(sequence.len())
+        .any(|window| window == sequence)
+}
+
 pub(super) fn word_ngrams(words: &[String], size: usize) -> Vec<String> {
     if words.len() < size {
         return Vec::new();
