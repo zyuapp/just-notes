@@ -24,10 +24,6 @@ pub(crate) enum ThreadStatus {
 }
 
 impl ThreadStatus {
-    pub(crate) fn is_recording(&self) -> bool {
-        matches!(self, Self::Recording)
-    }
-
     pub(crate) fn is_busy(&self) -> bool {
         !matches!(self, Self::Idle)
     }
