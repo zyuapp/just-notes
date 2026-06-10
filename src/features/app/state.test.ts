@@ -13,13 +13,17 @@ const summary: ThreadSummary = {
   updatedAtMs: 100,
   segmentCount: 0,
   status: "idle",
+  durationMs: 0,
+  snippet: "",
+  hasAudio: false,
+  path: "/threads/thread-1",
 };
 
 const detail: ThreadDetail = {
   summary,
   segments: [],
+  speakerLabels: {},
   transcriptMarkdownPath: "/tmp/transcript.md",
-  transcriptJsonlPath: "/tmp/transcript.jsonl",
 };
 
 function segment(source: string, startMs: number): TranscriptSegment {
@@ -44,6 +48,7 @@ describe("appReducer", () => {
     const payload: RecordingPayload = {
       thread: detail,
       transcription: {
+        ready: true,
         engineExists: true,
         modelExists: true,
         enginePath: "/tmp/engine",
@@ -84,5 +89,42 @@ describe("appReducer", () => {
     ]);
     expect(updated.threads[0].segmentCount).toBe(1);
     expect(updated.threads[0].updatedAtMs).toBe(200);
+  });
+
+  test("updates the thread list entry when a thread changes", () => {
+    const renamed: ThreadDetail = {
+      ...detail,
+      summary: { ...summary, title: "Renamed" },
+    };
+    const state = { ...initialAppState, threads: [summary], selectedThread: detail };
+
+    const updated = appReducer(state, { type: "threadUpdated", detail: renamed });
+
+    expect(updated.selectedThread?.summary.title).toBe("Renamed");
+    expect(updated.threads[0].title).toBe("Renamed");
+  });
+
+  test("clears the selection when the selected thread is deleted", () => {
+    const state = {
+      ...initialAppState,
+      threads: [summary],
+      selectedThreadId: "thread-1",
+      selectedThread: detail,
+    };
+
+    const updated = appReducer(state, { type: "threadDeleted", threadId: "thread-1" });
+
+    expect(updated.threads).toHaveLength(0);
+    expect(updated.selectedThreadId).toBeNull();
+    expect(updated.selectedThread).toBeNull();
+  });
+
+  test("stores finalization progress", () => {
+    const updated = appReducer(initialAppState, {
+      type: "finalizationReceived",
+      payload: { threadId: "thread-1", state: "running", message: "Improving" },
+    });
+
+    expect(updated.finalization?.state).toBe("running");
   });
 });

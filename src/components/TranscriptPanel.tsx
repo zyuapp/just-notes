@@ -63,7 +63,9 @@ export function TranscriptPanel({
       <header className="panel-head">
         <div>
           <p className="eyebrow">
-            {selectedThread ? formatThreadDate(selectedThread.summary.createdAtMs) : "Local"}
+            {selectedThread
+              ? `${formatThreadDate(selectedThread.summary.createdAtMs)}${hasSegments || selectedThread.summary.hasAudio ? " · Mic + System" : ""}`
+              : "Local"}
           </p>
           <ThreadTitle
             title={selectedThread?.summary.title ?? null}

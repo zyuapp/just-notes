@@ -185,7 +185,11 @@ fn load_thread_summary(thread_dir: &Path) -> Result<ThreadSummary, String> {
         status: metadata.status,
         segment_count: count_jsonl_lines(&jsonl_path)?,
         duration_ms: metadata.duration_ms,
-        snippet: read_first_segment_text(&jsonl_path)?.unwrap_or_default(),
+        // A live append can leave a torn last line; a missing snippet must not
+        // drop the thread from the library while recording.
+        snippet: read_first_segment_text(&jsonl_path)
+            .unwrap_or_default()
+            .unwrap_or_default(),
         has_audio: thread_has_audio(thread_dir),
         path: thread_dir.display().to_string(),
     })

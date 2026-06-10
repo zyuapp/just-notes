@@ -87,7 +87,7 @@ export function TranscriptToolbar({
         <div className="speaker-renames">
           {speakers.map((speaker) => (
             <SpeakerRenameField
-              key={speaker}
+              key={`${speaker}:${speakerLabels[speaker] ?? ""}`}
               speaker={speaker}
               label={speakerLabels[speaker] ?? ""}
               onRename={onRenameSpeaker}
