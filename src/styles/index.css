@@ -1,8 +1,11 @@
 @import "./base.css";
 @import "./layout.css";
 @import "./sidebar.css";
-@import "./controls.css";
-@import "./meters.css";
 @import "./thread-list.css";
+@import "./panel.css";
+@import "./capture.css";
+@import "./toolbar.css";
 @import "./transcript.css";
+@import "./empty.css";
+@import "./settings.css";
 @import "./feedback.css";

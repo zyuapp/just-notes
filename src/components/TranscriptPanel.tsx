@@ -1,44 +1,62 @@
-import { Circle, FileText, Mic, Radio, Square } from "lucide-react";
+import { Circle, FileText, Square } from "lucide-react";
+import { useState } from "react";
+import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { LiveTranscriptStatusPayload } from "../bindings/LiveTranscriptStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
+import type { ThreadActions } from "../features/app/useThreadActions";
 import { formatDuration, formatThreadDate } from "../lib/format";
+import { CaptureMeter } from "./CaptureMeter";
 import { ErrorToast } from "./ErrorToast";
+import { NoticeBar, type Notice } from "./NoticeBar";
 import { PanelFooter } from "./PanelFooter";
+import { ThreadTitle } from "./ThreadTitle";
 import { TranscriptSurface } from "./TranscriptSurface";
+import { TranscriptToolbar } from "./TranscriptToolbar";
 
 type TranscriptPanelProps = {
   error: string | null;
   fixtureMode: boolean;
   liveStatus: LiveTranscriptStatusPayload | null;
+  finalization: FinalizationStatusPayload | null;
   meters: MeterPayload;
-  onCreateThread: () => void;
-  onStartFixtureRecording: () => void;
-  onStartRecording: () => void;
-  onStopRecording: () => void;
+  notice: Notice | null;
   recorderState: RecorderState;
   selectedThread: ThreadDetail | null;
   statusLabel: string;
   transcriptionStatus: TranscriptionStatusPayload | null;
+  threadActions: ThreadActions;
+  onCreateThread: () => void;
+  onStartFixtureRecording: () => void;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
 };
 
 export function TranscriptPanel({
   error,
   fixtureMode,
   liveStatus,
+  finalization,
   meters,
-  onCreateThread,
-  onStartFixtureRecording,
-  onStartRecording,
-  onStopRecording,
+  notice,
   recorderState,
   selectedThread,
   statusLabel,
   transcriptionStatus,
+  threadActions,
+  onCreateThread,
+  onStartFixtureRecording,
+  onStartRecording,
+  onStopRecording,
 }: TranscriptPanelProps) {
+  const [query, setQuery] = useState("");
   const isRecording = recorderState === "recording";
+  const hasSegments = (selectedThread?.segments.length ?? 0) > 0;
+  const speakers = Array.from(
+    new Set(selectedThread?.segments.map((segment) => segment.speaker) ?? []),
+  );
 
   return (
     <section className="thread-panel" aria-label="Transcript">
@@ -47,10 +65,14 @@ export function TranscriptPanel({
           <p className="eyebrow">
             {selectedThread ? formatThreadDate(selectedThread.summary.createdAtMs) : "Local"}
           </p>
-          <h1>{selectedThread?.summary.title ?? "No thread selected"}</h1>
+          <ThreadTitle
+            title={selectedThread?.summary.title ?? null}
+            canRename={recorderState === "idle"}
+            onRename={(title) => void threadActions.renameThread(title)}
+          />
         </div>
         <div className="panel-status">
-          <span className={recorderState === "recording" ? "status-light live" : "status-light"} />
+          <span className={isRecording ? "status-light live" : "status-light"} />
           <span>{formatDuration(meters.elapsedMs)}</span>
         </div>
       </header>
@@ -70,7 +92,7 @@ export function TranscriptPanel({
         <CaptureMeter icon="system" label="System" level={meters.systemLevel} />
         <div className="engine-row">
           <FileText size={21} aria-hidden="true" />
-          <span>{transcriptionStatus?.message ?? "Local transcription is ready (small.en)"}</span>
+          <span>{transcriptionStatus?.message ?? "Checking local transcription…"}</span>
         </div>
         {fixtureMode && (
           <button
@@ -84,42 +106,38 @@ export function TranscriptPanel({
         )}
       </section>
 
+      <NoticeBar notice={notice} />
+
+      {selectedThread && hasSegments && (
+        <TranscriptToolbar
+          query={query}
+          speakers={speakers}
+          speakerLabels={selectedThread.speakerLabels}
+          canModify={recorderState === "idle"}
+          onQueryChange={setQuery}
+          onCopy={() => void threadActions.copyTranscript()}
+          onExport={() => void threadActions.exportMarkdown()}
+          onReveal={() => void threadActions.revealPath(selectedThread.summary.path)}
+          onDelete={() => void threadActions.deleteThread()}
+          onRenameSpeaker={(speaker, label) => void threadActions.renameSpeaker(speaker, label)}
+        />
+      )}
+
       <TranscriptSurface
         recorderState={recorderState}
         selectedThread={selectedThread}
+        query={query}
         onCreateThread={onCreateThread}
         onStartRecording={onStartRecording}
+        onSaveSegmentText={(index, text) => void threadActions.updateSegmentText(index, text)}
       />
-      <PanelFooter liveStatus={liveStatus} selectedThread={selectedThread} />
+      <PanelFooter
+        liveStatus={liveStatus}
+        finalization={finalization}
+        selectedThread={selectedThread}
+        onRevealMarkdown={(path) => void threadActions.revealPath(path)}
+      />
       <ErrorToast message={error} />
-    </section>
-  );
-}
-
-type CaptureMeterProps = {
-  icon: "mic" | "system";
-  label: string;
-  level: number;
-};
-
-const captureBars = Array.from({ length: 24 }, (_, index) => index);
-
-function CaptureMeter({ icon, label, level }: CaptureMeterProps) {
-  const Icon = icon === "mic" ? Mic : Radio;
-  const activeBars = Math.round(Math.min(1, Math.max(0, level)) * captureBars.length);
-
-  return (
-    <section className="capture-meter" aria-label={`${label} level`}>
-      <div className="capture-meter-head">
-        <Icon size={20} aria-hidden="true" />
-        <span>{label}</span>
-        <strong>{Math.round(level * 100)}%</strong>
-      </div>
-      <div className="capture-meter-bars" aria-hidden="true">
-        {captureBars.map((bar) => (
-          <span key={bar} className={bar < activeBars ? "active" : ""} />
-        ))}
-      </div>
     </section>
   );
 }

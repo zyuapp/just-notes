@@ -1,0 +1,120 @@
+.capture-strip {
+  display: grid;
+  grid-template-columns: 224px minmax(150px, 1fr) minmax(150px, 1fr) minmax(170px, 0.95fr);
+  align-items: center;
+  margin: 0 24px 18px;
+  border: 1px solid rgba(232, 236, 239, 0.14);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.018);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.16);
+}
+
+.capture-record {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  height: 104px;
+  padding: 0 26px;
+  border-right: 1px solid rgba(232, 236, 239, 0.18);
+  background: transparent;
+  color: #eef2f4;
+  cursor: pointer;
+  font-size: 23px;
+  font-weight: 680;
+}
+
+.capture-record svg {
+  width: 58px;
+  height: 58px;
+  color: #68d8ff;
+  stroke-width: 1.7;
+  filter: drop-shadow(0 0 16px rgba(104, 216, 255, 0.24));
+}
+
+.capture-record.recording svg {
+  color: #ff8d88;
+}
+
+.capture-record:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.capture-meter {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 24px;
+  border-right: 1px solid rgba(232, 236, 239, 0.18);
+}
+
+.capture-meter-head {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) max-content;
+  gap: 12px;
+  align-items: center;
+  color: #d9dee2;
+  font-size: 18px;
+}
+
+.capture-meter-head svg {
+  color: #9099a3;
+}
+
+.capture-meter-head strong {
+  color: #bbc2c9;
+  font-size: 16px;
+  font-weight: 520;
+  font-variant-numeric: tabular-nums;
+}
+
+.capture-meter-bars {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 4px;
+  height: 17px;
+  align-items: stretch;
+}
+
+.capture-meter-bars span {
+  display: block;
+  border-radius: 1px;
+  background: rgba(232, 236, 239, 0.14);
+}
+
+.capture-meter-bars span.active {
+  background: #5fe4ff;
+  box-shadow: 0 0 10px rgba(95, 228, 255, 0.22);
+}
+
+.engine-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  min-width: 0;
+  padding: 0 22px;
+  color: #d1d6dc;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.engine-row svg {
+  margin-top: 3px;
+  color: #8c95a0;
+}
+
+.engine-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fixture-link {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

@@ -1,4 +1,4 @@
-import { Folder, Plus } from "lucide-react";
+import { Folder, Plus, Search, Settings } from "lucide-react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
 import { ThreadList } from "./ThreadList";
@@ -8,8 +8,13 @@ type ThreadSidebarProps = {
   appInfo: AppInfo | null;
   selectedThreadId: string | null;
   threads: ThreadSummary[];
+  searchQuery: string;
+  searching: boolean;
+  onSearchChange: (query: string) => void;
   onCreateThread: () => void;
   onSelectThread: (threadId: string) => void;
+  onOpenSettings: () => void;
+  onRevealStorage: () => void;
 };
 
 export function ThreadSidebar({
@@ -17,8 +22,13 @@ export function ThreadSidebar({
   appInfo,
   selectedThreadId,
   threads,
+  searchQuery,
+  searching,
+  onSearchChange,
   onCreateThread,
   onSelectThread,
+  onOpenSettings,
+  onRevealStorage,
 }: ThreadSidebarProps) {
   return (
     <aside className="thread-sidebar" aria-label="Threads">
@@ -33,24 +43,51 @@ export function ThreadSidebar({
             <BrandMark />
             <span>Just Notes</span>
           </div>
-          <button type="button" className="icon-button" onClick={onCreateThread} aria-label="New thread">
-            <Plus size={24} aria-hidden="true" />
-          </button>
+          <div className="sidebar-buttons">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onOpenSettings}
+              aria-label="Settings"
+            >
+              <Settings size={22} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={onCreateThread}
+              aria-label="New thread"
+            >
+              <Plus size={24} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="thread-search" aria-hidden="true">Threads</div>
+      <div className="thread-search">
+        <Search size={16} aria-hidden="true" />
+        <input
+          type="search"
+          value={searchQuery}
+          placeholder="Search recordings"
+          onChange={(event) => onSearchChange(event.target.value)}
+          aria-label="Search recordings"
+        />
+      </div>
 
       <ThreadList
         activeThreadId={activeThreadId}
         selectedThreadId={selectedThreadId}
         threads={threads}
+        searching={searching}
         onSelectThread={onSelectThread}
       />
 
       <footer className="storage-path">
         <Folder size={24} aria-hidden="true" />
-        <span>{appInfo?.dataDir ?? "~/Library/Application Support/just-notes"}</span>
+        <button type="button" onClick={onRevealStorage} title="Reveal in Finder">
+          {appInfo?.threadsDir ?? "Locating storage…"}
+        </button>
       </footer>
     </aside>
   );

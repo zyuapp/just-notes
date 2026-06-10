@@ -1,0 +1,135 @@
+.transcript-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 0 24px 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(232, 236, 239, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.014);
+}
+
+.toolbar-search {
+  display: inline-flex;
+  flex: 1;
+  gap: 10px;
+  align-items: center;
+  min-width: 180px;
+  padding: 0 12px;
+  height: 38px;
+  border: 1px solid rgba(232, 236, 239, 0.12);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #8e96a0;
+}
+
+.toolbar-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #e1e6ea;
+  font: inherit;
+  font-size: 15px;
+}
+
+.toolbar-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.toolbar-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(232, 236, 239, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  color: #c8cfd6;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.toolbar-actions button:hover:not(:disabled),
+.toolbar-actions button.active {
+  border-color: rgba(111, 216, 255, 0.3);
+  background: rgba(111, 216, 255, 0.08);
+  color: #e6f7ff;
+}
+
+.toolbar-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.toolbar-actions button.danger:hover:not(:disabled) {
+  border-color: rgba(255, 102, 95, 0.4);
+  background: rgba(255, 102, 95, 0.1);
+  color: #ffd0cc;
+}
+
+.speaker-renames {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.speaker-rename {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  color: #9aa1aa;
+  font-size: 14px;
+}
+
+.speaker-rename input {
+  width: 170px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(232, 236, 239, 0.14);
+  border-radius: 7px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.18);
+  color: #e1e6ea;
+  font: inherit;
+  font-size: 14px;
+}
+
+.notice-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 0 24px 14px;
+  padding: 11px 14px;
+  border: 1px solid rgba(255, 189, 46, 0.3);
+  border-radius: 9px;
+  background: rgba(255, 189, 46, 0.07);
+  color: #ffd98a;
+  font-size: 15px;
+}
+
+.notice-bar svg {
+  flex: 0 0 auto;
+}
+
+.notice-bar span {
+  flex: 1;
+  min-width: 0;
+}
+
+.notice-bar button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 189, 46, 0.4);
+  border-radius: 7px;
+  background: rgba(255, 189, 46, 0.12);
+  color: #ffe7b3;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}

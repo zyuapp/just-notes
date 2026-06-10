@@ -1,12 +1,16 @@
 import type { AppInfo } from "../../bindings/AppInfo";
+import type { AppSettings } from "../../bindings/AppSettings";
+import type { FinalizationStatusPayload } from "../../bindings/FinalizationStatusPayload";
 import type { LiveTranscriptSegmentPayload } from "../../bindings/LiveTranscriptSegmentPayload";
 import type { LiveTranscriptStatusPayload } from "../../bindings/LiveTranscriptStatusPayload";
 import type { MeterPayload } from "../../bindings/MeterPayload";
+import type { PermissionsPayload } from "../../bindings/PermissionsPayload";
 import type { RecordingPayload } from "../../bindings/RecordingPayload";
 import type { ThreadDetail } from "../../bindings/ThreadDetail";
 import type { ThreadSummary } from "../../bindings/ThreadSummary";
 import type { TranscriptionStatusPayload } from "../../bindings/TranscriptionStatusPayload";
-import { applyLiveSegmentToThread, applyLiveSegmentToThreadList } from "../../lib/transcript";
+
+export { appReducer } from "./reducer";
 
 export type RecorderState = "idle" | "starting" | "recording" | "stopping";
 
@@ -19,6 +23,10 @@ export type AppState = {
   meters: MeterPayload;
   liveStatus: LiveTranscriptStatusPayload | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
+  settings: AppSettings | null;
+  permissions: PermissionsPayload | null;
+  finalization: FinalizationStatusPayload | null;
+  settingsOpen: boolean;
   error: string | null;
 };
 
@@ -38,6 +46,10 @@ export const initialAppState: AppState = {
   meters: emptyMeters,
   liveStatus: null,
   transcriptionStatus: null,
+  settings: null,
+  permissions: null,
+  finalization: null,
+  settingsOpen: false,
   error: null,
 };
 
@@ -49,9 +61,17 @@ export type AppAction =
       info: AppInfo;
       transcriptionStatus: TranscriptionStatusPayload;
       threads: ThreadSummary[];
+      settings: AppSettings;
+      permissions: PermissionsPayload;
     }
   | { type: "threadsLoaded"; threads: ThreadSummary[] }
   | { type: "threadSelected"; detail: ThreadDetail }
+  | { type: "threadUpdated"; detail: ThreadDetail }
+  | { type: "threadDeleted"; threadId: string }
+  | { type: "settingsLoaded"; settings: AppSettings }
+  | { type: "permissionsLoaded"; permissions: PermissionsPayload }
+  | { type: "settingsOpenChanged"; open: boolean }
+  | { type: "finalizationReceived"; payload: FinalizationStatusPayload }
   | { type: "recordingStarting" }
   | { type: "recordingStarted"; payload: RecordingPayload }
   | { type: "recordingStartFailed"; message: string }
@@ -62,70 +82,6 @@ export type AppAction =
   | { type: "liveSegmentReceived"; payload: LiveTranscriptSegmentPayload; updatedAtMs: number }
   | { type: "liveStatusReceived"; payload: LiveTranscriptStatusPayload }
   | { type: "liveErrorReceived"; payload: LiveTranscriptStatusPayload };
-
-export function appReducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case "errorCleared":
-      return { ...state, error: null };
-    case "failed":
-      return { ...state, error: action.message };
-    case "bootstrapLoaded":
-      return {
-        ...state,
-        appInfo: action.info,
-        transcriptionStatus: action.transcriptionStatus,
-        threads: action.threads,
-      };
-    case "threadsLoaded":
-      return { ...state, threads: action.threads };
-    case "threadSelected":
-      return {
-        ...state,
-        selectedThreadId: action.detail.summary.id,
-        selectedThread: action.detail,
-      };
-    case "recordingStarting":
-      return { ...state, error: null, recorderState: "starting", meters: emptyMeters };
-    case "recordingStarted":
-      return {
-        ...state,
-        selectedThreadId: action.payload.thread.summary.id,
-        selectedThread: action.payload.thread,
-        transcriptionStatus: action.payload.transcription,
-        recorderState: "recording",
-      };
-    case "recordingStartFailed":
-      return { ...state, error: action.message, recorderState: "idle" };
-    case "recordingStopping":
-      return { ...state, error: null, recorderState: "stopping" };
-    case "recordingStopped":
-      return {
-        ...state,
-        selectedThreadId: action.detail.summary.id,
-        selectedThread: action.detail,
-        meters: { ...state.meters, micLevel: 0, systemLevel: 0 },
-        recorderState: "idle",
-      };
-    case "recordingStopFailed":
-      return { ...state, error: action.message, recorderState: "recording" };
-    case "meterReceived":
-      return { ...state, meters: action.payload };
-    case "liveSegmentReceived":
-      return {
-        ...state,
-        selectedThread: applyLiveSegmentToThread(
-          state.selectedThread,
-          action.payload,
-          action.updatedAtMs,
-        ),
-        threads: applyLiveSegmentToThreadList(state.threads, action.payload, action.updatedAtMs),
-      };
-    case "liveStatusReceived":
-      return { ...state, liveStatus: action.payload };
-    case "liveErrorReceived":
-      return { ...state, liveStatus: action.payload, error: action.payload.message };
-  }
-}
 
 export function getActiveThreadId(state: AppState) {
   return state.liveStatus?.active ? state.liveStatus.threadId : null;

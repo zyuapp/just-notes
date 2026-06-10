@@ -23,7 +23,7 @@ export function useJustNotesController(state: AppState, dispatch: AppDispatch) {
         const threads = await api.threads.list();
         dispatch({ type: "threadsLoaded", threads });
         const threadId = nextSelectedId ?? state.selectedThreadId ?? threads[0]?.id ?? null;
-        if (threadId) {
+        if (threadId && threads.some((thread) => thread.id === threadId)) {
           await selectThread(threadId);
         }
       } catch (error) {
@@ -36,12 +36,14 @@ export function useJustNotesController(state: AppState, dispatch: AppDispatch) {
   const bootstrap = useCallback(async () => {
     dispatch({ type: "errorCleared" });
     try {
-      const [info, transcriptionStatus, threads] = await Promise.all([
+      const [info, transcriptionStatus, threads, settings, permissions] = await Promise.all([
         api.app.getInfo(),
         api.transcription.getStatus(),
         api.threads.list(),
+        api.settings.get(),
+        api.system.getPermissions(),
       ]);
-      dispatch({ type: "bootstrapLoaded", info, transcriptionStatus, threads });
+      dispatch({ type: "bootstrapLoaded", info, transcriptionStatus, threads, settings, permissions });
       if (threads.length > 0) {
         await selectThread(threads[0].id);
       }
@@ -99,7 +101,9 @@ export function useJustNotesController(state: AppState, dispatch: AppDispatch) {
   }, [bootstrap]);
 
   return {
+    bootstrap,
     createThread,
+    refreshThreads,
     selectThread,
     startFixtureRecording,
     startRecording,

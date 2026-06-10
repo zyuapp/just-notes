@@ -90,12 +90,33 @@
   background: rgba(111, 216, 255, 0.07);
 }
 
+.sidebar-buttons {
+  display: inline-flex;
+  gap: 8px;
+}
+
 .thread-search {
-  padding: 4px 20px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0 20px 14px;
+  padding: 0 12px;
+  height: 40px;
+  border: 1px solid rgba(232, 236, 239, 0.12);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.18);
   color: #858c95;
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+}
+
+.thread-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #e1e6ea;
+  font: inherit;
+  font-size: 15px;
 }
 
 .storage-path {
@@ -113,7 +134,17 @@
   line-height: 1.35;
 }
 
-.storage-path span {
+.storage-path button {
   min-width: 0;
   overflow-wrap: anywhere;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.storage-path button:hover {
+  color: #b6bec7;
 }
