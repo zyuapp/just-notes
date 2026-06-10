@@ -95,7 +95,12 @@ pub(crate) fn spawn_finalization(config: FinalizationConfig) -> bool {
         "Improving the transcript from the saved recording",
     );
     thread::spawn(move || {
-        let outcome = run_finalization(&config, &cancel, &mic_path, &system_path);
+        // catch_unwind keeps a whisper/decoder panic from leaking the
+        // Transcribing status and the registry entry for this thread.
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            run_finalization(&config, &cancel, &mic_path, &system_path)
+        }))
+        .unwrap_or_else(|_| Err("Transcript finalization crashed".to_string()));
         let _ = set_thread_status(&config.thread_dir, ThreadStatus::Idle);
         config.state.finish(&config.thread_id);
         match outcome {

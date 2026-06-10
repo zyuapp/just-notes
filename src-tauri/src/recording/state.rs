@@ -10,7 +10,9 @@ use std::{
 
 use super::audio_sink::AudioSink;
 use crate::{
+    app::AppPaths,
     capture::{ActiveAudioCapture, SharedBuffers},
+    settings::AppSettings,
     threads::ThreadDetail,
 };
 
@@ -24,6 +26,10 @@ pub(super) struct RecorderSession {
     pub(super) thread_id: String,
     pub(super) thread_dir: PathBuf,
     pub(super) started: Instant,
+    // Paths and settings are captured at start so the session keeps writing to
+    // the folder it was created in even if the user changes them mid-recording.
+    pub(super) paths: AppPaths,
+    pub(super) settings: AppSettings,
     pub(super) buffers: Arc<Mutex<SharedBuffers>>,
     pub(super) should_stop_meter: Arc<AtomicBool>,
     pub(super) should_stop_live_transcription: Arc<AtomicBool>,
@@ -79,6 +85,13 @@ impl RecorderState {
             .map_err(|_| "Recorder state lock was poisoned".to_string())?;
         slot.take()
             .ok_or_else(|| "No recording is currently active".to_string())
+    }
+
+    pub(crate) fn is_active(&self) -> bool {
+        self.session
+            .lock()
+            .map(|session| session.is_some())
+            .unwrap_or(false)
     }
 }
 

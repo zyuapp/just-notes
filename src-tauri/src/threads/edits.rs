@@ -4,8 +4,8 @@ use crate::app::AppPaths;
 
 use super::{
     repository::{
-        list_threads, load_thread_by_id, load_thread_detail, render_thread_markdown,
-        update_thread_metadata,
+        list_threads, load_thread_by_id, load_thread_detail, read_thread_metadata,
+        render_thread_markdown, update_thread_metadata,
     },
     transcript_store::{read_transcript_jsonl, write_transcript_jsonl},
     ThreadDetail, ThreadSummary,
@@ -25,6 +25,7 @@ pub(crate) fn rename_thread(
     }
 
     let thread_dir = existing_thread_dir(paths, thread_id)?;
+    ensure_thread_not_busy(&thread_dir)?;
     update_thread_metadata(&thread_dir, |metadata| metadata.title = title.to_string())?;
     rerender_markdown_if_present(&thread_dir)?;
     load_thread_detail(&thread_dir)
@@ -49,6 +50,7 @@ pub(crate) fn rename_speaker(
     label: &str,
 ) -> Result<ThreadDetail, String> {
     let thread_dir = existing_thread_dir(paths, thread_id)?;
+    ensure_thread_not_busy(&thread_dir)?;
     let speaker = speaker.to_string();
     let label = label.trim().to_string();
     if label.chars().count() > 60 {
@@ -78,6 +80,7 @@ pub(crate) fn update_segment_text(
     }
 
     let thread_dir = existing_thread_dir(paths, thread_id)?;
+    ensure_thread_not_busy(&thread_dir)?;
     let jsonl_path = thread_dir.join("transcript.jsonl");
     let mut segments = read_transcript_jsonl(&jsonl_path)?;
     let segment = segments
@@ -123,6 +126,18 @@ fn existing_thread_dir(paths: &AppPaths, thread_id: &str) -> Result<std::path::P
         return Err(format!("Thread does not exist: {thread_id}"));
     }
     Ok(thread_dir)
+}
+
+// Edits write thread.json and transcript.jsonl, which the live recorder and
+// the finalization pass also write; they must wait until the thread is idle.
+fn ensure_thread_not_busy(thread_dir: &std::path::Path) -> Result<(), String> {
+    let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
+    if metadata.status.is_busy() {
+        return Err(
+            "Wait for recording or transcription to finish before editing this thread".to_string(),
+        );
+    }
+    Ok(())
 }
 
 fn rerender_markdown_if_present(thread_dir: &std::path::Path) -> Result<(), String> {

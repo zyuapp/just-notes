@@ -33,7 +33,8 @@ struct RecordingSessionConfig {
     started: Instant,
     input: PreparedAudioInput,
     transcription_paths: TranscriptionPaths,
-    save_raw_audio: bool,
+    paths: AppPaths,
+    settings: AppSettings,
 }
 
 struct RecordingStart {
@@ -116,27 +117,39 @@ fn prepare_recording_session(
     prepare_work_dir(&thread_dir)?;
 
     let started = Instant::now();
-    let mut input = prepare_audio_input(&app, input_mode)?;
+    let input = prepare_audio_input(&app, input_mode)?;
     set_thread_status(&thread_dir, ThreadStatus::Recording)?;
-    start_audio_capture(&mut input.audio_capture)?;
 
     let transcription = transcription_status(&paths);
-    let session = build_recording_session(RecordingSessionConfig {
+    let config = RecordingSessionConfig {
         app: app.clone(),
         thread_id: thread_id.clone(),
-        thread_dir,
+        thread_dir: thread_dir.clone(),
         started,
         input,
         transcription_paths: transcription_paths(&paths),
-        save_raw_audio: settings.save_raw_audio,
-    })?;
-    recorder.store_session(session)?;
+        paths: paths.clone(),
+        settings,
+    };
+    if let Err(err) = activate_session(&recorder, config) {
+        let _ = set_thread_status(&thread_dir, ThreadStatus::Idle);
+        return Err(err);
+    }
     tray::set_tray_recording(&app, true);
 
     Ok(RecordingPayload {
         thread: load_thread_by_id(&paths, &thread_id)?,
         transcription,
     })
+}
+
+fn activate_session(
+    recorder: &RecorderState,
+    mut config: RecordingSessionConfig,
+) -> Result<(), String> {
+    start_audio_capture(&mut config.input.audio_capture)?;
+    let session = build_recording_session(config)?;
+    recorder.store_session(session)
 }
 
 fn maybe_spawn_audio_sink(
@@ -161,7 +174,7 @@ fn maybe_spawn_audio_sink(
 fn build_recording_session(config: RecordingSessionConfig) -> Result<RecorderSession, String> {
     let input = config.input;
     let audio_sink = maybe_spawn_audio_sink(
-        config.save_raw_audio,
+        config.settings.save_raw_audio,
         &config.thread_dir,
         &input.buffers,
         input.mic_sample_rate,
@@ -194,6 +207,8 @@ fn build_recording_session(config: RecordingSessionConfig) -> Result<RecorderSes
         thread_id: config.thread_id,
         thread_dir: config.thread_dir,
         started: config.started,
+        paths: config.paths,
+        settings: config.settings,
         buffers: input.buffers,
         should_stop_meter,
         should_stop_live_transcription,

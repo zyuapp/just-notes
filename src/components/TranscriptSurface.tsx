@@ -47,7 +47,7 @@ export function TranscriptSurface({
   }
 
   const items = visibleSegments(selectedThread.segments, query);
-  const editable = !isRecording && recorderState === "idle";
+  const editable = recorderState === "idle" && selectedThread.summary.status === "idle";
 
   return (
     <section className="transcript-surface" ref={surfaceRef}>

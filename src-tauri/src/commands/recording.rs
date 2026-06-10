@@ -50,20 +50,14 @@ pub(crate) async fn start_fixture_recording(
 #[tauri::command]
 pub(crate) async fn stop_recording(
     app: AppHandle,
-    paths: State<'_, AppPaths>,
     recorder: State<'_, RecorderState>,
-    settings: State<'_, SettingsState>,
     finalize: State<'_, FinalizeState>,
 ) -> Result<ThreadDetail, String> {
-    let paths = effective_paths(&paths, &settings);
     let recorder = recorder.inner().clone();
     let finalize = finalize.inner().clone();
-    let settings = settings.snapshot();
-    tauri::async_runtime::spawn_blocking(move || {
-        recording::stop_recording(app, paths, recorder, settings, finalize)
-    })
-    .await
-    .map_err(|err| format!("Audio stop task failed: {err}"))?
+    tauri::async_runtime::spawn_blocking(move || recording::stop_recording(app, recorder, finalize))
+        .await
+        .map_err(|err| format!("Audio stop task failed: {err}"))?
 }
 
 #[tauri::command]

@@ -4,9 +4,7 @@ use tauri::{AppHandle, Emitter};
 
 use super::state::{RecorderSession, RecorderState};
 use crate::{
-    app::AppPaths,
     capture::stop_audio_capture,
-    settings::AppSettings,
     threads::{
         repository::{
             load_thread_by_id, render_thread_markdown, set_thread_duration, set_thread_status,
@@ -19,9 +17,7 @@ use crate::{
 
 pub(crate) fn stop_recording(
     app: AppHandle,
-    paths: AppPaths,
     recorder: RecorderState,
-    settings: AppSettings,
     finalize: FinalizeState,
 ) -> Result<ThreadDetail, String> {
     recorder.ensure_not_starting()?;
@@ -31,6 +27,8 @@ pub(crate) fn stop_recording(
         thread_id,
         thread_dir,
         started,
+        paths,
+        settings,
         buffers,
         should_stop_meter,
         should_stop_live_transcription,

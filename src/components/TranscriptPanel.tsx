@@ -54,6 +54,7 @@ export function TranscriptPanel({
   const [query, setQuery] = useState("");
   const isRecording = recorderState === "recording";
   const hasSegments = (selectedThread?.segments.length ?? 0) > 0;
+  const canModify = recorderState === "idle" && selectedThread?.summary.status === "idle";
   const speakers = Array.from(
     new Set(selectedThread?.segments.map((segment) => segment.speaker) ?? []),
   );
@@ -69,7 +70,7 @@ export function TranscriptPanel({
           </p>
           <ThreadTitle
             title={selectedThread?.summary.title ?? null}
-            canRename={recorderState === "idle"}
+            canRename={canModify}
             onRename={(title) => void threadActions.renameThread(title)}
           />
         </div>
@@ -115,7 +116,7 @@ export function TranscriptPanel({
           query={query}
           speakers={speakers}
           speakerLabels={selectedThread.speakerLabels}
-          canModify={recorderState === "idle"}
+          canModify={canModify}
           onQueryChange={setQuery}
           onCopy={() => void threadActions.copyTranscript()}
           onExport={() => void threadActions.exportMarkdown()}

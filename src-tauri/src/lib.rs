@@ -35,8 +35,25 @@ pub fn run() {
         });
 
     register_commands(builder)
-        .run(tauri::generate_context!())
-        .expect("error while running Just Notes");
+        .build(tauri::generate_context!())
+        .expect("error while building Just Notes")
+        .run(handle_run_event);
+}
+
+// A recording must be stopped (WAV headers finalized, duration persisted)
+// before the process is allowed to exit, whether the exit comes from closing
+// the window, the tray Quit item, or Cmd+Q.
+fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
+    if let tauri::RunEvent::ExitRequested { api, .. } = event {
+        if app.state::<RecorderState>().is_active() {
+            api.prevent_exit();
+            let app = app.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                stop_active_recording(&app);
+                app.exit(0);
+            });
+        }
+    }
 }
 
 #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
@@ -96,16 +113,13 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
 
 fn stop_recording_from_tray(app: &AppHandle) {
     let app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let paths = app.state::<AppPaths>().inner().clone();
-        let recorder = app.state::<RecorderState>().inner().clone();
-        let finalize = app.state::<FinalizeState>().inner().clone();
-        let snapshot = app.state::<SettingsState>().snapshot();
-        let effective = settings::effective_paths(&paths, &snapshot);
-        if let Err(err) =
-            recording::stop_recording(app.clone(), effective, recorder, snapshot, finalize)
-        {
-            eprintln!("tray stop failed: {err}");
-        }
-    });
+    tauri::async_runtime::spawn_blocking(move || stop_active_recording(&app));
+}
+
+fn stop_active_recording(app: &AppHandle) {
+    let recorder = app.state::<RecorderState>().inner().clone();
+    let finalize = app.state::<FinalizeState>().inner().clone();
+    if let Err(err) = recording::stop_recording(app.clone(), recorder, finalize) {
+        eprintln!("recording stop failed: {err}");
+    }
 }
