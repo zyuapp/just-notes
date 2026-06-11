@@ -43,4 +43,19 @@ describe("groupThreadsByDay", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0].threads.map((item) => item.id)).toEqual(["a", "b"]);
   });
+
+  test("regroups unsorted input without duplicating day labels", () => {
+    const now = new Date(2026, 5, 9, 15, 0, 0);
+    const today = new Date(2026, 5, 9, 9, 0, 0).getTime();
+    const yesterdayLate = new Date(2026, 5, 8, 22, 0, 0).getTime();
+    const yesterdayEarly = new Date(2026, 5, 8, 8, 0, 0).getTime();
+
+    const groups = groupThreadsByDay(
+      [thread("b", yesterdayLate), thread("a", today), thread("c", yesterdayEarly)],
+      now,
+    );
+
+    expect(groups.map((group) => group.label)).toEqual(["Today", "Yesterday"]);
+    expect(groups[1].threads.map((item) => item.id)).toEqual(["b", "c"]);
+  });
 });

@@ -33,11 +33,6 @@ export function ThreadSidebar({
   return (
     <aside className="thread-sidebar" aria-label="Threads">
       <header className="sidebar-head">
-        <div className="window-lights" aria-hidden="true">
-          <span className="window-light red" />
-          <span className="window-light yellow" />
-          <span className="window-light green" />
-        </div>
         <div className="sidebar-brand-row">
           <div className="brand">
             <BrandMark />

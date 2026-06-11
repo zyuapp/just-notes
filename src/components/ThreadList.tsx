@@ -78,7 +78,10 @@ function ThreadItem({ thread, active, selected, onSelect }: ThreadItemProps) {
         {thread.status === "transcribing" ? (
           <> · Transcribing…</>
         ) : (
-          <> · {thread.segmentCount} segments</>
+          <>
+            {" "}
+            · {thread.segmentCount} segment{thread.segmentCount === 1 ? "" : "s"}
+          </>
         )}
         {thread.hasAudio && (
           <span className="thread-audio" title="Raw audio saved">

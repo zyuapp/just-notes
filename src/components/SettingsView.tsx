@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useEffect } from "react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { AppSettings } from "../bindings/AppSettings";
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
@@ -32,6 +33,19 @@ export function SettingsView({
   onToggleMarkdownCopy,
   onOpenPrivacy,
 }: SettingsViewProps) {
+  // macOS webviews never deliver keydown for Escape (tauri#5790); keyup does.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("keyup", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keyup", onKey);
+    };
+  }, [onClose]);
+
   return (
     <div className="settings-overlay" role="dialog" aria-label="Settings">
       <div className="settings-panel">
@@ -77,7 +91,7 @@ export function SettingsView({
           <ul className="settings-models">
             {transcriptionStatus?.availableModels.map((model) => (
               <li key={model.filename}>
-                <span className={model.installed ? "model installed" : "model"}>
+                <span className={model.selected ? "model selected" : "model"}>
                   {model.name}
                   {model.selected && " (selected)"}
                 </span>

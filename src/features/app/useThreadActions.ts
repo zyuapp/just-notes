@@ -36,13 +36,15 @@ export function useThreadActions(
   const deleteThread = useCallback(async () => {
     if (!threadId) return;
     try {
+      const index = state.threads.findIndex((thread) => thread.id === threadId);
+      const neighbor = state.threads[index + 1] ?? state.threads[index - 1];
       await api.threads.delete(threadId);
       dispatch({ type: "threadDeleted", threadId });
-      await refreshThreads();
+      await refreshThreads(neighbor?.id);
     } catch (error) {
       fail(error);
     }
-  }, [dispatch, fail, refreshThreads, threadId]);
+  }, [dispatch, fail, refreshThreads, state.threads, threadId]);
 
   const renameSpeaker = useCallback(
     async (speaker: string, label: string) => {

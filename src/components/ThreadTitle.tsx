@@ -51,6 +51,10 @@ export function ThreadTitle({ title, canRename, onRename }: ThreadTitleProps) {
         if (event.key === "Enter") commit();
         if (event.key === "Escape") setDraft(null);
       }}
+      // macOS webviews never deliver keydown for Escape (tauri#5790); keyup does.
+      onKeyUp={(event) => {
+        if (event.key === "Escape") setDraft(null);
+      }}
       aria-label="Thread title"
     />
   );

@@ -54,13 +54,16 @@ pub(crate) fn stop_recording(
     }
     drop(buffers);
 
+    // Capture is finished at this point, so the tray must leave the recording
+    // state even if persisting the thread below fails.
+    tray::set_tray_recording(&app, false);
+
     let duration_ms = started.elapsed().as_millis() as u64;
     set_thread_duration(&thread_dir, duration_ms)?;
     set_thread_status(&thread_dir, ThreadStatus::Idle)?;
     if settings.markdown_copy {
         render_thread_markdown(&thread_dir)?;
     }
-    tray::set_tray_recording(&app, false);
 
     spawn_finalization(FinalizationConfig {
         app: app.clone(),

@@ -53,6 +53,8 @@ export function TranscriptPanel({
 }: TranscriptPanelProps) {
   const [query, setQuery] = useState("");
   const isRecording = recorderState === "recording";
+  const liveElapsed = isRecording || recorderState === "stopping";
+  const elapsedMs = liveElapsed ? meters.elapsedMs : (selectedThread?.summary.durationMs ?? 0);
   const hasSegments = (selectedThread?.segments.length ?? 0) > 0;
   const canModify = recorderState === "idle" && selectedThread?.summary.status === "idle";
   const speakers = Array.from(
@@ -76,7 +78,7 @@ export function TranscriptPanel({
         </div>
         <div className="panel-status">
           <span className={isRecording ? "status-light live" : "status-light"} />
-          <span>{formatDuration(meters.elapsedMs)}</span>
+          <span>{formatDuration(elapsedMs)}</span>
         </div>
       </header>
 

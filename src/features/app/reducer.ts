@@ -63,7 +63,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         selectedThreadId: action.detail.summary.id,
         selectedThread: action.detail,
         threads: replaceThreadSummary(state, action.detail),
-        meters: { ...state.meters, micLevel: 0, systemLevel: 0 },
+        meters: emptyMeters,
         recorderState: "idle",
       };
     case "recordingStopFailed":

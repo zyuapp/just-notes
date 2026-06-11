@@ -31,6 +31,11 @@ pub fn run() {
             let settings = app.state::<SettingsState>().snapshot();
             reset_stale_recording_threads(&settings::effective_paths(&paths, &settings))?;
             tray::init_tray(app, stop_recording_from_tray)?;
+            // The minWidth/minHeight from tauri.conf.json is not enforced on
+            // macOS; the layout needs at least this much room.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_min_size(Some(tauri::LogicalSize::new(900.0, 620.0)));
+            }
             Ok(())
         });
 
