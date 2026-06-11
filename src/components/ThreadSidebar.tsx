@@ -32,35 +32,24 @@ export function ThreadSidebar({
 }: ThreadSidebarProps) {
   return (
     <aside className="thread-sidebar" aria-label="Threads">
-      <header className="sidebar-head">
-        <div className="sidebar-brand-row">
-          <div className="brand">
-            <BrandMark />
-            <span>Just Notes</span>
-          </div>
-          <div className="sidebar-buttons">
-            <button
-              type="button"
-              className="icon-button"
-              onClick={onOpenSettings}
-              aria-label="Settings"
-            >
-              <Settings size={22} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              onClick={onCreateThread}
-              aria-label="New thread"
-            >
-              <Plus size={24} aria-hidden="true" />
-            </button>
-          </div>
+      <div className="sidebar-drag" data-tauri-drag-region="" />
+      <header className="sidebar-head" data-tauri-drag-region="">
+        <div className="brand">
+          <BrandMark />
+          <span>Just Notes</span>
         </div>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={onCreateThread}
+          aria-label="New thread"
+        >
+          <Plus size={15} aria-hidden="true" />
+        </button>
       </header>
 
-      <div className="thread-search">
-        <Search size={16} aria-hidden="true" />
+      <label className="thread-search">
+        <Search size={13} aria-hidden="true" />
         <input
           type="search"
           value={searchQuery}
@@ -68,7 +57,7 @@ export function ThreadSidebar({
           onChange={(event) => onSearchChange(event.target.value)}
           aria-label="Search recordings"
         />
-      </div>
+      </label>
 
       <ThreadList
         activeThreadId={activeThreadId}
@@ -78,10 +67,23 @@ export function ThreadSidebar({
         onSelectThread={onSelectThread}
       />
 
-      <footer className="storage-path">
-        <Folder size={24} aria-hidden="true" />
-        <button type="button" onClick={onRevealStorage} title="Reveal in Finder">
-          {appInfo?.threadsDir ?? "Locating storage…"}
+      <footer className="sidebar-foot">
+        <button
+          type="button"
+          className="icon-button"
+          onClick={onOpenSettings}
+          aria-label="Settings"
+        >
+          <Settings size={15} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="storage-path"
+          onClick={onRevealStorage}
+          title="Reveal in Finder"
+        >
+          <Folder size={13} aria-hidden="true" />
+          <span>{appInfo?.threadsDir ?? "Locating storage…"}</span>
         </button>
       </footer>
     </aside>
@@ -90,10 +92,17 @@ export function ThreadSidebar({
 
 function BrandMark() {
   return (
-    <svg className="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path className="brand-mark-wave" d="M2.8 5.5c2.1 0 2.1-1.5 4.2-1.5s2.1 1.5 4.2 1.5S13.3 4 15.4 4s2.1 1.5 4.2 1.5" />
-      <path className="brand-mark-wave" d="M2.8 11.7c2.1 0 2.1-1.5 4.2-1.5s2.1 1.5 4.2 1.5 2.1-1.5 4.2-1.5 2.1 1.5 4.2 1.5" />
-      <path className="brand-mark-wave" d="M2.8 17.9c2.1 0 2.1-1.5 4.2-1.5s2.1 1.5 4.2 1.5 2.1-1.5 4.2-1.5 2.1 1.5 4.2 1.5" />
+    <svg
+      className="brand-mark"
+      viewBox="0 0 16 16"
+      width="15"
+      height="15"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+        <path d="M2 8h.01M5 5.5v5M8 3.5v9M11 5.5v5M14 8h.01" />
+      </g>
     </svg>
   );
 }

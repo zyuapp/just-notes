@@ -5,6 +5,13 @@ export function formatDuration(ms: number) {
   return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
+export function formatTimeOfDay(ms: number) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(ms));
+}
+
 export function formatThreadDate(ms: number) {
   return new Intl.DateTimeFormat(undefined, {
     month: "short",

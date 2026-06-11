@@ -39,8 +39,8 @@ export function TranscriptToolbar({
 
   return (
     <div className="transcript-toolbar">
-      <div className="toolbar-search">
-        <Search size={16} aria-hidden="true" />
+      <label className="toolbar-search">
+        <Search size={13} aria-hidden="true" />
         <input
           type="search"
           value={query}
@@ -48,33 +48,30 @@ export function TranscriptToolbar({
           onChange={(event) => onQueryChange(event.target.value)}
           aria-label="Search transcript"
         />
-      </div>
+      </label>
       <div className="toolbar-actions">
-        <button type="button" onClick={onCopy} title="Copy transcript">
-          <Copy size={17} aria-hidden="true" />
-          <span>Copy</span>
+        <button type="button" className="icon-button" onClick={onCopy} title="Copy transcript" aria-label="Copy transcript">
+          <Copy size={15} aria-hidden="true" />
         </button>
-        <button type="button" onClick={onExport} title="Export Markdown and reveal in Finder">
-          <FileDown size={17} aria-hidden="true" />
-          <span>Export</span>
+        <button type="button" className="icon-button" onClick={onExport} title="Export Markdown and reveal in Finder" aria-label="Export Markdown">
+          <FileDown size={15} aria-hidden="true" />
         </button>
-        <button type="button" onClick={onReveal} title="Reveal files in Finder">
-          <FolderOpen size={17} aria-hidden="true" />
-          <span>Files</span>
+        <button type="button" className="icon-button" onClick={onReveal} title="Reveal files in Finder" aria-label="Reveal files in Finder">
+          <FolderOpen size={15} aria-hidden="true" />
         </button>
         <button
           type="button"
+          className={showSpeakers ? "icon-button active" : "icon-button"}
           onClick={() => setShowSpeakers((current) => !current)}
           title="Rename speakers"
-          className={showSpeakers ? "active" : ""}
+          aria-label="Rename speakers"
           disabled={!canModify}
         >
-          <Users size={17} aria-hidden="true" />
-          <span>Speakers</span>
+          <Users size={15} aria-hidden="true" />
         </button>
         <button
           type="button"
-          className="danger"
+          className={confirmDelete ? "toolbar-delete armed" : "toolbar-delete"}
           onClick={() => {
             if (confirmDelete) {
               setConfirmDelete(false);
@@ -85,10 +82,10 @@ export function TranscriptToolbar({
           }}
           onBlur={() => setConfirmDelete(false)}
           title="Delete thread"
+          aria-label="Delete thread"
           disabled={!canModify}
         >
-          <Trash2 size={17} aria-hidden="true" />
-          <span>{confirmDelete ? "Confirm" : "Delete"}</span>
+          {confirmDelete ? <span>Confirm</span> : <Trash2 size={15} aria-hidden="true" />}
         </button>
       </div>
       {showSpeakers && (

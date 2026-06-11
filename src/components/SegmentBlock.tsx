@@ -25,6 +25,7 @@ export function SegmentBlock({
   const [draft, setDraft] = useState<string | null>(null);
 
   const classes = ["segment"];
+  if (segment.source === "mic") classes.push("you");
   if (!showHeader) classes.push("continuation");
   if (active) classes.push("active");
 
@@ -37,22 +38,14 @@ export function SegmentBlock({
 
   return (
     <article className={classes.join(" ")}>
-      <time>{showHeader ? formatDuration(segment.startMs) : ""}</time>
-      <strong>{showHeader ? speakerLabel : ""}</strong>
+      {showHeader && (
+        <header className="segment-head">
+          <strong>{speakerLabel}</strong>
+          <time>{formatDuration(segment.startMs)}</time>
+        </header>
+      )}
       {draft === null ? (
-        <p>
-          {segment.text}
-          {editable && (
-            <button
-              type="button"
-              className="segment-edit"
-              aria-label="Edit segment"
-              onClick={() => setDraft(segment.text)}
-            >
-              <Pencil size={14} aria-hidden="true" />
-            </button>
-          )}
-        </p>
+        <p>{segment.text}</p>
       ) : (
         <textarea
           className="segment-editor"
@@ -74,6 +67,16 @@ export function SegmentBlock({
           }}
           aria-label="Edit transcript text"
         />
+      )}
+      {editable && draft === null && (
+        <button
+          type="button"
+          className="segment-edit"
+          aria-label="Edit segment"
+          onClick={() => setDraft(segment.text)}
+        >
+          <Pencil size={13} aria-hidden="true" />
+        </button>
       )}
     </article>
   );

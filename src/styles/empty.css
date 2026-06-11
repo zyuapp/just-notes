@@ -1,25 +1,24 @@
 .empty-state {
   display: grid;
-  width: min(420px, 100%);
+  width: min(380px, 100%);
   height: 100%;
-  min-height: 360px;
+  min-height: 300px;
   align-content: center;
   justify-items: start;
-  gap: 18px;
+  gap: 14px;
   margin: 0 auto;
-  color: var(--muted);
-  text-align: left;
+  color: var(--text-2);
 }
 
 .empty-mark {
   display: grid;
-  width: 58px;
-  height: 58px;
+  width: 44px;
+  height: 44px;
   place-items: center;
-  border: 1px solid rgba(95, 228, 255, 0.22);
-  border-radius: 16px;
-  background: rgba(95, 228, 255, 0.08);
-  color: #9eefff;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--raised);
+  color: var(--text-2);
 }
 
 .empty-state h2,
@@ -28,24 +27,24 @@
 }
 
 .empty-state h2 {
-  color: #eef2f4;
-  font-size: 26px;
-  font-weight: 720;
-  letter-spacing: 0;
+  color: var(--text-bright);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .empty-state p {
-  max-width: 360px;
-  margin-top: 8px;
-  color: #9aa1aa;
-  font-size: 16px;
+  max-width: 340px;
+  margin-top: 5px;
+  color: var(--text-2);
+  font-size: 13px;
   line-height: 1.55;
 }
 
 .empty-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .empty-primary,
@@ -54,17 +53,21 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 40px;
-  min-width: 0;
-  border-radius: 10px;
+  height: 30px;
   cursor: pointer;
+  font-size: 12.5px;
 }
 
 .empty-primary {
-  padding: 0 15px;
-  border: 1px solid rgba(95, 228, 255, 0.35);
-  background: rgba(95, 228, 255, 0.1);
-  color: #e9fbff;
+  padding: 0 14px;
+  border: 1px solid rgba(229, 72, 77, 0.5);
+  border-radius: 15px;
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+.empty-primary:hover:not(:disabled) {
+  background: var(--red-soft);
 }
 
 .empty-primary:disabled {
@@ -73,8 +76,13 @@
 }
 
 .empty-secondary {
-  padding: 0 13px;
-  border: 1px solid rgba(232, 236, 239, 0.12);
-  background: rgba(255, 255, 255, 0.025);
-  color: #c2cad1;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--raised);
+  color: var(--text);
+}
+
+.empty-secondary:hover {
+  color: var(--text-bright);
 }

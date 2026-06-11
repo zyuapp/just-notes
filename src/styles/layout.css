@@ -1,14 +1,9 @@
 .app-shell {
   display: grid;
-  grid-template-columns: 345px minmax(0, 1fr);
+  grid-template-columns: 272px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  border: 1px solid rgba(232, 236, 239, 0.17);
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 22% 18%, rgba(91, 244, 190, 0.055), transparent 26%),
-    radial-gradient(circle at 76% 14%, rgba(111, 216, 255, 0.06), transparent 28%),
-    var(--bg);
+  background: var(--panel);
 }

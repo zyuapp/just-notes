@@ -52,7 +52,7 @@ export function SettingsView({
         <header>
           <h2>Settings</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close settings">
-            <X size={20} aria-hidden="true" />
+            <X size={15} aria-hidden="true" />
           </button>
         </header>
 
@@ -90,13 +90,17 @@ export function SettingsView({
           <p className="settings-hint">{transcriptionStatus?.message ?? "Checking model status…"}</p>
           <ul className="settings-models">
             {transcriptionStatus?.availableModels.map((model) => (
-              <li key={model.filename}>
-                <span className={model.selected ? "model selected" : "model"}>
-                  {model.name}
-                  {model.selected && " (selected)"}
-                </span>
+              <li key={model.filename} className={model.selected ? "selected" : ""}>
+                <i aria-hidden="true" />
+                <span className="model-name">{model.name}</span>
                 <code>{model.filename}</code>
-                <em>{model.installed ? "Installed" : "Not installed"}</em>
+                <em>
+                  {model.installed
+                    ? model.selected
+                      ? "Installed · selected"
+                      : "Installed"
+                    : "Not installed"}
+                </em>
               </li>
             ))}
           </ul>
