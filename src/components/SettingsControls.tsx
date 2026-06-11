@@ -12,12 +12,10 @@ export function SettingsToggle({ label, description, checked, onToggle }: Settin
         <strong>{label}</strong>
         <p className="settings-hint">{description}</p>
       </div>
-      <div className="settings-row-actions">
-        <label className="settings-switch">
-          <input type="checkbox" checked={checked} onChange={onToggle} />
-          <span>{checked ? "On" : "Off"}</span>
-        </label>
-      </div>
+      <label className="settings-switch">
+        <input type="checkbox" checked={checked} onChange={onToggle} aria-label={label} />
+        <span className="settings-knob" aria-hidden="true" />
+      </label>
     </div>
   );
 }

@@ -1,27 +1,23 @@
 .transcript-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 6px;
   align-items: center;
-  margin: 0 24px 14px;
-  padding: 10px 14px;
-  border: 1px solid rgba(232, 236, 239, 0.12);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.014);
+  flex: 0 0 auto;
+  padding: 0 28px 10px;
 }
 
 .toolbar-search {
-  display: inline-flex;
-  flex: 1;
-  gap: 10px;
+  display: flex;
+  gap: 7px;
   align-items: center;
-  min-width: 180px;
-  padding: 0 12px;
-  height: 38px;
-  border: 1px solid rgba(232, 236, 239, 0.12);
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.18);
-  color: #8e96a0;
+  width: 220px;
+  padding: 0 9px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--sunken);
+  color: var(--text-3);
 }
 
 .toolbar-search input {
@@ -30,87 +26,92 @@
   border: 0;
   outline: none;
   background: transparent;
-  color: #e1e6ea;
-  font: inherit;
-  font-size: 15px;
+  color: var(--text);
+  font-size: 12.5px;
+}
+
+.toolbar-search input::placeholder {
+  color: var(--text-3);
 }
 
 .toolbar-actions {
   display: inline-flex;
-  gap: 8px;
+  gap: 4px;
+  margin-left: auto;
 }
 
-.toolbar-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 38px;
-  padding: 0 12px;
-  border: 1px solid rgba(232, 236, 239, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
-  color: #c8cfd6;
+.toolbar-actions .icon-button.active {
+  background: var(--blue-soft);
+  color: var(--text-bright);
+}
+
+.toolbar-delete {
+  display: grid;
+  height: 26px;
+  min-width: 26px;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--text-2);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
 }
 
-.toolbar-actions button:hover:not(:disabled),
-.toolbar-actions button.active {
-  border-color: rgba(111, 216, 255, 0.3);
-  background: rgba(111, 216, 255, 0.08);
-  color: #e6f7ff;
+.toolbar-delete:hover:not(:disabled),
+.toolbar-delete.armed {
+  background: var(--red-soft);
+  color: #ff9d99;
 }
 
-.toolbar-actions button:disabled {
+.toolbar-delete.armed {
+  padding: 0 10px;
+  font-weight: 500;
+}
+
+.toolbar-delete:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.toolbar-actions button.danger:hover:not(:disabled) {
-  border-color: rgba(255, 102, 95, 0.4);
-  background: rgba(255, 102, 95, 0.1);
-  color: #ffd0cc;
+  opacity: 0.45;
 }
 
 .speaker-renames {
   display: flex;
   flex-basis: 100%;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
+  padding-top: 6px;
 }
 
 .speaker-rename {
   display: inline-flex;
-  gap: 9px;
+  gap: 8px;
   align-items: center;
-  color: #9aa1aa;
-  font-size: 14px;
+  color: var(--text-3);
+  font-size: 12px;
 }
 
 .speaker-rename input {
-  width: 170px;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid rgba(232, 236, 239, 0.14);
-  border-radius: 7px;
+  width: 160px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
   outline: none;
-  background: rgba(0, 0, 0, 0.18);
-  color: #e1e6ea;
-  font: inherit;
-  font-size: 14px;
+  background: var(--sunken);
+  color: var(--text);
+  font-size: 12px;
 }
 
 .notice-bar {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  margin: 0 24px 14px;
-  padding: 11px 14px;
-  border: 1px solid rgba(255, 189, 46, 0.3);
-  border-radius: 9px;
-  background: rgba(255, 189, 46, 0.07);
-  color: #ffd98a;
-  font-size: 15px;
+  flex: 0 0 auto;
+  margin: 0 28px 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(240, 177, 62, 0.3);
+  border-radius: 7px;
+  background: rgba(240, 177, 62, 0.08);
+  color: #ecca8d;
+  font-size: 12px;
 }
 
 .notice-bar svg {
@@ -123,13 +124,13 @@
 }
 
 .notice-bar button {
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 189, 46, 0.4);
-  border-radius: 7px;
-  background: rgba(255, 189, 46, 0.12);
-  color: #ffe7b3;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid rgba(240, 177, 62, 0.35);
+  border-radius: 6px;
+  background: rgba(240, 177, 62, 0.1);
+  color: #f3d9a8;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 11.5px;
   white-space: nowrap;
 }

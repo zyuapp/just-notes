@@ -1,25 +1,25 @@
 :root {
-  color: #e8ecef;
-  background: #0c0f12;
-  font-family: "Avenir Next", "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
-  font-synthesis: none;
-  text-rendering: geometricPrecision;
-  -webkit-font-smoothing: antialiased;
-  --bg: #0c0f12;
-  --sidebar: #101418;
-  --panel: #12171b;
-  --panel-2: #171d22;
-  --line: rgba(232, 236, 239, 0.085);
-  --line-strong: rgba(232, 236, 239, 0.15);
-  --text: #e8ecef;
-  --muted: #9aa4ac;
-  --dim: #737d85;
-  --green: #89d99a;
-  --green-ink: #16271c;
-  --red: #ff665f;
-  --blue: #7f97ff;
-  --blue-strong: #4e68ff;
-  --blue-ink: #151a35;
+  color-scheme: dark;
+  /* graphite surfaces */
+  --sidebar: #1b1e22;
+  --panel: #212429;
+  --raised: #2a2e34;
+  --sunken: rgba(0, 0, 0, 0.22);
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  /* text ramp */
+  --text-bright: #f2f3f5;
+  --text: #d7dadd;
+  --text-2: #9aa0a6;
+  --text-3: #6b7178;
+  /* functional accents: blue = your channel + selection, red = recording */
+  --blue: #4e8cea;
+  --blue-soft: rgba(78, 140, 234, 0.16);
+  --red: #e5484d;
+  --red-soft: rgba(229, 72, 77, 0.12);
+  --amber: #f0b13e;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 * {
@@ -29,11 +29,61 @@
 body {
   margin: 0;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--panel);
+  color: var(--text);
+  font: 400 13px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
 }
 
 button {
+  padding: 0;
   border: 0;
+  background: none;
   color: inherit;
   font: inherit;
+}
+
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--blue-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.icon-button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-bright);
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

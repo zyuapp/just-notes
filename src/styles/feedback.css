@@ -1,16 +1,18 @@
 .error {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
-  max-width: min(640px, calc(100vw - 36px));
+  right: 16px;
+  bottom: 64px;
+  z-index: 40;
+  max-width: min(560px, calc(100vw - 32px));
   max-height: 160px;
   margin: 0;
   overflow: auto;
-  padding: 12px;
-  border: 1px solid rgba(255, 102, 95, 0.36);
+  padding: 10px 12px;
+  border: 1px solid rgba(229, 72, 77, 0.4);
   border-radius: 8px;
-  background: rgba(52, 17, 17, 0.96);
-  color: #ffd0cc;
-  font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: #2a1416;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  color: #ffc7c4;
+  font: 11.5px var(--mono);
   white-space: pre-wrap;
 }

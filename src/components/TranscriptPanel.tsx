@@ -1,4 +1,3 @@
-import { Circle, FileText, Square } from "lucide-react";
 import { useState } from "react";
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { LiveTranscriptStatusPayload } from "../bindings/LiveTranscriptStatusPayload";
@@ -8,10 +7,9 @@ import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatus
 import type { RecorderState } from "../features/app/state";
 import type { ThreadActions } from "../features/app/useThreadActions";
 import { formatDuration, formatThreadDate } from "../lib/format";
-import { CaptureMeter } from "./CaptureMeter";
+import { CaptureBar } from "./CaptureBar";
 import { ErrorToast } from "./ErrorToast";
 import { NoticeBar, type Notice } from "./NoticeBar";
-import { PanelFooter } from "./PanelFooter";
 import { ThreadTitle } from "./ThreadTitle";
 import { TranscriptSurface } from "./TranscriptSurface";
 import { TranscriptToolbar } from "./TranscriptToolbar";
@@ -53,65 +51,44 @@ export function TranscriptPanel({
 }: TranscriptPanelProps) {
   const [query, setQuery] = useState("");
   const isRecording = recorderState === "recording";
-  const liveElapsed = isRecording || recorderState === "stopping";
-  const elapsedMs = liveElapsed ? meters.elapsedMs : (selectedThread?.summary.durationMs ?? 0);
+  const summary = selectedThread?.summary ?? null;
   const hasSegments = (selectedThread?.segments.length ?? 0) > 0;
-  const canModify = recorderState === "idle" && selectedThread?.summary.status === "idle";
+  const canModify = recorderState === "idle" && summary?.status === "idle";
   const speakers = Array.from(
     new Set(selectedThread?.segments.map((segment) => segment.speaker) ?? []),
   );
 
   return (
     <section className="thread-panel" aria-label="Transcript">
-      <header className="panel-head">
-        <div>
-          <p className="eyebrow">
-            {selectedThread
-              ? `${formatThreadDate(selectedThread.summary.createdAtMs)}${hasSegments || selectedThread.summary.hasAudio ? " · Mic + System" : ""}`
-              : "Local"}
-          </p>
-          <ThreadTitle
-            title={selectedThread?.summary.title ?? null}
-            canRename={canModify}
-            onRename={(title) => void threadActions.renameThread(title)}
-          />
-        </div>
-        <div className="panel-status">
-          <span className={isRecording ? "status-light live" : "status-light"} />
-          <span>{formatDuration(elapsedMs)}</span>
-        </div>
+      <header className="panel-head" data-tauri-drag-region="">
+        <p className="eyebrow">
+          <span className={isRecording ? "status-dot live" : "status-dot"} />
+          {summary ? (
+            <>
+              <span>{formatThreadDate(summary.createdAtMs)}</span>
+              {summary.durationMs > 0 && (
+                <>
+                  <i>·</i>
+                  <time>{formatDuration(summary.durationMs)}</time>
+                </>
+              )}
+              {(hasSegments || summary.hasAudio) && (
+                <>
+                  <i>·</i>
+                  <span>Mic + System</span>
+                </>
+              )}
+            </>
+          ) : (
+            <span>Local</span>
+          )}
+        </p>
+        <ThreadTitle
+          title={summary?.title ?? null}
+          canRename={canModify}
+          onRename={(title) => void threadActions.renameThread(title)}
+        />
       </header>
-
-      <section className="capture-strip" aria-label="Capture controls">
-        <button
-          type="button"
-          className={isRecording ? "capture-record recording" : "capture-record"}
-          onClick={isRecording ? onStopRecording : onStartRecording}
-          disabled={recorderState === "starting" || recorderState === "stopping"}
-          aria-label={statusLabel}
-        >
-          {isRecording ? <Square size={24} aria-hidden="true" /> : <Circle size={24} aria-hidden="true" />}
-          <span>{isRecording ? "Stop" : "Record"}</span>
-        </button>
-        <CaptureMeter icon="mic" label="Mic" level={meters.micLevel} />
-        <CaptureMeter icon="system" label="System" level={meters.systemLevel} />
-        <div className="engine-row">
-          <FileText size={21} aria-hidden="true" />
-          <span>{transcriptionStatus?.message ?? "Checking local transcription…"}</span>
-        </div>
-        {fixtureMode && (
-          <button
-            type="button"
-            className="fixture-link"
-            onClick={onStartFixtureRecording}
-            disabled={recorderState !== "idle"}
-          >
-            QA fixture
-          </button>
-        )}
-      </section>
-
-      <NoticeBar notice={notice} />
 
       {selectedThread && hasSegments && (
         <TranscriptToolbar
@@ -128,6 +105,8 @@ export function TranscriptPanel({
         />
       )}
 
+      <NoticeBar notice={notice} />
+
       <TranscriptSurface
         recorderState={recorderState}
         selectedThread={selectedThread}
@@ -136,11 +115,19 @@ export function TranscriptPanel({
         onStartRecording={onStartRecording}
         onSaveSegmentText={(index, text) => void threadActions.updateSegmentText(index, text)}
       />
-      <PanelFooter
+
+      <CaptureBar
+        recorderState={recorderState}
+        meters={meters}
         liveStatus={liveStatus}
         finalization={finalization}
-        selectedThread={selectedThread}
-        onRevealMarkdown={(path) => void threadActions.revealPath(path)}
+        transcriptionStatus={transcriptionStatus}
+        selectedThreadId={summary?.id ?? null}
+        statusLabel={statusLabel}
+        fixtureMode={fixtureMode}
+        onStartRecording={onStartRecording}
+        onStopRecording={onStopRecording}
+        onStartFixtureRecording={onStartFixtureRecording}
       />
       <ErrorToast message={error} />
     </section>

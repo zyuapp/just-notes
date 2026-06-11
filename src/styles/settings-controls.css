@@ -1,0 +1,97 @@
+.settings-switch {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.settings-switch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.settings-knob {
+  display: block;
+  width: 32px;
+  height: 19px;
+  border-radius: 10px;
+  background: #3c424a;
+  transition: background 0.15s ease;
+}
+
+.settings-knob::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.settings-switch input:checked + .settings-knob {
+  background: var(--blue);
+}
+
+.settings-switch input:checked + .settings-knob::after {
+  transform: translateX(13px);
+}
+
+.settings-switch input:focus-visible + .settings-knob {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.settings-models {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-models li {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12.5px;
+}
+
+.settings-models i {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border: 1.5px solid var(--text-3);
+  border-radius: 50%;
+}
+
+.settings-models li.selected i {
+  border-color: var(--blue);
+  background: radial-gradient(circle, var(--blue) 0 3.5px, transparent 4px);
+}
+
+.settings-models .model-name {
+  color: var(--text);
+}
+
+.settings-models code {
+  overflow: hidden;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-models em {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--text-3);
+  font-size: 11px;
+  font-style: normal;
+}
