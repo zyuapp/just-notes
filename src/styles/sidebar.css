@@ -1,6 +1,7 @@
 .thread-sidebar {
   display: flex;
   min-width: 0;
+  min-height: 0;
   flex-direction: column;
   border-right: 1px solid rgba(232, 236, 239, 0.14);
   background:
@@ -11,32 +12,7 @@
 .sidebar-head {
   display: grid;
   gap: 28px;
-  padding: 12px 20px 26px;
-}
-
-.window-lights {
-  display: flex;
-  gap: 12px;
-  height: 20px;
-  align-items: center;
-}
-
-.window-light {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-}
-
-.window-light.red {
-  background: #ff6259;
-}
-
-.window-light.yellow {
-  background: #ffbd2e;
-}
-
-.window-light.green {
-  background: #2dc94f;
+  padding: 18px 20px 26px;
 }
 
 .sidebar-brand-row {

@@ -67,7 +67,9 @@ pub(crate) fn set_tray_recording(app: &AppHandle, recording: bool) {
     }
     if !recording {
         if let Some(tray) = app.tray_by_id(TRAY_ID) {
-            let _ = tray.set_title(None::<&str>);
+            // set_title(None) leaves the previous title visible on macOS;
+            // an empty string actually clears it.
+            let _ = tray.set_title(Some(""));
         }
     }
 }

@@ -1,5 +1,5 @@
 import { Copy, FileDown, FolderOpen, Search, Trash2, Users } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type TranscriptToolbarProps = {
   query: string;
@@ -28,6 +28,14 @@ export function TranscriptToolbar({
 }: TranscriptToolbarProps) {
   const [showSpeakers, setShowSpeakers] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // macOS WebKit does not focus buttons on click, so blur alone never fires;
+  // disarm the confirm state on a timer as well.
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const timer = setTimeout(() => setConfirmDelete(false), 4000);
+    return () => clearTimeout(timer);
+  }, [confirmDelete]);
 
   return (
     <div className="transcript-toolbar">

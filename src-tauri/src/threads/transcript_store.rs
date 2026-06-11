@@ -51,14 +51,13 @@ pub(crate) fn read_transcript_jsonl(path: &Path) -> Result<Vec<TranscriptSegment
 }
 
 pub(crate) fn read_first_segment_text(path: &Path) -> Result<Option<String>, String> {
-    const SNIPPET_MAX_CHARS: usize = 120;
-
     if !path.is_file() {
         return Ok(None);
     }
 
     let file = fs::File::open(path)
         .map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
+    let mut annotation_fallback: Option<String> = None;
     for line in BufReader::new(file).lines() {
         let line =
             line.map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
@@ -71,13 +70,33 @@ pub(crate) fn read_first_segment_text(path: &Path) -> Result<Option<String>, Str
         if text.is_empty() {
             continue;
         }
-        let mut snippet: String = text.chars().take(SNIPPET_MAX_CHARS).collect();
-        if text.chars().count() > SNIPPET_MAX_CHARS {
-            snippet.push('…');
+        if is_non_speech_annotation(text) {
+            annotation_fallback.get_or_insert_with(|| make_snippet(text));
+            continue;
         }
-        return Ok(Some(snippet));
+        return Ok(Some(make_snippet(text)));
     }
-    Ok(None)
+    Ok(annotation_fallback)
+}
+
+fn make_snippet(text: &str) -> String {
+    const SNIPPET_MAX_CHARS: usize = 120;
+    let mut snippet: String = text.chars().take(SNIPPET_MAX_CHARS).collect();
+    if text.chars().count() > SNIPPET_MAX_CHARS {
+        snippet.push('…');
+    }
+    snippet
+}
+
+// Whisper renders non-speech sounds as a bracketed annotation like
+// "(birds chirping)" or "[music]"; spoken text makes a better preview.
+fn is_non_speech_annotation(text: &str) -> bool {
+    let inner = trim_wrapped(text, '(', ')').or_else(|| trim_wrapped(text, '[', ']'));
+    matches!(inner, Some(inner) if !inner.contains(['(', ')', '[', ']']))
+}
+
+fn trim_wrapped(text: &str, open: char, close: char) -> Option<&str> {
+    text.strip_prefix(open)?.strip_suffix(close)
 }
 
 pub(crate) fn count_jsonl_lines(path: &Path) -> Result<usize, String> {
@@ -163,37 +182,37 @@ fn transcript_segment_order(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env, fs,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+    use std::{env, fs, time::UNIX_EPOCH};
 
-    use super::{append_live_segment, read_transcript_jsonl};
+    use super::{append_live_segment, read_first_segment_text, read_transcript_jsonl};
     use crate::threads::TranscriptSegment;
+
+    fn temp_jsonl(name: &str) -> std::path::PathBuf {
+        let stamp = UNIX_EPOCH.elapsed().unwrap().as_nanos();
+        env::temp_dir().join(format!("just-notes-{name}-{stamp}.jsonl"))
+    }
+
+    fn segment(
+        speaker: &str,
+        source: &str,
+        start_ms: u64,
+        end_ms: u64,
+        text: &str,
+    ) -> TranscriptSegment {
+        TranscriptSegment {
+            speaker: speaker.to_string(),
+            source: source.to_string(),
+            start_ms,
+            end_ms,
+            text: text.to_string(),
+        }
+    }
 
     #[test]
     fn append_live_segment_keeps_jsonl_chronological() {
-        let path = env::temp_dir().join(format!(
-            "just-notes-transcript-order-{}.jsonl",
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_millis()
-        ));
-        let later = TranscriptSegment {
-            speaker: "Others".to_string(),
-            source: "system".to_string(),
-            start_ms: 4_000,
-            end_ms: 8_000,
-            text: "System section two.".to_string(),
-        };
-        let earlier = TranscriptSegment {
-            speaker: "You".to_string(),
-            source: "mic".to_string(),
-            start_ms: 3_000,
-            end_ms: 12_000,
-            text: "Microphone checkpoint alpha.".to_string(),
-        };
+        let path = temp_jsonl("transcript-order");
+        let later = segment("Others", "system", 4_000, 8_000, "System section two.");
+        let earlier = segment("You", "mic", 3_000, 12_000, "Microphone checkpoint alpha.");
 
         append_live_segment(&path, &later).unwrap();
         append_live_segment(&path, &earlier).unwrap();
@@ -207,5 +226,22 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["mic", "system"],
         );
+    }
+
+    #[test]
+    fn snippet_skips_non_speech_annotations_unless_nothing_else_exists() {
+        let path = temp_jsonl("transcript-snippet");
+        let chirp = segment("You", "mic", 0, 2_000, "(birds chirping)");
+        let speech = segment("Others", "system", 1_000, 4_000, "Actual spoken words.");
+
+        append_live_segment(&path, &chirp).unwrap();
+        let annotation_only = read_first_segment_text(&path).unwrap();
+
+        append_live_segment(&path, &speech).unwrap();
+        let with_speech = read_first_segment_text(&path).unwrap();
+
+        let _ = fs::remove_file(&path);
+        assert_eq!(annotation_only.as_deref(), Some("(birds chirping)"));
+        assert_eq!(with_speech.as_deref(), Some("Actual spoken words."));
     }
 }

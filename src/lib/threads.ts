@@ -3,8 +3,13 @@ import type { ThreadSummary } from "../bindings/ThreadSummary";
 export type ThreadGroup = { label: string; threads: ThreadSummary[] };
 
 export function groupThreadsByDay(threads: ThreadSummary[], now = new Date()): ThreadGroup[] {
+  // In-place updates (rename, live segments) leave the list out of order between
+  // backend refreshes; group labels must stay contiguous or they collide as keys.
+  const sorted = [...threads].sort(
+    (left, right) => right.updatedAtMs - left.updatedAtMs || right.createdAtMs - left.createdAtMs,
+  );
   const groups: ThreadGroup[] = [];
-  for (const thread of threads) {
+  for (const thread of sorted) {
     const label = dayLabel(new Date(thread.updatedAtMs), now);
     const last = groups[groups.length - 1];
     if (last && last.label === label) {

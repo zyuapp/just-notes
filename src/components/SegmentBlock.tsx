@@ -68,6 +68,10 @@ export function SegmentBlock({
             }
             if (event.key === "Escape") setDraft(null);
           }}
+          // macOS webviews never deliver keydown for Escape (tauri#5790); keyup does.
+          onKeyUp={(event) => {
+            if (event.key === "Escape") setDraft(null);
+          }}
           aria-label="Edit transcript text"
         />
       )}

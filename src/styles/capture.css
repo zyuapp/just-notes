@@ -58,6 +58,13 @@
   font-size: 18px;
 }
 
+.capture-meter-head span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .capture-meter-head svg {
   color: #9099a3;
 }
@@ -109,6 +116,7 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fixture-link {
