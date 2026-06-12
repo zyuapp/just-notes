@@ -20,6 +20,10 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 `tray` owns the menu bar item: status text, elapsed-time title, and the stop/open/quit menu. It is a thin adapter over Tauri's tray API; `lib.rs` injects behavior and `recording` pushes status updates into it.
 
+### Indicator
+
+`indicator` owns the floating recording pill: a small always-on-top window pinned to the right screen edge. It shows a timer while recording, and an idle record affordance while the main window is open but unfocused, so a recording can be started from it. It is a thin adapter over Tauri's window API holding only pushed-in state: `recording` pushes recording state, `lib.rs` pushes main-window focus, and the pill's webview drives its own width and queries its mode through the indicator commands. It must not depend on any domain module.
+
 ### IPC
 
 `ipc` owns payloads that cross the frontend/backend boundary. These structs are serialized to Tauri events or command responses and exported to TypeScript through `ts-rs`. If the frontend needs a shape change, start here and regenerate/check bindings.
@@ -44,11 +48,11 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 The intended direction is:
 
-`lib.rs` -> `commands`, `recording`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
+`lib.rs` -> `commands`, `recording`, `threads`, `transcription`, `settings`, `tray`, `indicator`, `ipc`, `app`
 
 `commands` -> any domain it adapts, but no business logic of its own
 
-`recording` -> `capture`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
+`recording` -> `capture`, `threads`, `transcription`, `settings`, `tray`, `indicator`, `ipc`, `app`
 
 `transcription` -> `capture` buffers, `threads` transcript storage, `ipc` event payloads
 
@@ -58,7 +62,7 @@ The intended direction is:
 
 `settings` -> `app` paths only
 
-`platform`, `tray` -> no domain modules
+`platform`, `tray`, `indicator` -> no domain modules
 
 `ipc` -> domain DTO types only
 

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Recording</title>
+  </head>
+  <body>
+    <div class="indicator-pill idle" id="pill" title="Start a new recording">
+      <span class="indicator-record">
+        <span class="indicator-record-dot"></span>
+        <span class="indicator-record-label">Record</span>
+      </span>
+      <span class="indicator-time">
+        <span id="minutes">00</span><span class="indicator-colon">:</span><span id="seconds">00</span>
+      </span>
+      <button class="indicator-stop" id="stop" title="Stop recording" aria-label="Stop recording">
+        <span></span>
+      </button>
+    </div>
+    <script type="module" src="/src/indicator/main.ts"></script>
+  </body>
+</html>
