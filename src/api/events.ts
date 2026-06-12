@@ -25,6 +25,10 @@ export const eventsApi = {
     return listenToEvent("meter-update", handler);
   },
 
+  onIndicatorState(handler: EventHandler<boolean>): Promise<UnlistenFn> {
+    return listenToEvent("indicator-state", handler);
+  },
+
   onLiveTranscriptSegment(
     handler: EventHandler<LiveTranscriptSegmentPayload>,
   ): Promise<UnlistenFn> {

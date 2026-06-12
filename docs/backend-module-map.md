@@ -11,7 +11,7 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 - `mod.rs`: shared effective-path resolution from base paths plus settings.
 - `threads.rs`: thread library commands (list, create, get, rename, delete, speaker rename, segment edit, search, markdown export).
 - `recording.rs`: start/stop/fixture recording commands and finalization cancel.
-- `indicator.rs`: indicator-window width sync and the open-main-window action used by the pill.
+- `indicator.rs`: indicator-window width sync, indicator mode query, and the open-main-window action used by the pill.
 - `settings.rs`: settings read/update and the native folder picker.
 - `system.rs`: app info, transcription status, permission status, Finder reveal, clipboard, and privacy-settings deep links.
 
@@ -46,9 +46,9 @@ The tray is a thin adapter: `lib.rs` injects the stop handler, and `recording` u
 
 ## `src-tauri/src/indicator`
 
-- `mod.rs`: floating recording pill — an always-on-top window pinned to the right screen edge, shown while recording. The window is created wider than the pill and slid so only the pill stays on screen; hover reveals (`set_indicator_visible_width`) move the window instead of resizing it.
+- `mod.rs`: floating recording pill — an always-on-top window pinned to the right screen edge. Visible while recording (timer mode) and while the main window is open but unfocused (idle mode, used to start a recording). The window is created wider than the pill and slid so only the pill stays on screen; hover reveals (`set_indicator_visible_width`) move the window instead of resizing it.
 
-The indicator is a thin adapter like the tray: `recording` toggles it, and the pill webview (`indicator.html` + `src/indicator/main.ts`) syncs its width through the indicator commands.
+The indicator is a thin adapter like the tray: `recording` pushes recording state, `lib.rs` pushes main-window focus, and the pill webview (`indicator.html` + `src/indicator/main.ts`) follows the `indicator-state` event and syncs its width through the indicator commands.
 
 ## `src-tauri/src/ipc`
 

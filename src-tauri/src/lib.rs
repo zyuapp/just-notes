@@ -51,16 +51,16 @@ pub fn run() {
 // the window, the tray Quit item, or Cmd+Q.
 fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
     match event {
-        // Closing the main window must keep its existing meaning (stop and
-        // exit); the indicator window closes first so it cannot keep the
-        // process alive on its own.
-        tauri::RunEvent::WindowEvent {
-            label,
-            event: tauri::WindowEvent::CloseRequested { .. },
-            ..
-        } if label == "main" => {
-            indicator::set_indicator_recording(app, false);
-        }
+        tauri::RunEvent::WindowEvent { label, event, .. } if label == "main" => match event {
+            // Closing the main window must keep its existing meaning (stop
+            // and exit); the indicator window closes first so it cannot keep
+            // the process alive on its own.
+            tauri::WindowEvent::CloseRequested { .. } => indicator::close_indicator(app),
+            tauri::WindowEvent::Focused(focused) => {
+                indicator::set_main_window_focused(app, focused);
+            }
+            _ => {}
+        },
         tauri::RunEvent::ExitRequested { api, .. } => {
             if app.state::<RecorderState>().is_active() {
                 api.prevent_exit();
@@ -101,6 +101,7 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::recording::stop_recording,
         commands::recording::cancel_finalization,
         commands::indicator::set_indicator_width,
+        commands::indicator::get_indicator_state,
         commands::indicator::open_main_window
     ])
 }
@@ -130,6 +131,7 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::recording::stop_recording,
         commands::recording::cancel_finalization,
         commands::indicator::set_indicator_width,
+        commands::indicator::get_indicator_state,
         commands::indicator::open_main_window
     ])
 }

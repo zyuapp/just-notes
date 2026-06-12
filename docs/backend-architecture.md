@@ -22,7 +22,7 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Indicator
 
-`indicator` owns the floating recording pill: a small always-on-top window pinned to the right screen edge while a recording is active. It is a thin adapter over Tauri's window API; `recording` pushes recording state into it, and the pill's webview drives its own width through the indicator commands. It must not depend on any domain module.
+`indicator` owns the floating recording pill: a small always-on-top window pinned to the right screen edge. It shows a timer while recording, and an idle record affordance while the main window is open but unfocused, so a recording can be started from it. It is a thin adapter over Tauri's window API holding only pushed-in state: `recording` pushes recording state, `lib.rs` pushes main-window focus, and the pill's webview drives its own width and queries its mode through the indicator commands. It must not depend on any domain module.
 
 ### IPC
 

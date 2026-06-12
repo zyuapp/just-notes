@@ -9,10 +9,12 @@ const minutes = document.getElementById("minutes") as HTMLSpanElement;
 const seconds = document.getElementById("seconds") as HTMLSpanElement;
 const stop = document.getElementById("stop") as HTMLButtonElement;
 
+let recording = false;
+let starting = false;
 let lastWidth = 0;
 
 // The backend slides the window so exactly the pill's width stays on screen;
-// re-sync whenever layout changes (hover expansion, timer growing past 99:59).
+// re-sync whenever layout changes (mode switch, hover expansion, timer growth).
 function syncWindowWidth() {
   const width = Math.ceil(pill.getBoundingClientRect().width);
   if (width === lastWidth) return;
@@ -27,6 +29,31 @@ function setElapsed(elapsedMs: number) {
   syncWindowWidth();
 }
 
+function setMode(nextRecording: boolean) {
+  recording = nextRecording;
+  pill.classList.toggle("recording", recording);
+  pill.classList.toggle("idle", !recording);
+  pill.title = recording ? "Recording — click to open Just Notes" : "Start a new recording";
+  if (!recording) {
+    stop.disabled = false;
+    setElapsed(0);
+  }
+  syncWindowWidth();
+}
+
+async function startRecording() {
+  if (starting) return;
+  starting = true;
+  try {
+    await recordingApi.start(null);
+  } catch {
+    // The pill has no room for errors; surface the failure in the app.
+    void indicatorApi.openMainWindow();
+  } finally {
+    starting = false;
+  }
+}
+
 document.documentElement.addEventListener("mouseenter", () => {
   pill.classList.add("expanded");
   syncWindowWidth();
@@ -38,14 +65,21 @@ document.documentElement.addEventListener("mouseleave", () => {
 });
 
 pill.addEventListener("click", () => {
-  void indicatorApi.openMainWindow();
+  if (recording) {
+    void indicatorApi.openMainWindow();
+  } else {
+    void startRecording();
+  }
 });
 
 stop.addEventListener("click", (event) => {
   event.stopPropagation();
   stop.disabled = true;
-  void recordingApi.stop();
+  void recordingApi.stop().catch(() => {
+    stop.disabled = false;
+  });
 });
 
 void eventsApi.onMeter((meter) => setElapsed(meter.elapsedMs));
-syncWindowWidth();
+void eventsApi.onIndicatorState(setMode);
+void indicatorApi.getState().then(setMode);

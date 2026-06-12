@@ -5,6 +5,10 @@ export const indicatorApi = {
     return invokeCommand("set_indicator_width", { visibleWidth });
   },
 
+  getState(): Promise<boolean> {
+    return invokeCommand("get_indicator_state");
+  },
+
   openMainWindow(): Promise<void> {
     return invokeCommand("open_main_window");
   },
