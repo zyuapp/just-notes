@@ -54,16 +54,6 @@ async function startRecording() {
   }
 }
 
-document.documentElement.addEventListener("mouseenter", () => {
-  pill.classList.add("expanded");
-  syncWindowWidth();
-});
-
-document.documentElement.addEventListener("mouseleave", () => {
-  pill.classList.remove("expanded");
-  syncWindowWidth();
-});
-
 pill.addEventListener("click", () => {
   if (recording) {
     void indicatorApi.openMainWindow();
@@ -82,4 +72,10 @@ stop.addEventListener("click", (event) => {
 
 void eventsApi.onMeter((meter) => setElapsed(meter.elapsedMs));
 void eventsApi.onIndicatorState(setMode);
+// Hover comes from the backend cursor watcher; webview mouse events are not
+// delivered while the app is inactive, which is when the pill is on screen.
+void eventsApi.onIndicatorHover((hovered) => {
+  pill.classList.toggle("expanded", hovered);
+  syncWindowWidth();
+});
 void indicatorApi.getState().then(setMode);

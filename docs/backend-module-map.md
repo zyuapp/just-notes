@@ -48,7 +48,7 @@ The tray is a thin adapter: `lib.rs` injects the stop handler, and `recording` u
 
 - `mod.rs`: floating recording pill — an always-on-top window pinned to the right screen edge. Visible while recording (timer mode) and while the main window is open but unfocused (idle mode, used to start a recording). The window is created wider than the pill and slid so only the pill stays on screen; hover reveals (`set_indicator_visible_width`) move the window instead of resizing it.
 
-The indicator is a thin adapter like the tray: `recording` pushes recording state, `lib.rs` pushes main-window focus, and the pill webview (`indicator.html` + `src/indicator/main.ts`) follows the `indicator-state` event and syncs its width through the indicator commands.
+The indicator is a thin adapter like the tray: `recording` pushes recording state, `lib.rs` pushes main-window focus, and the pill webview (`indicator.html` + `src/indicator/main.ts`) follows the `indicator-state` event and syncs its width through the indicator commands. Hover expansion is driven by a native cursor-position watcher that emits `indicator-hover`, because macOS does not deliver webview hover events while the app is inactive — exactly when the pill is on screen.
 
 ## `src-tauri/src/ipc`
 

@@ -1,4 +1,11 @@
-use std::sync::Mutex;
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
+    thread,
+    time::Duration,
+};
 
 use tauri::{AppHandle, Emitter, LogicalPosition, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -10,6 +17,7 @@ const MAIN_LABEL: &str = "main";
 const WINDOW_WIDTH: f64 = 160.0;
 const WINDOW_HEIGHT: f64 = 26.0;
 const INITIAL_VISIBLE_WIDTH: f64 = 56.0;
+const HOVER_POLL_INTERVAL: Duration = Duration::from_millis(80);
 
 // The pill is visible while recording, and also while the main window exists
 // but is not focused, so a new recording can be started from it. The webview
@@ -18,6 +26,7 @@ const INITIAL_VISIBLE_WIDTH: f64 = 56.0;
 struct IndicatorState {
     recording: bool,
     main_focused: bool,
+    hover_watch: Option<Arc<AtomicBool>>,
 }
 
 impl Default for IndicatorState {
@@ -25,6 +34,7 @@ impl Default for IndicatorState {
         Self {
             recording: false,
             main_focused: true,
+            hover_watch: None,
         }
     }
 }
@@ -42,6 +52,7 @@ pub(crate) fn indicator_is_recording(app: &AppHandle) -> bool {
 }
 
 pub(crate) fn close_indicator(app: &AppHandle) {
+    stop_hover_watch(app);
     if let Some(window) = app.get_webview_window(INDICATOR_LABEL) {
         let _ = window.close();
     }
@@ -72,6 +83,7 @@ fn update(app: &AppHandle, mutate: impl FnOnce(&mut IndicatorState)) {
     // Without a main window the app is shutting down; never (re)create the
     // pill in that state or it would keep the process alive.
     if !visible || app.get_webview_window(MAIN_LABEL).is_none() {
+        stop_hover_watch(app);
         if let Some(window) = app.get_webview_window(INDICATOR_LABEL) {
             let _ = window.hide();
         }
@@ -82,6 +94,60 @@ fn update(app: &AppHandle, mutate: impl FnOnce(&mut IndicatorState)) {
         return;
     }
     let _ = app.emit("indicator-state", recording);
+    start_hover_watch(app);
+}
+
+// macOS only delivers webview hover events while the application is active,
+// and the pill exists almost exclusively while it is not. Hover is therefore
+// derived from the global cursor position and pushed to the webview as the
+// `indicator-hover` event.
+fn start_hover_watch(app: &AppHandle) {
+    let flag = with_state(app, |state| {
+        if let Some(flag) = &state.hover_watch {
+            if flag.load(Ordering::Relaxed) {
+                return None;
+            }
+        }
+        let flag = Arc::new(AtomicBool::new(true));
+        state.hover_watch = Some(Arc::clone(&flag));
+        Some(flag)
+    });
+    let Some(flag) = flag else {
+        return;
+    };
+    let app = app.clone();
+    thread::spawn(move || {
+        let mut last_hovered = None;
+        while flag.load(Ordering::Relaxed) {
+            let Some(window) = app.get_webview_window(INDICATOR_LABEL) else {
+                break;
+            };
+            let hovered = cursor_over_window(&app, &window).unwrap_or(false);
+            if last_hovered != Some(hovered) {
+                last_hovered = Some(hovered);
+                let _ = app.emit("indicator-hover", hovered);
+            }
+            thread::sleep(HOVER_POLL_INTERVAL);
+        }
+    });
+}
+
+fn stop_hover_watch(app: &AppHandle) {
+    if let Some(flag) = with_state(app, |state| state.hover_watch.take()) {
+        flag.store(false, Ordering::Relaxed);
+    }
+}
+
+fn cursor_over_window(app: &AppHandle, window: &tauri::WebviewWindow) -> Option<bool> {
+    let cursor = app.cursor_position().ok()?;
+    let position = window.outer_position().ok()?;
+    let size = window.outer_size().ok()?;
+    Some(
+        cursor.x >= position.x as f64
+            && cursor.x < position.x as f64 + size.width as f64
+            && cursor.y >= position.y as f64
+            && cursor.y < position.y as f64 + size.height as f64,
+    )
 }
 
 fn with_state<R>(app: &AppHandle, access: impl FnOnce(&mut IndicatorState) -> R) -> R {
