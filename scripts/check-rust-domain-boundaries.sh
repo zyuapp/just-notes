@@ -23,32 +23,35 @@ check_forbidden() {
 
 : > "$violations.tmp"
 
-check_forbidden "app" "crate::(capture|commands|ipc|platform|recording|settings|threads|transcription|tray)" \
+check_forbidden "app" "crate::(capture|commands|indicator|ipc|platform|recording|settings|threads|transcription|tray)" \
   "app must stay foundational and must not depend on feature domains."
 
-check_forbidden "threads" "crate::(capture|commands|ipc|platform|recording|settings|transcription|tray)" \
+check_forbidden "threads" "crate::(capture|commands|indicator|ipc|platform|recording|settings|transcription|tray)" \
   "threads must persist note-thread data without depending on other feature domains."
 
-check_forbidden "capture" "crate::(commands|ipc|platform|recording|settings|threads|tray)" \
+check_forbidden "capture" "crate::(commands|indicator|ipc|platform|recording|settings|threads|tray)" \
   "capture must own audio input without depending on ipc, recording, threads, or shell modules."
 
 check_forbidden "recording" "crate::lib|super::super::lib|crate::(commands|platform)" \
   "recording must not depend on the Tauri shell or adapter modules."
 
-check_forbidden "transcription" "crate::(commands|platform|recording|settings|tray)" \
+check_forbidden "transcription" "crate::(commands|indicator|platform|recording|settings|tray)" \
   "transcription must not depend on orchestration or shell modules."
 
-check_forbidden "ipc" "crate::(app|capture|commands|platform|recording|settings|tray)" \
+check_forbidden "ipc" "crate::(app|capture|commands|indicator|platform|recording|settings|tray)" \
   "ipc DTOs must not depend on app, capture, or orchestration contexts."
 
-check_forbidden "settings" "crate::(capture|commands|ipc|platform|recording|threads|transcription|tray)" \
+check_forbidden "settings" "crate::(capture|commands|indicator|ipc|platform|recording|threads|transcription|tray)" \
   "settings must only build on app paths."
 
-check_forbidden "platform" "crate::(app|capture|commands|ipc|recording|settings|threads|transcription|tray)" \
+check_forbidden "platform" "crate::(app|capture|commands|indicator|ipc|recording|settings|threads|transcription|tray)" \
   "platform shell helpers must stay free of domain dependencies."
 
-check_forbidden "tray" "crate::(app|capture|commands|ipc|platform|recording|settings|threads|transcription)" \
+check_forbidden "tray" "crate::(app|capture|commands|indicator|ipc|platform|recording|settings|threads|transcription)" \
   "tray must stay a thin menu bar adapter without domain dependencies."
+
+check_forbidden "indicator" "crate::(app|capture|commands|ipc|platform|recording|settings|threads|transcription|tray)" \
+  "indicator must stay a thin floating-window adapter without domain dependencies."
 
 rm -f "$violations.tmp"
 

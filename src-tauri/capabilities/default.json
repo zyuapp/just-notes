@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default permissions for the main Just Notes window",
-  "windows": ["main"],
+  "description": "Default permissions for the Just Notes windows",
+  "windows": ["main", "indicator"],
   "permissions": ["core:event:default", "core:window:allow-start-dragging"]
 }

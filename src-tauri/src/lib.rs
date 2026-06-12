@@ -3,6 +3,7 @@ use tauri::{AppHandle, Builder, Manager, Wry};
 mod app;
 mod capture;
 mod commands;
+mod indicator;
 mod ipc;
 mod platform;
 mod recording;
@@ -49,15 +50,28 @@ pub fn run() {
 // before the process is allowed to exit, whether the exit comes from closing
 // the window, the tray Quit item, or Cmd+Q.
 fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
-    if let tauri::RunEvent::ExitRequested { api, .. } = event {
-        if app.state::<RecorderState>().is_active() {
-            api.prevent_exit();
-            let app = app.clone();
-            tauri::async_runtime::spawn_blocking(move || {
-                stop_active_recording(&app);
-                app.exit(0);
-            });
+    match event {
+        // Closing the main window must keep its existing meaning (stop and
+        // exit); the indicator window closes first so it cannot keep the
+        // process alive on its own.
+        tauri::RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::CloseRequested { .. },
+            ..
+        } if label == "main" => {
+            indicator::set_indicator_recording(app, false);
         }
+        tauri::RunEvent::ExitRequested { api, .. } => {
+            if app.state::<RecorderState>().is_active() {
+                api.prevent_exit();
+                let app = app.clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    stop_active_recording(&app);
+                    app.exit(0);
+                });
+            }
+        }
+        _ => {}
     }
 }
 
@@ -85,7 +99,9 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::recording::start_recording,
         commands::recording::start_fixture_recording,
         commands::recording::stop_recording,
-        commands::recording::cancel_finalization
+        commands::recording::cancel_finalization,
+        commands::indicator::set_indicator_width,
+        commands::indicator::open_main_window
     ])
 }
 
@@ -112,7 +128,9 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::settings::pick_folder,
         commands::recording::start_recording,
         commands::recording::stop_recording,
-        commands::recording::cancel_finalization
+        commands::recording::cancel_finalization,
+        commands::indicator::set_indicator_width,
+        commands::indicator::open_main_window
     ])
 }
 
