@@ -13,6 +13,7 @@ use tauri::{AppHandle, Emitter};
 use super::{
     channel::{process_live_channel, LiveChannelState},
     sink::LiveChannelContext,
+    window::live_channel_has_pending_decode,
     LIVE_TRANSCRIPTION_POLL_MS, LIVE_TRANSCRIPTION_STABILITY_DELAY_MS,
     LIVE_TRANSCRIPTION_WINDOW_MS,
 };
@@ -128,7 +129,9 @@ fn run_live_transcription_loop(config: LiveTranscriptionThreadConfig) -> Result<
             break;
         }
 
-        thread::sleep(Duration::from_millis(LIVE_TRANSCRIPTION_POLL_MS));
+        if live_channels_are_caught_up(&buffers, &mic, &system)? {
+            thread::sleep(Duration::from_millis(LIVE_TRANSCRIPTION_POLL_MS));
+        }
     }
 
     emit_live_status(
@@ -138,6 +141,15 @@ fn run_live_transcription_loop(config: LiveTranscriptionThreadConfig) -> Result<
         format!("Live transcription stopped after {emitted_count} committed segments"),
     );
     Ok(())
+}
+
+fn live_channels_are_caught_up(
+    buffers: &Arc<Mutex<SharedBuffers>>,
+    mic: &LiveChannelState,
+    system: &LiveChannelState,
+) -> Result<bool, String> {
+    Ok(!live_channel_has_pending_decode(buffers, mic)?
+        && !live_channel_has_pending_decode(buffers, system)?)
 }
 
 fn emit_live_status(app: &AppHandle, thread_id: &str, active: bool, message: impl Into<String>) {

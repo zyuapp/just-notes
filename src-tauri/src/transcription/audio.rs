@@ -1,3 +1,10 @@
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct AudibleSampleSpan {
+    pub(crate) decode_start_index: usize,
+    pub(crate) decode_end_index: usize,
+    pub(crate) audible_start_index: usize,
+}
+
 pub(crate) fn samples_to_ms(samples: u64, sample_rate: u32) -> u64 {
     ((samples as f64 * 1000.0) / sample_rate as f64).floor() as u64
 }
@@ -15,16 +22,38 @@ pub(crate) fn rms(samples: &[f32]) -> f32 {
     (square_sum / samples.len() as f32).sqrt()
 }
 
-pub(crate) fn first_audible_ms(
+pub(crate) fn audible_sample_span(
     samples: &[f32],
     sample_rate: u32,
     silence_threshold: f32,
-) -> Option<u64> {
+    pad_ms: u64,
+) -> Option<AudibleSampleSpan> {
+    if samples.is_empty() {
+        return None;
+    }
+
     let chunk_size = ((sample_rate as u64 * 100) / 1000).max(1) as usize;
-    samples
+    let mut audible_chunks = samples
         .chunks(chunk_size)
-        .position(|chunk| rms(chunk) >= silence_threshold)
-        .map(|chunk_index| samples_to_ms((chunk_index * chunk_size) as u64, sample_rate))
+        .enumerate()
+        .filter(|(_, chunk)| rms(chunk) >= silence_threshold)
+        .map(|(chunk_index, _)| chunk_index);
+    let first_chunk = audible_chunks.next()?;
+    let last_chunk = audible_chunks.next_back().unwrap_or(first_chunk);
+
+    let pad_samples = ms_to_samples(pad_ms, sample_rate);
+    let audible_start_index = first_chunk * chunk_size;
+    let audible_end_index = ((last_chunk + 1) * chunk_size).min(samples.len());
+    let decode_start_index = audible_start_index.saturating_sub(pad_samples);
+    let decode_end_index = audible_end_index
+        .saturating_add(pad_samples)
+        .min(samples.len());
+
+    (decode_end_index > decode_start_index).then_some(AudibleSampleSpan {
+        decode_start_index,
+        decode_end_index,
+        audible_start_index,
+    })
 }
 
 pub(crate) fn resample_to_rate(samples: &[f32], source_rate: u32, target_rate: u32) -> Vec<f32> {
@@ -51,18 +80,44 @@ pub(crate) fn resample_to_rate(samples: &[f32], source_rate: u32, target_rate: u
 
 #[cfg(test)]
 mod tests {
-    use super::first_audible_ms;
+    use super::{audible_sample_span, AudibleSampleSpan};
 
     const LIVE_SILENCE_RMS_THRESHOLD: f32 = 0.005;
 
     #[test]
-    fn first_audible_ms_skips_leading_silence() {
-        let mut samples = vec![0.0; 16_000 * 3];
+    fn audible_sample_span_trims_silence_with_padding() {
+        let mut samples = vec![0.0; 16_000 * 2];
         samples.extend(vec![0.04; 16_000]);
+        samples.extend(vec![0.0; 16_000 * 2]);
 
         assert_eq!(
-            first_audible_ms(&samples, 16_000, LIVE_SILENCE_RMS_THRESHOLD),
-            Some(3_000)
+            audible_sample_span(&samples, 16_000, LIVE_SILENCE_RMS_THRESHOLD, 250),
+            Some(AudibleSampleSpan {
+                decode_start_index: 28_000,
+                decode_end_index: 52_000,
+                audible_start_index: 32_000,
+            })
         );
+    }
+
+    #[test]
+    fn audible_sample_span_returns_none_for_silence() {
+        assert_eq!(
+            audible_sample_span(&vec![0.0; 16_000], 16_000, LIVE_SILENCE_RMS_THRESHOLD, 250),
+            None
+        );
+    }
+
+    #[test]
+    fn audible_sample_span_detects_brief_speech_in_long_silence() {
+        let mut samples = vec![0.0; 16_000 * 20];
+        samples.extend(vec![0.04; 1_600]);
+        samples.extend(vec![0.0; 16_000 * 10]);
+
+        let span = audible_sample_span(&samples, 16_000, LIVE_SILENCE_RMS_THRESHOLD, 250).unwrap();
+
+        assert_eq!(span.audible_start_index, 320_000);
+        assert_eq!(span.decode_start_index, 316_000);
+        assert_eq!(span.decode_end_index, 325_600);
     }
 }

@@ -6,7 +6,7 @@ mod runtime;
 mod status;
 mod text;
 
-pub(crate) use audio::{first_audible_ms, ms_to_samples, resample_to_rate, rms, samples_to_ms};
+pub(crate) use audio::{audible_sample_span, ms_to_samples, resample_to_rate, rms, samples_to_ms};
 pub(crate) use finalize::{spawn_finalization, FinalizationConfig, FinalizeState};
 pub(crate) use live::{spawn_live_transcription_thread, LiveTranscriptionThreadConfig};
 pub(crate) use models::{
