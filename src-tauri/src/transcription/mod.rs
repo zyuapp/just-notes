@@ -9,7 +9,10 @@ mod text;
 pub(crate) use audio::{first_audible_ms, ms_to_samples, resample_to_rate, rms, samples_to_ms};
 pub(crate) use finalize::{spawn_finalization, FinalizationConfig, FinalizeState};
 pub(crate) use live::{spawn_live_transcription_thread, LiveTranscriptionThreadConfig};
-pub(crate) use models::{transcription_paths, TranscriptionPaths, TranscriptionStatusPayload};
+pub(crate) use models::{
+    finalization_transcription_paths, live_transcription_paths, TranscriptionPaths,
+    TranscriptionStatusPayload,
+};
 pub(crate) use runtime::WhisperRuntime;
 pub(crate) use status::transcription_status;
 pub(crate) use text::{

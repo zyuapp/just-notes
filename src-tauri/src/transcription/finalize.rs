@@ -188,7 +188,7 @@ fn transcribe_wav_channel(
         let chunk_ms = samples_to_ms(chunk.len() as u64, spec.sample_rate);
         if rms(&chunk) >= FINALIZE_SILENT_CHUNK_RMS {
             let samples_16k = resample_to_rate(&chunk, spec.sample_rate, 16_000);
-            for mut segment in whisper.transcribe(&samples_16k, "", source, speaker)? {
+            for mut segment in whisper.transcribe_finalize(&samples_16k, "", source, speaker)? {
                 segment.start_ms += offset_ms;
                 segment.end_ms += offset_ms;
                 segments.push(segment);

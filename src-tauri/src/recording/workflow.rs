@@ -21,7 +21,7 @@ use crate::{
         ThreadDetail, ThreadStatus,
     },
     transcription::{
-        spawn_live_transcription_thread, transcription_paths, transcription_status,
+        live_transcription_paths, spawn_live_transcription_thread, transcription_status,
         LiveTranscriptionThreadConfig, TranscriptionPaths,
     },
     tray,
@@ -128,7 +128,7 @@ fn prepare_recording_session(
         thread_dir: thread_dir.clone(),
         started,
         input,
-        transcription_paths: transcription_paths(&paths),
+        transcription_paths: live_transcription_paths(&paths),
         paths: paths.clone(),
         settings,
     };

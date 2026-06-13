@@ -55,6 +55,12 @@ pub(crate) struct TranscriptionPaths {
     pub(crate) available_models: Vec<WhisperModelStatus>,
 }
 
+#[derive(Clone, Copy)]
+enum ModelUse {
+    Live,
+    Finalize,
+}
+
 pub(crate) fn discover_whisper_models(model_dir: &Path) -> Vec<WhisperModelStatus> {
     WHISPER_MODEL_CANDIDATES
         .iter()
@@ -71,19 +77,18 @@ pub(crate) fn discover_whisper_models(model_dir: &Path) -> Vec<WhisperModelStatu
         .collect()
 }
 
-pub(crate) fn transcription_paths(paths: &AppPaths) -> TranscriptionPaths {
+pub(crate) fn live_transcription_paths(paths: &AppPaths) -> TranscriptionPaths {
+    transcription_paths_for(paths, ModelUse::Live)
+}
+
+pub(crate) fn finalization_transcription_paths(paths: &AppPaths) -> TranscriptionPaths {
+    transcription_paths_for(paths, ModelUse::Finalize)
+}
+
+fn transcription_paths_for(paths: &AppPaths, model_use: ModelUse) -> TranscriptionPaths {
     let mut available_models =
         discover_whisper_models(&paths.data_dir.join("models").join("whisper"));
-    let selected_model = available_models
-        .iter()
-        .find(|model| model.installed)
-        .cloned()
-        .unwrap_or_else(|| {
-            available_models
-                .last()
-                .expect("whisper model candidates")
-                .clone()
-        });
+    let selected_model = select_model(&available_models, model_use);
     for model in &mut available_models {
         model.selected = model.filename == selected_model.filename;
     }
@@ -92,5 +97,123 @@ pub(crate) fn transcription_paths(paths: &AppPaths) -> TranscriptionPaths {
         model_path: selected_model.path.clone(),
         model_name: selected_model.name.clone(),
         available_models,
+    }
+}
+
+fn select_model(
+    available_models: &[WhisperModelStatus],
+    model_use: ModelUse,
+) -> WhisperModelStatus {
+    let installed = match model_use {
+        ModelUse::Live => available_models.iter().rev().find(|model| model.installed),
+        ModelUse::Finalize => available_models.iter().find(|model| model.installed),
+    };
+    installed.cloned().unwrap_or_else(|| {
+        available_models
+            .last()
+            .expect("whisper model candidates")
+            .clone()
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs::{self, File},
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    use super::{finalization_transcription_paths, live_transcription_paths};
+    use crate::app::AppPaths;
+
+    #[test]
+    fn live_transcription_prefers_the_fastest_installed_model() {
+        let fixture = ModelDirFixture::new();
+        fixture.install("ggml-base.en.bin");
+        fixture.install("ggml-small.en.bin");
+
+        let paths = live_transcription_paths(&fixture.app_paths());
+
+        assert_eq!(paths.model_name, "base.en");
+        assert!(selected_model(&paths.available_models, "base.en"));
+    }
+
+    #[test]
+    fn finalization_prefers_the_largest_installed_model() {
+        let fixture = ModelDirFixture::new();
+        fixture.install("ggml-base.en.bin");
+        fixture.install("ggml-small.en.bin");
+
+        let paths = finalization_transcription_paths(&fixture.app_paths());
+
+        assert_eq!(paths.model_name, "small.en");
+        assert!(selected_model(&paths.available_models, "small.en"));
+    }
+
+    #[test]
+    fn finalization_policy_marks_the_largest_installed_model_as_selected() {
+        let fixture = ModelDirFixture::new();
+        fixture.install("ggml-base.en.bin");
+        fixture.install("ggml-small.en.bin");
+
+        let paths = finalization_transcription_paths(&fixture.app_paths());
+
+        assert_eq!(paths.model_name, "small.en");
+        assert!(selected_model(&paths.available_models, "small.en"));
+    }
+
+    #[test]
+    fn missing_models_fall_back_to_base_model_path() {
+        let fixture = ModelDirFixture::new();
+
+        let paths = live_transcription_paths(&fixture.app_paths());
+
+        assert_eq!(paths.model_name, "base.en");
+        assert!(paths.model_path.ends_with("ggml-base.en.bin"));
+    }
+
+    fn selected_model(models: &[super::WhisperModelStatus], name: &str) -> bool {
+        models
+            .iter()
+            .any(|model| model.name == name && model.selected)
+    }
+
+    struct ModelDirFixture {
+        root: PathBuf,
+    }
+
+    impl ModelDirFixture {
+        fn new() -> Self {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time before unix epoch")
+                .as_nanos();
+            let root = std::env::temp_dir().join(format!(
+                "just-notes-model-policy-test-{}-{unique}",
+                std::process::id()
+            ));
+            fs::create_dir_all(root.join("models").join("whisper"))
+                .expect("create model fixture dir");
+            Self { root }
+        }
+
+        fn app_paths(&self) -> AppPaths {
+            AppPaths {
+                data_dir: self.root.clone(),
+                threads_dir: self.root.join("threads"),
+            }
+        }
+
+        fn install(&self, filename: &str) {
+            File::create(self.root.join("models").join("whisper").join(filename))
+                .expect("create model fixture file");
+        }
+    }
+
+    impl Drop for ModelDirFixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.root);
+        }
     }
 }

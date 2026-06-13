@@ -105,7 +105,7 @@ pub(super) fn process_live_channel(
     };
 
     let normalized_samples = resample_to_rate(&window.samples, state.sample_rate, 16_000);
-    let mut segments = context.whisper.transcribe(
+    let mut segments = context.whisper.transcribe_live(
         &normalized_samples,
         &state.prompt(),
         state.source,

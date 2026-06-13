@@ -12,7 +12,9 @@ use crate::{
         },
         ThreadDetail, ThreadStatus,
     },
-    transcription::{spawn_finalization, transcription_paths, FinalizationConfig, FinalizeState},
+    transcription::{
+        finalization_transcription_paths, spawn_finalization, FinalizationConfig, FinalizeState,
+    },
     tray,
 };
 
@@ -72,7 +74,7 @@ pub(crate) fn stop_recording(
         state: finalize,
         thread_id: thread_id.clone(),
         thread_dir,
-        paths: transcription_paths(&paths),
+        paths: finalization_transcription_paths(&paths),
         markdown_copy: settings.markdown_copy,
     });
 
