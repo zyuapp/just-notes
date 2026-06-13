@@ -3,6 +3,7 @@ pub(crate) struct AudibleSampleSpan {
     pub(crate) decode_start_index: usize,
     pub(crate) decode_end_index: usize,
     pub(crate) audible_start_index: usize,
+    pub(crate) audible_end_index: usize,
 }
 
 pub(crate) fn samples_to_ms(samples: u64, sample_rate: u32) -> u64 {
@@ -53,6 +54,7 @@ pub(crate) fn audible_sample_span(
         decode_start_index,
         decode_end_index,
         audible_start_index,
+        audible_end_index,
     })
 }
 
@@ -96,6 +98,7 @@ mod tests {
                 decode_start_index: 28_000,
                 decode_end_index: 52_000,
                 audible_start_index: 32_000,
+                audible_end_index: 48_000,
             })
         );
     }
@@ -117,6 +120,7 @@ mod tests {
         let span = audible_sample_span(&samples, 16_000, LIVE_SILENCE_RMS_THRESHOLD, 250).unwrap();
 
         assert_eq!(span.audible_start_index, 320_000);
+        assert_eq!(span.audible_end_index, 321_600);
         assert_eq!(span.decode_start_index, 316_000);
         assert_eq!(span.decode_end_index, 325_600);
     }

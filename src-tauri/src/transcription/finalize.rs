@@ -14,8 +14,8 @@ use hound::{SampleFormat, WavReader, WavSpec};
 use tauri::{AppHandle, Emitter};
 
 use super::{
-    resample_to_rate, rms, samples_to_ms, suppress_cross_channel_bleed, TranscriptionPaths,
-    WhisperRuntime,
+    resample_to_rate, rms, samples_to_ms, suppress_cross_channel_bleed,
+    suppress_system_dominated_mic_segments, TranscriptionPaths, WhisperRuntime,
 };
 use crate::{
     ipc::FinalizationStatusPayload,
@@ -148,6 +148,7 @@ fn run_finalization(
             .then_with(|| left.source.cmp(&right.source))
     });
     let segments = suppress_cross_channel_bleed(segments);
+    let segments = suppress_system_dominated_mic_segments(segments, mic_path, system_path)?;
     if segments.is_empty() {
         return Ok(false);
     }

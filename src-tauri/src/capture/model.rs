@@ -60,6 +60,7 @@ impl SharedBuffers {
 pub(crate) struct RollingChannel {
     samples: VecDeque<f32>,
     base_index: u64,
+    sample_rate: u32,
     max_samples: usize,
     pub(crate) level: f32,
 }
@@ -70,6 +71,7 @@ impl RollingChannel {
         Self {
             samples: VecDeque::with_capacity(max_samples.min(sample_rate as usize * 10)),
             base_index: 0,
+            sample_rate,
             max_samples,
             level: 0.0,
         }
@@ -91,6 +93,10 @@ impl RollingChannel {
 
     pub(crate) fn earliest_index(&self) -> u64 {
         self.base_index
+    }
+
+    pub(crate) fn sample_rate(&self) -> u32 {
+        self.sample_rate
     }
 
     pub(crate) fn window(&self, start_index: u64, end_index: u64) -> Option<Vec<f32>> {

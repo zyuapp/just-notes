@@ -7,7 +7,10 @@ use super::{
 };
 use crate::{
     capture::SharedBuffers,
-    transcription::{audible_sample_span, ms_to_samples, samples_to_ms},
+    transcription::{
+        audible_sample_span, mic_audio_is_system_dominated, ms_to_samples, rms, samples_to_ms,
+        AudibleSampleSpan,
+    },
 };
 
 type LiveSampleWindow = Option<Vec<f32>>;
@@ -61,12 +64,15 @@ pub(super) fn prepare_live_decode_window(
         return Ok(None);
     };
 
-    let Some(trimmed) =
-        trim_live_samples_to_audible_span(samples, state.sample_rate, window_start_ms)
-    else {
+    let Some(span) = live_audible_span(&samples, state.sample_rate) else {
         advance_live_decode(state, commit_until_ms, target_end_ms);
         return Ok(None);
     };
+    if mic_span_is_system_dominated(buffers, state, window_start_ms, &samples, span)? {
+        advance_live_decode(state, commit_until_ms, target_end_ms);
+        return Ok(None);
+    }
+    let trimmed = trim_live_samples_to_span(samples, state.sample_rate, window_start_ms, span);
 
     Ok(Some(LiveDecodeWindow {
         target_end_ms,
@@ -135,26 +141,69 @@ fn live_channel_has_pending_decode_at(available_ms: u64, state: &LiveChannelStat
     available_ms > state.committed_until_ms && available_ms >= state.next_decode_ms
 }
 
-fn trim_live_samples_to_audible_span(
-    samples: Vec<f32>,
-    sample_rate: u32,
-    window_start_ms: u64,
-) -> Option<TrimmedLiveSamples> {
-    let span = audible_sample_span(
-        &samples,
+fn live_audible_span(samples: &[f32], sample_rate: u32) -> Option<AudibleSampleSpan> {
+    audible_sample_span(
+        samples,
         sample_rate,
         LIVE_SILENCE_RMS_THRESHOLD,
         LIVE_TRANSCRIPTION_SPEECH_PAD_MS,
-    )?;
+    )
+}
+
+fn trim_live_samples_to_span(
+    samples: Vec<f32>,
+    sample_rate: u32,
+    window_start_ms: u64,
+    span: AudibleSampleSpan,
+) -> TrimmedLiveSamples {
     let decode_offset_ms = samples_to_ms(span.decode_start_index as u64, sample_rate);
     let audible_start_ms =
         window_start_ms + samples_to_ms(span.audible_start_index as u64, sample_rate);
 
-    Some(TrimmedLiveSamples {
+    TrimmedLiveSamples {
         window_start_ms: window_start_ms + decode_offset_ms,
         samples: samples[span.decode_start_index..span.decode_end_index].to_vec(),
         audible_start_ms,
-    })
+    }
+}
+
+fn mic_span_is_system_dominated(
+    buffers: &Arc<Mutex<SharedBuffers>>,
+    state: &LiveChannelState,
+    window_start_ms: u64,
+    mic_samples: &[f32],
+    span: AudibleSampleSpan,
+) -> Result<bool, String> {
+    if state.source != "mic" {
+        return Ok(false);
+    }
+
+    let mic_rms = rms(&mic_samples[span.audible_start_index..span.audible_end_index]);
+    let system_rms = system_rms_for_mic_span(buffers, state, window_start_ms, span)?;
+    Ok(mic_audio_is_system_dominated(mic_rms, system_rms))
+}
+
+fn system_rms_for_mic_span(
+    buffers: &Arc<Mutex<SharedBuffers>>,
+    state: &LiveChannelState,
+    window_start_ms: u64,
+    span: AudibleSampleSpan,
+) -> Result<f32, String> {
+    let audible_start_ms =
+        window_start_ms + samples_to_ms(span.audible_start_index as u64, state.sample_rate);
+    let audible_end_ms =
+        window_start_ms + samples_to_ms(span.audible_end_index as u64, state.sample_rate);
+
+    let shared = buffers
+        .lock()
+        .map_err(|_| "Audio buffer lock was poisoned".to_string())?;
+    let system_rate = shared.system.sample_rate();
+    let start_index = ms_to_samples(audible_start_ms, system_rate) as u64;
+    let end_index = ms_to_samples(audible_end_ms, system_rate) as u64;
+    let Some(system_samples) = shared.system.window(start_index, end_index) else {
+        return Ok(0.0);
+    };
+    Ok(rms(&system_samples))
 }
 
 fn live_commit_until_ms(target_end_ms: u64, final_flush: bool) -> u64 {
@@ -200,8 +249,8 @@ fn live_samples(
 #[cfg(test)]
 mod tests {
     use super::{
-        catch_up_target_end_ms, live_channel_has_pending_decode_at, live_target_end_ms,
-        trim_live_samples_to_audible_span,
+        catch_up_target_end_ms, live_audible_span, live_channel_has_pending_decode_at,
+        live_target_end_ms, trim_live_samples_to_span,
     };
     use crate::transcription::live::channel::LiveChannelState;
 
@@ -248,7 +297,8 @@ mod tests {
         samples.extend(vec![0.04; 16_000]);
         samples.extend(vec![0.0; 16_000 * 2]);
 
-        let trimmed = trim_live_samples_to_audible_span(samples, 16_000, 10_000).unwrap();
+        let span = live_audible_span(&samples, 16_000).unwrap();
+        let trimmed = trim_live_samples_to_span(samples, 16_000, 10_000, span);
 
         assert_eq!(trimmed.window_start_ms, 11_750);
         assert_eq!(trimmed.audible_start_ms, 12_000);
