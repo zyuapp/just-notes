@@ -1,9 +1,10 @@
 use crate::app::AppPaths;
 
-use super::{finalization_transcription_selection, TranscriptionStatusPayload};
+use super::{finalization_transcription_catalog, TranscriptionStatusPayload};
 
 pub(crate) fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
-    let selection = finalization_transcription_selection(paths);
+    let catalog = finalization_transcription_catalog(paths);
+    let selection = catalog.selection;
     let model_exists = selection.model_path.is_file();
     let message = match model_exists {
         true => format!("Local transcription is ready ({})", selection.model_name),
@@ -17,7 +18,7 @@ pub(crate) fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPaylo
         engine_path: selection.provider.runtime_name().to_string(),
         model_path: selection.model_path.display().to_string(),
         model_name: selection.model_name,
-        available_models: selection.available_models,
+        available_models: catalog.available_models,
         message,
     }
 }

@@ -66,6 +66,10 @@ pub(crate) struct TranscriptionModelSelection {
     pub(crate) provider: TranscriptionProvider,
     pub(crate) model_path: PathBuf,
     pub(crate) model_name: String,
+}
+
+pub(crate) struct TranscriptionModelCatalog {
+    pub(crate) selection: TranscriptionModelSelection,
     pub(crate) available_models: Vec<WhisperModelStatus>,
 }
 
@@ -85,9 +89,7 @@ pub(crate) fn discover_whisper_models(model_dir: &Path) -> Vec<WhisperModelStatu
         .collect()
 }
 
-pub(crate) fn finalization_transcription_selection(
-    paths: &AppPaths,
-) -> TranscriptionModelSelection {
+pub(crate) fn finalization_transcription_catalog(paths: &AppPaths) -> TranscriptionModelCatalog {
     let mut available_models =
         discover_whisper_models(&paths.data_dir.join("models").join("whisper"));
     let selected_model = select_model(&available_models);
@@ -95,12 +97,20 @@ pub(crate) fn finalization_transcription_selection(
         model.selected = model.filename == selected_model.filename;
     }
 
-    TranscriptionModelSelection {
-        provider: TranscriptionProvider::Whisper,
-        model_path: selected_model.path.clone(),
-        model_name: selected_model.name.clone(),
+    TranscriptionModelCatalog {
+        selection: TranscriptionModelSelection {
+            provider: TranscriptionProvider::Whisper,
+            model_path: selected_model.path.clone(),
+            model_name: selected_model.name.clone(),
+        },
         available_models,
     }
+}
+
+pub(crate) fn finalization_transcription_selection(
+    paths: &AppPaths,
+) -> TranscriptionModelSelection {
+    finalization_transcription_catalog(paths).selection
 }
 
 fn select_model(available_models: &[WhisperModelStatus]) -> WhisperModelStatus {
@@ -124,7 +134,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::finalization_transcription_selection;
+    use super::{finalization_transcription_catalog, finalization_transcription_selection};
     use crate::app::AppPaths;
 
     #[test]
@@ -133,10 +143,10 @@ mod tests {
         fixture.install("ggml-base.en.bin");
         fixture.install("ggml-small.en.bin");
 
-        let paths = finalization_transcription_selection(&fixture.app_paths());
+        let catalog = finalization_transcription_catalog(&fixture.app_paths());
 
-        assert_eq!(paths.model_name, "small.en");
-        assert!(selected_model(&paths.available_models, "small.en"));
+        assert_eq!(catalog.selection.model_name, "small.en");
+        assert!(selected_model(&catalog.available_models, "small.en"));
     }
 
     #[test]
@@ -145,10 +155,10 @@ mod tests {
         fixture.install("ggml-base.en.bin");
         fixture.install("ggml-small.en.bin");
 
-        let paths = finalization_transcription_selection(&fixture.app_paths());
+        let catalog = finalization_transcription_catalog(&fixture.app_paths());
 
-        assert_eq!(paths.model_name, "small.en");
-        assert!(selected_model(&paths.available_models, "small.en"));
+        assert_eq!(catalog.selection.model_name, "small.en");
+        assert!(selected_model(&catalog.available_models, "small.en"));
     }
 
     #[test]
