@@ -109,7 +109,7 @@ pub(crate) fn spawn_finalization(config: FinalizationConfig) -> Result<Finalizat
 }
 
 fn prepare_finalization(config: &FinalizationConfig) -> FinalizationBeginResult {
-    if !config.model_selection.model_path.is_file() {
+    if !config.model_selection.is_installed() {
         return Err("Local transcription model is not installed".to_string());
     }
     if !config.audio_artifacts.paths().has_any() {

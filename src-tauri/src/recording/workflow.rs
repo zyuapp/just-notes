@@ -12,7 +12,7 @@ use crate::{
     capture::{prepare_audio_input, start_audio_capture, PreparedAudioInput, RecordingInputMode},
     indicator,
     ipc::RecordingPayload,
-    settings::AppSettings,
+    settings::{AppSettings, TranscriptionProviderPreference},
     threads::{
         repository::{
             create_thread as create_thread_record, load_thread_by_id, prepare_work_dir,
@@ -20,7 +20,7 @@ use crate::{
         },
         RecordingAudioPaths, ThreadDetail, ThreadStatus,
     },
-    transcription::{transcription_status, FinalizationAudioArtifacts},
+    transcription::{transcription_status, FinalizationAudioArtifacts, TranscriptionProvider},
     tray,
 };
 
@@ -117,7 +117,10 @@ fn prepare_recording_session(
     let input = prepare_audio_input(&app, input_mode)?;
     set_thread_status(&thread_dir, ThreadStatus::Recording)?;
 
-    let transcription = transcription_status(&paths);
+    let transcription = transcription_status(
+        &paths,
+        selected_transcription_provider(settings.transcription_provider),
+    );
     let config = RecordingSessionConfig {
         app: app.clone(),
         thread_id: thread_id.clone(),
@@ -224,4 +227,13 @@ fn select_recording_thread(
     }
 
     create_thread_record(paths)
+}
+
+fn selected_transcription_provider(
+    provider: TranscriptionProviderPreference,
+) -> TranscriptionProvider {
+    match provider {
+        TranscriptionProviderPreference::Parakeet => TranscriptionProvider::Parakeet,
+        TranscriptionProviderPreference::Whisper => TranscriptionProvider::Whisper,
+    }
 }

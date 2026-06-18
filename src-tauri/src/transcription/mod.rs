@@ -14,7 +14,7 @@ pub(crate) use finalize::{
 };
 pub(crate) use finalize_audio::FinalizationAudioArtifacts;
 pub(crate) use models::{
-    finalization_transcription_catalog, finalization_transcription_selection,
+    finalization_transcription_catalog, finalization_transcription_selection, parakeet_model_files,
     TranscriptionModelSelection, TranscriptionProvider, TranscriptionStatusPayload,
 };
 pub(crate) use runtime::{load_transcriber, Transcriber};

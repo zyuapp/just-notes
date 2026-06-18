@@ -3,8 +3,10 @@ import { useEffect } from "react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { AppSettings } from "../bindings/AppSettings";
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
+import type { TranscriptionProviderPreference } from "../bindings/TranscriptionProviderPreference";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { permissionLabel, SettingsToggle } from "./SettingsControls";
+import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
 
 type SettingsViewProps = {
   settings: AppSettings;
@@ -17,6 +19,7 @@ type SettingsViewProps = {
   onRevealFolder: () => void;
   onToggleRawAudio: () => void;
   onToggleMarkdownCopy: () => void;
+  onTranscriptionProviderChange: (provider: TranscriptionProviderPreference) => void;
   onOpenPrivacy: (pane: "microphone" | "system-audio") => void;
 };
 
@@ -31,6 +34,7 @@ export function SettingsView({
   onRevealFolder,
   onToggleRawAudio,
   onToggleMarkdownCopy,
+  onTranscriptionProviderChange,
   onOpenPrivacy,
 }: SettingsViewProps) {
   // macOS webviews never deliver keydown for Escape (tauri#5790); keyup does.
@@ -85,30 +89,11 @@ export function SettingsView({
           />
         </section>
 
-        <section>
-          <h3>Local transcription</h3>
-          <p className="settings-hint">{transcriptionStatus?.message ?? "Checking model status…"}</p>
-          <ul className="settings-models">
-            {transcriptionStatus?.availableModels.map((model) => (
-              <li key={model.filename} className={model.selected ? "selected" : ""}>
-                <i aria-hidden="true" />
-                <span className="model-name">{model.name}</span>
-                <code>{model.filename}</code>
-                <em>
-                  {model.installed
-                    ? model.selected
-                      ? "Installed · selected"
-                      : "Installed"
-                    : "Not installed"}
-                </em>
-              </li>
-            ))}
-          </ul>
-          <p className="settings-hint">
-            Models live in the local models folder. Audio never leaves this Mac: transcription runs
-            locally, there is no account, and no meeting bots join your calls.
-          </p>
-        </section>
+        <TranscriptionSettingsSection
+          settings={settings}
+          transcriptionStatus={transcriptionStatus}
+          onTranscriptionProviderChange={onTranscriptionProviderChange}
+        />
 
         <section>
           <h3>Permissions</h3>

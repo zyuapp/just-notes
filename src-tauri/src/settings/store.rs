@@ -6,6 +6,19 @@ use std::{
 
 use crate::app::AppPaths;
 
+const LEGACY_WHISPER_MODEL_FILES: [&str; 3] = [
+    "ggml-medium.en.bin",
+    "ggml-small.en.bin",
+    "ggml-base.en.bin",
+];
+const PARAKEET_MODEL_ID: &str = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8";
+const PARAKEET_MODEL_FILES: [&str; 4] = [
+    "encoder.int8.onnx",
+    "decoder.int8.onnx",
+    "joiner.int8.onnx",
+    "tokens.txt",
+];
+
 #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export)]
@@ -13,6 +26,7 @@ pub(crate) struct AppSettings {
     pub(crate) transcripts_dir: Option<String>,
     pub(crate) save_raw_audio: bool,
     pub(crate) markdown_copy: bool,
+    pub(crate) transcription_provider: TranscriptionProviderPreference,
 }
 
 impl Default for AppSettings {
@@ -21,8 +35,20 @@ impl Default for AppSettings {
             transcripts_dir: None,
             save_raw_audio: true,
             markdown_copy: true,
+            transcription_provider: TranscriptionProviderPreference::default(),
         }
     }
+}
+
+#[derive(
+    serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Copy, Debug, Default, PartialEq, Eq,
+)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) enum TranscriptionProviderPreference {
+    #[default]
+    Parakeet,
+    Whisper,
 }
 
 #[derive(Clone, Default)]
@@ -54,9 +80,49 @@ pub(crate) fn settings_path(data_dir: &Path) -> PathBuf {
 pub(crate) fn load_settings(data_dir: &Path) -> AppSettings {
     let path = settings_path(data_dir);
     let Ok(json) = fs::read_to_string(&path) else {
+        return settings_with_upgrade_provider(data_dir);
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
         return AppSettings::default();
     };
-    serde_json::from_str(&json).unwrap_or_default()
+    let missing_provider = value.get("transcriptionProvider").is_none();
+    let mut settings = serde_json::from_value::<AppSettings>(value).unwrap_or_default();
+    if missing_provider {
+        settings.transcription_provider = default_provider_for_upgrade(data_dir);
+    }
+    settings
+}
+
+fn settings_with_upgrade_provider(data_dir: &Path) -> AppSettings {
+    AppSettings {
+        transcription_provider: default_provider_for_upgrade(data_dir),
+        ..AppSettings::default()
+    }
+}
+
+fn default_provider_for_upgrade(data_dir: &Path) -> TranscriptionProviderPreference {
+    if !parakeet_model_exists(data_dir) && whisper_model_exists(data_dir) {
+        TranscriptionProviderPreference::Whisper
+    } else {
+        TranscriptionProviderPreference::default()
+    }
+}
+
+fn parakeet_model_exists(data_dir: &Path) -> bool {
+    let model_dir = data_dir
+        .join("models")
+        .join("parakeet")
+        .join(PARAKEET_MODEL_ID);
+    PARAKEET_MODEL_FILES
+        .iter()
+        .all(|filename| model_dir.join(filename).is_file())
+}
+
+fn whisper_model_exists(data_dir: &Path) -> bool {
+    let model_dir = data_dir.join("models").join("whisper");
+    LEGACY_WHISPER_MODEL_FILES
+        .iter()
+        .any(|filename| model_dir.join(filename).is_file())
 }
 
 pub(crate) fn save_settings(data_dir: &Path, settings: &AppSettings) -> Result<(), String> {
@@ -99,44 +165,4 @@ pub(crate) fn effective_paths(base: &AppPaths, settings: &AppSettings) -> AppPat
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{effective_paths, load_settings, save_settings, AppSettings};
-    use crate::app::AppPaths;
-    use std::{env, fs};
-
-    #[test]
-    fn settings_round_trip_and_defaults() {
-        let dir = env::temp_dir().join(format!("just-notes-settings-{}", std::process::id()));
-        fs::create_dir_all(&dir).unwrap();
-
-        let defaults = load_settings(&dir);
-        assert!(defaults.save_raw_audio);
-        assert!(defaults.markdown_copy);
-        assert_eq!(defaults.transcripts_dir, None);
-
-        let custom = AppSettings {
-            transcripts_dir: Some("/tmp/notes".to_string()),
-            save_raw_audio: false,
-            markdown_copy: true,
-        };
-        save_settings(&dir, &custom).unwrap();
-        let loaded = load_settings(&dir);
-        assert_eq!(loaded.transcripts_dir.as_deref(), Some("/tmp/notes"));
-        assert!(!loaded.save_raw_audio);
-
-        let base = AppPaths {
-            threads_dir: dir.join("threads"),
-            data_dir: dir.clone(),
-        };
-        assert_eq!(
-            effective_paths(&base, &loaded).threads_dir,
-            std::path::PathBuf::from("/tmp/notes")
-        );
-        assert_eq!(
-            effective_paths(&base, &AppSettings::default()).threads_dir,
-            dir.join("threads")
-        );
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-}
+mod tests;

@@ -46,6 +46,35 @@
   outline-offset: 2px;
 }
 
+.settings-segmented {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--raised);
+}
+
+.settings-segmented button {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-right: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.settings-segmented button:last-child {
+  border-right: 0;
+}
+
+.settings-segmented button.selected {
+  background: var(--blue);
+  color: #fff;
+}
+
 .settings-models {
   display: grid;
   gap: 2px;

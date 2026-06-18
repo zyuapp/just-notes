@@ -83,6 +83,9 @@ export default function App() {
           }}
           onToggleRawAudio={() => void settingsActions.toggleRawAudio()}
           onToggleMarkdownCopy={() => void settingsActions.toggleMarkdownCopy()}
+          onTranscriptionProviderChange={(provider) =>
+            void settingsActions.setTranscriptionProvider(provider)
+          }
           onOpenPrivacy={(pane) => void settingsActions.openPrivacySettings(pane)}
         />
       )}

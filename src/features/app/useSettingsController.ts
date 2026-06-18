@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import type { AppSettings } from "../../bindings/AppSettings";
+import type { TranscriptionProviderPreference } from "../../bindings/TranscriptionProviderPreference";
 import type { AppAction, AppState } from "./state";
 
 type AppDispatch = (action: AppAction) => void;
@@ -31,11 +32,11 @@ export function useSettingsController(
   );
 
   const saveSettings = useCallback(
-    async (settings: AppSettings, storageChanged: boolean) => {
+    async (settings: AppSettings, refreshAfterSave: boolean) => {
       try {
         const saved = await api.settings.update(settings);
         dispatch({ type: "settingsLoaded", settings: saved });
-        if (storageChanged) {
+        if (refreshAfterSave) {
           await onStorageChanged();
         }
       } catch (error) {
@@ -54,6 +55,23 @@ export function useSettingsController(
     if (!state.settings) return;
     await saveSettings({ ...state.settings, markdownCopy: !state.settings.markdownCopy }, false);
   }, [saveSettings, state.settings]);
+
+  const setTranscriptionProvider = useCallback(
+    async (transcriptionProvider: TranscriptionProviderPreference) => {
+      if (!state.settings || state.settings.transcriptionProvider === transcriptionProvider) {
+        return;
+      }
+      try {
+        const saved = await api.settings.update({ ...state.settings, transcriptionProvider });
+        const transcriptionStatus = await api.transcription.getStatus();
+        dispatch({ type: "settingsLoaded", settings: saved });
+        dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
+      } catch (error) {
+        fail(error);
+      }
+    },
+    [dispatch, fail, state.settings],
+  );
 
   const chooseTranscriptsFolder = useCallback(async () => {
     if (!state.settings) return;
@@ -88,6 +106,7 @@ export function useSettingsController(
     closeSettings,
     openPrivacySettings,
     openSettings,
+    setTranscriptionProvider,
     toggleMarkdownCopy,
     toggleRawAudio,
     useDefaultFolder,

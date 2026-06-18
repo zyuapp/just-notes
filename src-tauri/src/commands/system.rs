@@ -6,8 +6,8 @@ use crate::{
     capture::microphone_permission_status,
     ipc::{AppInfo, PermissionsPayload},
     platform,
-    settings::SettingsState,
-    transcription::{transcription_status, TranscriptionStatusPayload},
+    settings::{SettingsState, TranscriptionProviderPreference},
+    transcription::{transcription_status, TranscriptionProvider, TranscriptionStatusPayload},
 };
 
 #[tauri::command]
@@ -26,8 +26,12 @@ pub(crate) fn get_app_info(
 #[tauri::command]
 pub(crate) fn get_transcription_status(
     paths: State<'_, AppPaths>,
+    settings: State<'_, SettingsState>,
 ) -> Result<TranscriptionStatusPayload, String> {
-    Ok(transcription_status(&paths))
+    Ok(transcription_status(
+        &paths,
+        selected_transcription_provider(settings.snapshot().transcription_provider),
+    ))
 }
 
 #[tauri::command]
@@ -55,4 +59,13 @@ pub(crate) fn copy_text_to_clipboard(text: String) -> Result<(), String> {
 #[tauri::command]
 pub(crate) fn open_privacy_settings(pane: String) -> Result<(), String> {
     platform::open_privacy_settings(&pane)
+}
+
+fn selected_transcription_provider(
+    provider: TranscriptionProviderPreference,
+) -> TranscriptionProvider {
+    match provider {
+        TranscriptionProviderPreference::Parakeet => TranscriptionProvider::Parakeet,
+        TranscriptionProviderPreference::Whisper => TranscriptionProvider::Whisper,
+    }
 }
