@@ -48,8 +48,22 @@ pub(crate) struct WhisperModelStatus {
     pub(crate) selected: bool,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TranscriptionProvider {
+    Whisper,
+}
+
+impl TranscriptionProvider {
+    pub(crate) fn runtime_name(self) -> &'static str {
+        match self {
+            Self::Whisper => "embedded whisper.cpp runtime",
+        }
+    }
+}
+
 #[derive(Clone)]
-pub(crate) struct TranscriptionPaths {
+pub(crate) struct TranscriptionModelSelection {
+    pub(crate) provider: TranscriptionProvider,
     pub(crate) model_path: PathBuf,
     pub(crate) model_name: String,
     pub(crate) available_models: Vec<WhisperModelStatus>,
@@ -71,7 +85,9 @@ pub(crate) fn discover_whisper_models(model_dir: &Path) -> Vec<WhisperModelStatu
         .collect()
 }
 
-pub(crate) fn finalization_transcription_paths(paths: &AppPaths) -> TranscriptionPaths {
+pub(crate) fn finalization_transcription_selection(
+    paths: &AppPaths,
+) -> TranscriptionModelSelection {
     let mut available_models =
         discover_whisper_models(&paths.data_dir.join("models").join("whisper"));
     let selected_model = select_model(&available_models);
@@ -79,7 +95,8 @@ pub(crate) fn finalization_transcription_paths(paths: &AppPaths) -> Transcriptio
         model.selected = model.filename == selected_model.filename;
     }
 
-    TranscriptionPaths {
+    TranscriptionModelSelection {
+        provider: TranscriptionProvider::Whisper,
         model_path: selected_model.path.clone(),
         model_name: selected_model.name.clone(),
         available_models,
@@ -107,7 +124,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::finalization_transcription_paths;
+    use super::finalization_transcription_selection;
     use crate::app::AppPaths;
 
     #[test]
@@ -116,7 +133,7 @@ mod tests {
         fixture.install("ggml-base.en.bin");
         fixture.install("ggml-small.en.bin");
 
-        let paths = finalization_transcription_paths(&fixture.app_paths());
+        let paths = finalization_transcription_selection(&fixture.app_paths());
 
         assert_eq!(paths.model_name, "small.en");
         assert!(selected_model(&paths.available_models, "small.en"));
@@ -128,7 +145,7 @@ mod tests {
         fixture.install("ggml-base.en.bin");
         fixture.install("ggml-small.en.bin");
 
-        let paths = finalization_transcription_paths(&fixture.app_paths());
+        let paths = finalization_transcription_selection(&fixture.app_paths());
 
         assert_eq!(paths.model_name, "small.en");
         assert!(selected_model(&paths.available_models, "small.en"));
@@ -138,7 +155,7 @@ mod tests {
     fn missing_models_fall_back_to_base_model_path() {
         let fixture = ModelDirFixture::new();
 
-        let paths = finalization_transcription_paths(&fixture.app_paths());
+        let paths = finalization_transcription_selection(&fixture.app_paths());
 
         assert_eq!(paths.model_name, "base.en");
         assert!(paths.model_path.ends_with("ggml-base.en.bin"));

@@ -1,15 +1,12 @@
 use crate::app::AppPaths;
 
-use super::{finalization_transcription_paths, TranscriptionStatusPayload};
+use super::{finalization_transcription_selection, TranscriptionStatusPayload};
 
 pub(crate) fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
-    let transcription_paths = finalization_transcription_paths(paths);
-    let model_exists = transcription_paths.model_path.is_file();
+    let selection = finalization_transcription_selection(paths);
+    let model_exists = selection.model_path.is_file();
     let message = match model_exists {
-        true => format!(
-            "Local transcription is ready ({})",
-            transcription_paths.model_name
-        ),
+        true => format!("Local transcription is ready ({})", selection.model_name),
         false => "Local transcription model is missing".to_string(),
     };
 
@@ -17,10 +14,10 @@ pub(crate) fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPaylo
         ready: model_exists,
         engine_exists: true,
         model_exists,
-        engine_path: "embedded whisper.cpp runtime".to_string(),
-        model_path: transcription_paths.model_path.display().to_string(),
-        model_name: transcription_paths.model_name,
-        available_models: transcription_paths.available_models,
+        engine_path: selection.provider.runtime_name().to_string(),
+        model_path: selection.model_path.display().to_string(),
+        model_name: selection.model_name,
+        available_models: selection.available_models,
         message,
     }
 }

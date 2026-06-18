@@ -2,12 +2,34 @@ use std::{path::Path, thread};
 
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
-use super::{clean_transcript_text, is_ignored_transcript_text};
+use super::{clean_transcript_text, is_ignored_transcript_text, TranscriptionModelSelection};
 use crate::threads::TranscriptSegment;
 
 const FINALIZE_BEAM_SIZE: i32 = 5;
 
-pub(crate) struct WhisperRuntime {
+pub(crate) trait Transcriber {
+    fn transcribe_segments(
+        &self,
+        samples_16k: &[f32],
+        prompt: &str,
+        source: &str,
+        speaker: &str,
+    ) -> Result<Vec<TranscriptSegment>, String>;
+}
+
+pub(crate) type BoxedTranscriber = Box<dyn Transcriber>;
+
+pub(crate) fn load_transcriber(
+    selection: &TranscriptionModelSelection,
+) -> Result<BoxedTranscriber, String> {
+    match selection.provider {
+        super::TranscriptionProvider::Whisper => {
+            Ok(Box::new(WhisperTranscriber::load(&selection.model_path)?))
+        }
+    }
+}
+
+struct WhisperTranscriber {
     ctx: WhisperContext,
 }
 
@@ -18,8 +40,8 @@ struct TranscriptionRequest<'a> {
     speaker: &'a str,
 }
 
-impl WhisperRuntime {
-    pub(crate) fn load(model_path: &Path) -> Result<Self, String> {
+impl WhisperTranscriber {
+    fn load(model_path: &Path) -> Result<Self, String> {
         let ctx = WhisperContext::new_with_params(model_path, whisper_context_parameters())
             .map_err(|err| {
                 format!(
@@ -28,21 +50,6 @@ impl WhisperRuntime {
                 )
             })?;
         Ok(Self { ctx })
-    }
-
-    pub(crate) fn transcribe_finalize(
-        &self,
-        samples_16k: &[f32],
-        prompt: &str,
-        source: &str,
-        speaker: &str,
-    ) -> Result<Vec<TranscriptSegment>, String> {
-        self.transcribe_with_request(TranscriptionRequest {
-            samples_16k,
-            prompt,
-            source,
-            speaker,
-        })
     }
 
     fn transcribe_with_request(
@@ -92,6 +99,23 @@ impl WhisperRuntime {
             });
         }
         Ok(segments)
+    }
+}
+
+impl Transcriber for WhisperTranscriber {
+    fn transcribe_segments(
+        &self,
+        samples_16k: &[f32],
+        prompt: &str,
+        source: &str,
+        speaker: &str,
+    ) -> Result<Vec<TranscriptSegment>, String> {
+        self.transcribe_with_request(TranscriptionRequest {
+            samples_16k,
+            prompt,
+            source,
+            speaker,
+        })
     }
 }
 

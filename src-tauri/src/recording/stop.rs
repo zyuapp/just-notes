@@ -1,9 +1,10 @@
-use std::sync::atomic::Ordering;
+use std::{path::PathBuf, sync::atomic::Ordering};
 
 use tauri::{AppHandle, Emitter};
 
 use super::state::{RecorderSession, RecorderState};
 use crate::{
+    app::AppPaths,
     capture::stop_audio_capture,
     indicator,
     threads::{
@@ -13,8 +14,8 @@ use crate::{
         ThreadDetail, ThreadStatus,
     },
     transcription::{
-        emit_finalization_failure, finalization_transcription_paths, spawn_finalization,
-        FinalizationConfig, FinalizationStart, FinalizeState,
+        emit_finalization_failure, finalization_transcription_selection, spawn_finalization,
+        FinalizationAudioArtifacts, FinalizationConfig, FinalizationStart, FinalizeState,
     },
     tray,
 };
@@ -63,40 +64,79 @@ pub(crate) fn stop_recording(
         return Err(err);
     }
 
-    match audio_sink_result {
-        Ok(()) => {
-            match spawn_finalization(FinalizationConfig {
-                app: app.clone(),
-                state: finalize,
-                thread_id: thread_id.clone(),
-                thread_dir,
-                audio_artifacts: audio_artifacts.clone(),
-                paths: finalization_transcription_paths(&paths),
-                markdown_copy: settings.markdown_copy,
-            }) {
-                Ok(FinalizationStart::Started) => {}
-                Ok(FinalizationStart::AlreadyRunning) => {
-                    let mut message = "Transcript finalization is already running".to_string();
-                    append_transient_audio_cleanup_error(&mut message, &audio_artifacts);
-                    emit_finalization_failure(&app, &thread_id, &message);
-                }
-                Err(err) => {
-                    let mut message = err;
-                    append_transient_audio_cleanup_error(&mut message, &audio_artifacts);
-                    emit_finalization_failure(&app, &thread_id, &message);
-                }
-            }
-        }
-        Err(err) => {
-            let mut message = format!("Failed to finish recording audio: {err}");
-            append_transient_audio_cleanup_error(&mut message, &audio_artifacts);
-            emit_finalization_failure(&app, &thread_id, &message);
-        }
-    }
+    let finish_config = FinishAudioTranscription {
+        app: &app,
+        finalize,
+        thread_id: &thread_id,
+        thread_dir,
+        paths: &paths,
+        audio_artifacts: &audio_artifacts,
+        markdown_copy: settings.markdown_copy,
+    };
+    finish_audio_transcription(finish_config, audio_sink_result);
 
     let detail = load_thread_by_id(&paths, &thread_id)?;
     let _ = app.emit("recording-stopped", &detail);
     Ok(detail)
+}
+
+struct FinishAudioTranscription<'a> {
+    app: &'a AppHandle,
+    finalize: FinalizeState,
+    thread_id: &'a str,
+    thread_dir: PathBuf,
+    paths: &'a AppPaths,
+    audio_artifacts: &'a FinalizationAudioArtifacts,
+    markdown_copy: bool,
+}
+
+fn finish_audio_transcription(
+    config: FinishAudioTranscription<'_>,
+    audio_sink_result: Result<(), String>,
+) {
+    match audio_sink_result {
+        Ok(()) => spawn_final_transcription(config),
+        Err(err) => emit_transcription_failure(
+            config.app,
+            config.thread_id,
+            config.audio_artifacts,
+            format!("Failed to finish recording audio: {err}"),
+        ),
+    }
+}
+
+fn spawn_final_transcription(config: FinishAudioTranscription<'_>) {
+    let result = spawn_finalization(FinalizationConfig {
+        app: config.app.clone(),
+        state: config.finalize,
+        thread_id: config.thread_id.to_string(),
+        thread_dir: config.thread_dir,
+        audio_artifacts: config.audio_artifacts.clone(),
+        model_selection: finalization_transcription_selection(config.paths),
+        markdown_copy: config.markdown_copy,
+    });
+    match result {
+        Ok(FinalizationStart::Started) => {}
+        Ok(FinalizationStart::AlreadyRunning) => emit_transcription_failure(
+            config.app,
+            config.thread_id,
+            config.audio_artifacts,
+            "Transcript finalization is already running".to_string(),
+        ),
+        Err(err) => {
+            emit_transcription_failure(config.app, config.thread_id, config.audio_artifacts, err)
+        }
+    }
+}
+
+fn emit_transcription_failure(
+    app: &AppHandle,
+    thread_id: &str,
+    audio_artifacts: &FinalizationAudioArtifacts,
+    mut message: String,
+) {
+    append_transient_audio_cleanup_error(&mut message, audio_artifacts);
+    emit_finalization_failure(app, thread_id, &message);
 }
 
 fn persist_stopped_thread(
