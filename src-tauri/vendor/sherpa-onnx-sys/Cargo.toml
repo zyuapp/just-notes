@@ -19,7 +19,6 @@ include = [
     "src/**",
     "build.rs",
     "Cargo.toml",
-    "README.md",
     "LICENSE*",
 ]
 autolib = false
@@ -28,7 +27,6 @@ autoexamples = false
 autotests = false
 autobenches = false
 description = "Raw FFI bindings to the sherpa-onnx C API"
-readme = "README.md"
 keywords = [
     "ffi",
     "speech",
