@@ -1,6 +1,4 @@
-use crate::{
-    threads::ThreadDetail, threads::TranscriptSegment, transcription::TranscriptionStatusPayload,
-};
+use crate::{threads::ThreadDetail, transcription::TranscriptionStatusPayload};
 
 #[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
@@ -32,15 +30,6 @@ pub(crate) struct RecordingPayload {
 #[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub(crate) struct LiveTranscriptSegmentPayload {
-    pub(crate) thread_id: String,
-    pub(crate) committed_until_ms: u64,
-    pub(crate) segment: TranscriptSegment,
-}
-
-#[derive(serde::Serialize, ts_rs::TS, Clone)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub(crate) struct FinalizationStatusPayload {
     pub(crate) thread_id: String,
     pub(crate) state: String,
@@ -53,15 +42,4 @@ pub(crate) struct FinalizationStatusPayload {
 pub(crate) struct PermissionsPayload {
     pub(crate) microphone: String,
     pub(crate) system_audio: String,
-}
-
-#[derive(serde::Serialize, ts_rs::TS, Clone)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub(crate) struct LiveTranscriptStatusPayload {
-    pub(crate) thread_id: String,
-    pub(crate) active: bool,
-    pub(crate) message: String,
-    pub(crate) chunk_ms: u64,
-    pub(crate) overlap_ms: u64,
 }

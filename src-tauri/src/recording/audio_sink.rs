@@ -12,7 +12,7 @@ use std::{
 
 use hound::{SampleFormat, WavSpec, WavWriter};
 
-use crate::capture::SharedBuffers;
+use crate::{capture::SharedBuffers, threads::RecordingAudioPaths};
 
 const AUDIO_SINK_POLL_MS: u64 = 250;
 
@@ -37,13 +37,13 @@ impl AudioSink {
 }
 
 pub(super) fn spawn_audio_sink(
-    thread_dir: &Path,
+    audio_paths: &RecordingAudioPaths,
     buffers: Arc<Mutex<SharedBuffers>>,
     mic_sample_rate: u32,
     system_sample_rate: u32,
 ) -> Result<AudioSink, String> {
-    let mic = ChannelSink::create(&thread_dir.join("mic.wav"), mic_sample_rate, true)?;
-    let system = ChannelSink::create(&thread_dir.join("system.wav"), system_sample_rate, false)?;
+    let mic = ChannelSink::create(audio_paths.mic_path(), mic_sample_rate, true)?;
+    let system = ChannelSink::create(audio_paths.system_path(), system_sample_rate, false)?;
     let should_stop = Arc::new(AtomicBool::new(false));
     let stop_flag = Arc::clone(&should_stop);
     let worker = thread::spawn(move || run_audio_sink(buffers, mic, system, stop_flag));

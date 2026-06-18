@@ -10,8 +10,8 @@ import {
   initialAppState,
   type AppState,
 } from "./features/app/state";
+import { useAppEvents } from "./features/app/useAppEvents";
 import { useJustNotesController } from "./features/app/useJustNotesController";
-import { useLiveTranscriptEvents } from "./features/app/useLiveTranscriptEvents";
 import { useSettingsController } from "./features/app/useSettingsController";
 import { useThreadActions } from "./features/app/useThreadActions";
 import { useThreadSearch } from "./features/app/useThreadSearch";
@@ -27,7 +27,7 @@ export default function App() {
     () => void actions.refreshThreads(),
     [actions.refreshThreads],
   );
-  useLiveTranscriptEvents(dispatch, onFinalizationSettled);
+  useAppEvents(dispatch, onFinalizationSettled);
 
   const activeThreadId = getActiveThreadId(state);
   const statusLabel = useMemo(() => getStatusLabel(state), [state]);
@@ -56,7 +56,6 @@ export default function App() {
       <TranscriptPanel
         error={state.error}
         fixtureMode={state.appInfo?.fixtureMode ?? false}
-        liveStatus={state.liveStatus}
         finalization={state.finalization}
         meters={state.meters}
         notice={notice}

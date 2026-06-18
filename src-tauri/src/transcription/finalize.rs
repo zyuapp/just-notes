@@ -8,6 +8,7 @@ use std::{
         Arc, Mutex,
     },
     thread,
+    time::Duration,
 };
 
 use hound::{SampleFormat, WavReader, WavSpec};
@@ -22,7 +23,7 @@ use crate::{
     threads::{
         repository::{render_thread_markdown, set_thread_status, touch_thread},
         transcript_store::write_transcript_jsonl,
-        ThreadStatus, TranscriptSegment,
+        RecordingAudioPaths, ThreadStatus, TranscriptSegment,
     },
 };
 
@@ -63,6 +64,16 @@ impl FinalizeState {
             None => false,
         }
     }
+
+    pub(crate) fn is_active(&self) -> bool {
+        self.0.lock().map(|jobs| !jobs.is_empty()).unwrap_or(false)
+    }
+
+    pub(crate) fn wait_for_idle(&self) {
+        while self.is_active() {
+            thread::sleep(Duration::from_millis(100));
+        }
+    }
 }
 
 pub(crate) struct FinalizationConfig {
@@ -70,22 +81,71 @@ pub(crate) struct FinalizationConfig {
     pub(crate) state: FinalizeState,
     pub(crate) thread_id: String,
     pub(crate) thread_dir: PathBuf,
+    pub(crate) audio_artifacts: FinalizationAudioArtifacts,
     pub(crate) paths: TranscriptionPaths,
     pub(crate) markdown_copy: bool,
 }
 
-pub(crate) fn spawn_finalization(config: FinalizationConfig) -> bool {
-    let mic_path = config.thread_dir.join("mic.wav");
-    let system_path = config.thread_dir.join("system.wav");
-    if !config.paths.model_path.is_file() || (!mic_path.is_file() && !system_path.is_file()) {
-        return false;
+#[derive(Clone)]
+pub(crate) struct FinalizationAudioArtifacts {
+    paths: RecordingAudioPaths,
+    retention: FinalizationAudioRetention,
+}
+
+#[derive(Clone, Copy)]
+enum FinalizationAudioRetention {
+    Keep,
+    DeleteWhenDone,
+}
+
+impl FinalizationAudioArtifacts {
+    pub(crate) fn for_thread_dir(thread_dir: &Path, save_raw_audio: bool) -> Self {
+        Self {
+            paths: RecordingAudioPaths::for_thread_dir(thread_dir),
+            retention: if save_raw_audio {
+                FinalizationAudioRetention::Keep
+            } else {
+                FinalizationAudioRetention::DeleteWhenDone
+            },
+        }
+    }
+
+    pub(crate) fn paths(&self) -> &RecordingAudioPaths {
+        &self.paths
+    }
+
+    pub(crate) fn cleanup_if_transient(&self) -> Result<(), String> {
+        match self.retention {
+            FinalizationAudioRetention::Keep => Ok(()),
+            FinalizationAudioRetention::DeleteWhenDone => self.paths.remove_files(),
+        }
+    }
+}
+
+pub(crate) enum FinalizationStart {
+    Started,
+    AlreadyRunning,
+}
+
+enum FinalizationOutcome {
+    Completed,
+    Cancelled,
+    Empty,
+}
+
+pub(crate) fn spawn_finalization(config: FinalizationConfig) -> Result<FinalizationStart, String> {
+    if !config.paths.model_path.is_file() {
+        return Err("Local transcription model is not installed".to_string());
+    }
+    if !config.audio_artifacts.paths().has_any() {
+        return Err("No recording audio was captured for final transcription".to_string());
     }
     let Some(cancel) = config.state.begin(&config.thread_id) else {
-        return false;
+        return Ok(FinalizationStart::AlreadyRunning);
     };
     if set_thread_status(&config.thread_dir, ThreadStatus::Transcribing).is_err() {
         config.state.finish(&config.thread_id);
-        return false;
+        return Err("Failed to mark thread as transcribing".to_string());
     }
 
     emit_finalization_status(
@@ -98,28 +158,42 @@ pub(crate) fn spawn_finalization(config: FinalizationConfig) -> bool {
         // catch_unwind keeps a whisper/decoder panic from leaking the
         // Transcribing status and the registry entry for this thread.
         let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            run_finalization(&config, &cancel, &mic_path, &system_path)
+            run_finalization(
+                &config,
+                &cancel,
+                config.audio_artifacts.paths().mic_path(),
+                config.audio_artifacts.paths().system_path(),
+            )
         }))
         .unwrap_or_else(|_| Err("Transcript finalization crashed".to_string()));
+        let outcome = match outcome {
+            Ok(FinalizationOutcome::Completed) => config
+                .audio_artifacts
+                .cleanup_if_transient()
+                .map(|()| FinalizationOutcome::Completed),
+            other => other,
+        };
         let _ = set_thread_status(&config.thread_dir, ThreadStatus::Idle);
         config.state.finish(&config.thread_id);
         match outcome {
-            Ok(true) => emit_finalization_status(
+            Ok(FinalizationOutcome::Completed) => emit_finalization_status(
                 &config.app,
                 &config.thread_id,
                 "done",
                 "The polished transcript is ready",
             ),
-            Ok(false) => emit_finalization_status(
-                &config.app,
-                &config.thread_id,
-                "cancelled",
-                "Kept the live transcript",
-            ),
+            Ok(FinalizationOutcome::Cancelled | FinalizationOutcome::Empty) => {
+                emit_finalization_status(
+                    &config.app,
+                    &config.thread_id,
+                    "cancelled",
+                    "No final transcript was produced",
+                )
+            }
             Err(err) => emit_finalization_status(&config.app, &config.thread_id, "failed", &err),
         }
     });
-    true
+    Ok(FinalizationStart::Started)
 }
 
 fn run_finalization(
@@ -127,7 +201,7 @@ fn run_finalization(
     cancel: &AtomicBool,
     mic_path: &Path,
     system_path: &Path,
-) -> Result<bool, String> {
+) -> Result<FinalizationOutcome, String> {
     let whisper = WhisperRuntime::load(&config.paths.model_path)?;
     let mut segments = transcribe_wav_channel(&whisper, mic_path, "mic", "You", cancel)?;
     segments.extend(transcribe_wav_channel(
@@ -138,7 +212,7 @@ fn run_finalization(
         cancel,
     )?);
     if cancel.load(Ordering::Relaxed) {
-        return Ok(false);
+        return Ok(FinalizationOutcome::Cancelled);
     }
 
     segments.sort_by(|left, right| {
@@ -150,7 +224,7 @@ fn run_finalization(
     let segments = suppress_cross_channel_bleed(segments);
     let segments = suppress_system_dominated_mic_segments(segments, mic_path, system_path)?;
     if segments.is_empty() {
-        return Ok(false);
+        return Ok(FinalizationOutcome::Empty);
     }
 
     write_transcript_jsonl(&config.thread_dir.join("transcript.jsonl"), &segments)?;
@@ -158,7 +232,7 @@ fn run_finalization(
     if config.markdown_copy {
         render_thread_markdown(&config.thread_dir)?;
     }
-    Ok(true)
+    Ok(FinalizationOutcome::Completed)
 }
 
 fn transcribe_wav_channel(
@@ -239,4 +313,8 @@ fn emit_finalization_status(app: &AppHandle, thread_id: &str, state: &str, messa
             message: message.to_string(),
         },
     );
+}
+
+pub(crate) fn emit_finalization_failure(app: &AppHandle, thread_id: &str, message: &str) {
+    emit_finalization_status(app, thread_id, "failed", message);
 }

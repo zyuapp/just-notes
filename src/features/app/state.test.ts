@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { LiveTranscriptSegmentPayload } from "../../bindings/LiveTranscriptSegmentPayload";
 import type { RecordingPayload } from "../../bindings/RecordingPayload";
 import type { ThreadDetail } from "../../bindings/ThreadDetail";
 import type { ThreadSummary } from "../../bindings/ThreadSummary";
-import type { TranscriptSegment } from "../../bindings/TranscriptSegment";
-import { appReducer, initialAppState } from "./state";
+import { appReducer, getActiveThreadId, initialAppState } from "./state";
 
 const summary: ThreadSummary = {
   id: "thread-1",
@@ -26,15 +24,17 @@ const detail: ThreadDetail = {
   transcriptMarkdownPath: "/tmp/transcript.md",
 };
 
-function segment(source: string, startMs: number): TranscriptSegment {
-  return {
-    source,
-    speaker: source === "mic" ? "You" : "Others",
-    startMs,
-    endMs: startMs + 1000,
-    text: source,
-  };
-}
+const otherSummary: ThreadSummary = {
+  ...summary,
+  id: "thread-2",
+  title: "Other thread",
+  path: "/threads/thread-2",
+};
+
+const otherDetail: ThreadDetail = {
+  ...detail,
+  summary: otherSummary,
+};
 
 describe("appReducer", () => {
   test("selects threads from details", () => {
@@ -63,32 +63,35 @@ describe("appReducer", () => {
 
     expect(state.recorderState).toBe("recording");
     expect(state.selectedThreadId).toBe("thread-1");
+    expect(state.recordingThreadId).toBe("thread-1");
+    expect(getActiveThreadId(state)).toBe("thread-1");
     expect(state.transcriptionStatus?.message).toBe("Ready");
   });
 
-  test("applies live transcript segments to selected thread and thread list", () => {
-    const payload: LiveTranscriptSegmentPayload = {
-      threadId: "thread-1",
-      committedUntilMs: 4000,
-      segment: segment("mic", 3000),
-    };
-    const state = {
-      ...initialAppState,
-      selectedThread: {
-        ...detail,
-        segments: [segment("system", 5000)],
+  test("keeps the active recording thread stable while selecting another thread", () => {
+    const payload: RecordingPayload = {
+      thread: detail,
+      transcription: {
+        ready: true,
+        engineExists: true,
+        modelExists: true,
+        enginePath: "/tmp/engine",
+        modelPath: "/tmp/model",
+        modelName: "small.en",
+        availableModels: [],
+        message: "Ready",
       },
-      threads: [summary],
     };
+    const recording = appReducer(
+      { ...initialAppState, threads: [summary, otherSummary] },
+      { type: "recordingStarted", payload },
+    );
 
-    const updated = appReducer(state, { type: "liveSegmentReceived", payload, updatedAtMs: 200 });
+    const navigated = appReducer(recording, { type: "threadSelected", detail: otherDetail });
 
-    expect(updated.selectedThread?.segments.map((item) => `${item.startMs}:${item.source}`)).toEqual([
-      "3000:mic",
-      "5000:system",
-    ]);
-    expect(updated.threads[0].segmentCount).toBe(1);
-    expect(updated.threads[0].updatedAtMs).toBe(200);
+    expect(navigated.selectedThreadId).toBe("thread-2");
+    expect(navigated.recordingThreadId).toBe("thread-1");
+    expect(getActiveThreadId(navigated)).toBe("thread-1");
   });
 
   test("updates the thread list entry when a thread changes", () => {

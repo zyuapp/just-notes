@@ -35,30 +35,6 @@ describe("eventsApi", () => {
     expect(handler.mock.calls).toEqual([[payload]]);
   });
 
-  test("registers live transcript segment events", async () => {
-    listenMock.mockImplementationOnce(async () => mock());
-
-    await eventsApi.onLiveTranscriptSegment(mock());
-
-    expect(listenMock.mock.calls[0][0]).toBe("live-transcript-segment");
-  });
-
-  test("registers live transcript status events", async () => {
-    listenMock.mockImplementationOnce(async () => mock());
-
-    await eventsApi.onLiveTranscriptStatus(mock());
-
-    expect(listenMock.mock.calls[0][0]).toBe("live-transcript-status");
-  });
-
-  test("registers live transcript error events", async () => {
-    listenMock.mockImplementationOnce(async () => mock());
-
-    await eventsApi.onLiveTranscriptError(mock());
-
-    expect(listenMock.mock.calls[0][0]).toBe("live-transcript-error");
-  });
-
   test("normalizes listen failures", async () => {
     listenMock.mockRejectedValueOnce("Listener rejected");
 

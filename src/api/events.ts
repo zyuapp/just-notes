@@ -1,7 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
-import type { LiveTranscriptSegmentPayload } from "../bindings/LiveTranscriptSegmentPayload";
-import type { LiveTranscriptStatusPayload } from "../bindings/LiveTranscriptStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
 import { toApiError } from "./errors";
@@ -31,20 +29,6 @@ export const eventsApi = {
 
   onIndicatorHover(handler: EventHandler<boolean>): Promise<UnlistenFn> {
     return listenToEvent("indicator-hover", handler);
-  },
-
-  onLiveTranscriptSegment(
-    handler: EventHandler<LiveTranscriptSegmentPayload>,
-  ): Promise<UnlistenFn> {
-    return listenToEvent("live-transcript-segment", handler);
-  },
-
-  onLiveTranscriptStatus(handler: EventHandler<LiveTranscriptStatusPayload>): Promise<UnlistenFn> {
-    return listenToEvent("live-transcript-status", handler);
-  },
-
-  onLiveTranscriptError(handler: EventHandler<LiveTranscriptStatusPayload>): Promise<UnlistenFn> {
-    return listenToEvent("live-transcript-error", handler);
   },
 
   onRecordingStopped(handler: EventHandler<ThreadDetail>): Promise<UnlistenFn> {

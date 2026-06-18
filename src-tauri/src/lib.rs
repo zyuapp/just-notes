@@ -62,11 +62,16 @@ fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
             _ => {}
         },
         tauri::RunEvent::ExitRequested { api, .. } => {
-            if app.state::<RecorderState>().is_active() {
+            let recorder = app.state::<RecorderState>().inner().clone();
+            let finalize = app.state::<FinalizeState>().inner().clone();
+            if recorder.is_active() || finalize.is_active() {
                 api.prevent_exit();
                 let app = app.clone();
                 tauri::async_runtime::spawn_blocking(move || {
-                    stop_active_recording(&app);
+                    if recorder.is_active() {
+                        stop_active_recording(&app);
+                    }
+                    finalize.wait_for_idle();
                     app.exit(0);
                 });
             }

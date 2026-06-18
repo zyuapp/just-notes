@@ -18,12 +18,9 @@ use crate::{
             create_thread as create_thread_record, load_thread_by_id, prepare_work_dir,
             set_thread_status,
         },
-        ThreadDetail, ThreadStatus,
+        RecordingAudioPaths, ThreadDetail, ThreadStatus,
     },
-    transcription::{
-        live_transcription_paths, spawn_live_transcription_thread, transcription_status,
-        LiveTranscriptionThreadConfig, TranscriptionPaths,
-    },
+    transcription::{transcription_status, FinalizationAudioArtifacts},
     tray,
 };
 
@@ -33,7 +30,6 @@ struct RecordingSessionConfig {
     thread_dir: PathBuf,
     started: Instant,
     input: PreparedAudioInput,
-    transcription_paths: TranscriptionPaths,
     paths: AppPaths,
     settings: AppSettings,
 }
@@ -128,7 +124,6 @@ fn prepare_recording_session(
         thread_dir: thread_dir.clone(),
         started,
         input,
-        transcription_paths: live_transcription_paths(&paths),
         paths: paths.clone(),
         settings,
     };
@@ -149,40 +144,45 @@ fn activate_session(
     recorder: &RecorderState,
     mut config: RecordingSessionConfig,
 ) -> Result<(), String> {
-    start_audio_capture(&mut config.input.audio_capture)?;
-    let session = build_recording_session(config)?;
+    let audio_artifacts = FinalizationAudioArtifacts::for_thread_dir(
+        &config.thread_dir,
+        config.settings.save_raw_audio,
+    );
+    let audio_sink = spawn_recording_audio_sink(
+        audio_artifacts.paths(),
+        &config.input.buffers,
+        config.input.mic_sample_rate,
+        config.input.system_sample_rate,
+    )?;
+    if let Err(err) = start_audio_capture(&mut config.input.audio_capture) {
+        let _ = audio_sink.stop();
+        let _ = audio_artifacts.cleanup_if_transient();
+        return Err(err);
+    }
+    let session = build_recording_session(config, audio_sink, audio_artifacts);
     recorder.store_session(session)
 }
 
-fn maybe_spawn_audio_sink(
-    save_raw_audio: bool,
-    thread_dir: &std::path::Path,
+fn spawn_recording_audio_sink(
+    audio_paths: &RecordingAudioPaths,
     buffers: &Arc<std::sync::Mutex<crate::capture::SharedBuffers>>,
     mic_sample_rate: u32,
     system_sample_rate: u32,
-) -> Result<Option<super::audio_sink::AudioSink>, String> {
-    if !save_raw_audio {
-        return Ok(None);
-    }
+) -> Result<super::audio_sink::AudioSink, String> {
     spawn_audio_sink(
-        thread_dir,
+        audio_paths,
         Arc::clone(buffers),
         mic_sample_rate,
         system_sample_rate,
     )
-    .map(Some)
 }
 
-fn build_recording_session(config: RecordingSessionConfig) -> Result<RecorderSession, String> {
+fn build_recording_session(
+    config: RecordingSessionConfig,
+    audio_sink: super::audio_sink::AudioSink,
+    audio_artifacts: FinalizationAudioArtifacts,
+) -> RecorderSession {
     let input = config.input;
-    let audio_sink = maybe_spawn_audio_sink(
-        config.settings.save_raw_audio,
-        &config.thread_dir,
-        &input.buffers,
-        input.mic_sample_rate,
-        input.system_sample_rate,
-    )?;
-
     let should_stop_meter = Arc::new(AtomicBool::new(false));
     let meter_thread = spawn_meter_thread(
         config.app.clone(),
@@ -192,20 +192,7 @@ fn build_recording_session(config: RecordingSessionConfig) -> Result<RecorderSes
         config.started,
     );
 
-    let should_stop_live_transcription = Arc::new(AtomicBool::new(false));
-    let live_transcription_thread =
-        spawn_live_transcription_thread(LiveTranscriptionThreadConfig {
-            app: config.app,
-            paths: config.transcription_paths,
-            buffers: Arc::clone(&input.buffers),
-            should_stop: Arc::clone(&should_stop_live_transcription),
-            thread_id: config.thread_id.clone(),
-            thread_dir: config.thread_dir.clone(),
-            mic_sample_rate: input.mic_sample_rate,
-            system_sample_rate: input.system_sample_rate,
-        });
-
-    Ok(RecorderSession {
+    RecorderSession {
         thread_id: config.thread_id,
         thread_dir: config.thread_dir,
         started: config.started,
@@ -213,12 +200,11 @@ fn build_recording_session(config: RecordingSessionConfig) -> Result<RecorderSes
         settings: config.settings,
         buffers: input.buffers,
         should_stop_meter,
-        should_stop_live_transcription,
         meter_thread: Some(meter_thread),
-        live_transcription_thread,
         audio_capture: input.audio_capture,
         audio_sink,
-    })
+        audio_artifacts,
+    }
 }
 
 fn select_recording_thread(

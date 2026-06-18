@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
-import type { LiveTranscriptStatusPayload } from "../bindings/LiveTranscriptStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
@@ -17,7 +16,6 @@ import { TranscriptToolbar } from "./TranscriptToolbar";
 type TranscriptPanelProps = {
   error: string | null;
   fixtureMode: boolean;
-  liveStatus: LiveTranscriptStatusPayload | null;
   finalization: FinalizationStatusPayload | null;
   meters: MeterPayload;
   notice: Notice | null;
@@ -35,7 +33,6 @@ type TranscriptPanelProps = {
 export function TranscriptPanel({
   error,
   fixtureMode,
-  liveStatus,
   finalization,
   meters,
   notice,
@@ -119,7 +116,6 @@ export function TranscriptPanel({
       <CaptureBar
         recorderState={recorderState}
         meters={meters}
-        liveStatus={liveStatus}
         finalization={finalization}
         transcriptionStatus={transcriptionStatus}
         selectedThreadId={summary?.id ?? null}

@@ -14,6 +14,7 @@ use crate::{
     capture::{ActiveAudioCapture, SharedBuffers},
     settings::AppSettings,
     threads::ThreadDetail,
+    transcription::FinalizationAudioArtifacts,
 };
 
 #[derive(Clone, Default)]
@@ -32,11 +33,10 @@ pub(super) struct RecorderSession {
     pub(super) settings: AppSettings,
     pub(super) buffers: Arc<Mutex<SharedBuffers>>,
     pub(super) should_stop_meter: Arc<AtomicBool>,
-    pub(super) should_stop_live_transcription: Arc<AtomicBool>,
     pub(super) meter_thread: Option<JoinHandle<()>>,
-    pub(super) live_transcription_thread: Option<JoinHandle<()>>,
     pub(super) audio_capture: ActiveAudioCapture,
-    pub(super) audio_sink: Option<AudioSink>,
+    pub(super) audio_sink: AudioSink,
+    pub(super) audio_artifacts: FinalizationAudioArtifacts,
 }
 
 impl RecorderState {

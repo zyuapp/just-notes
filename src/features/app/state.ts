@@ -1,8 +1,6 @@
 import type { AppInfo } from "../../bindings/AppInfo";
 import type { AppSettings } from "../../bindings/AppSettings";
 import type { FinalizationStatusPayload } from "../../bindings/FinalizationStatusPayload";
-import type { LiveTranscriptSegmentPayload } from "../../bindings/LiveTranscriptSegmentPayload";
-import type { LiveTranscriptStatusPayload } from "../../bindings/LiveTranscriptStatusPayload";
 import type { MeterPayload } from "../../bindings/MeterPayload";
 import type { PermissionsPayload } from "../../bindings/PermissionsPayload";
 import type { RecordingPayload } from "../../bindings/RecordingPayload";
@@ -18,10 +16,10 @@ export type AppState = {
   appInfo: AppInfo | null;
   threads: ThreadSummary[];
   selectedThreadId: string | null;
+  recordingThreadId: string | null;
   selectedThread: ThreadDetail | null;
   recorderState: RecorderState;
   meters: MeterPayload;
-  liveStatus: LiveTranscriptStatusPayload | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
   settings: AppSettings | null;
   permissions: PermissionsPayload | null;
@@ -41,10 +39,10 @@ export const initialAppState: AppState = {
   appInfo: null,
   threads: [],
   selectedThreadId: null,
+  recordingThreadId: null,
   selectedThread: null,
   recorderState: "idle",
   meters: emptyMeters,
-  liveStatus: null,
   transcriptionStatus: null,
   settings: null,
   permissions: null,
@@ -78,13 +76,12 @@ export type AppAction =
   | { type: "recordingStopping" }
   | { type: "recordingStopped"; detail: ThreadDetail }
   | { type: "recordingStopFailed"; message: string }
-  | { type: "meterReceived"; payload: MeterPayload }
-  | { type: "liveSegmentReceived"; payload: LiveTranscriptSegmentPayload; updatedAtMs: number }
-  | { type: "liveStatusReceived"; payload: LiveTranscriptStatusPayload }
-  | { type: "liveErrorReceived"; payload: LiveTranscriptStatusPayload };
+  | { type: "meterReceived"; payload: MeterPayload };
 
 export function getActiveThreadId(state: AppState) {
-  return state.liveStatus?.active ? state.liveStatus.threadId : null;
+  return state.recorderState === "recording" || state.recorderState === "stopping"
+    ? state.recordingThreadId
+    : null;
 }
 
 export function getStatusLabel(state: AppState) {

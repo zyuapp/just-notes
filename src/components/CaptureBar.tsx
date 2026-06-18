@@ -1,5 +1,4 @@
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
-import type { LiveTranscriptStatusPayload } from "../bindings/LiveTranscriptStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
@@ -9,7 +8,6 @@ import { CaptureMeter } from "./CaptureMeter";
 type CaptureBarProps = {
   recorderState: RecorderState;
   meters: MeterPayload;
-  liveStatus: LiveTranscriptStatusPayload | null;
   finalization: FinalizationStatusPayload | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
   selectedThreadId: string | null;
@@ -23,7 +21,6 @@ type CaptureBarProps = {
 export function CaptureBar({
   recorderState,
   meters,
-  liveStatus,
   finalization,
   transcriptionStatus,
   selectedThreadId,
@@ -35,13 +32,13 @@ export function CaptureBar({
 }: CaptureBarProps) {
   const isRecording = recorderState === "recording";
   const busy = recorderState === "starting" || recorderState === "stopping";
-  const live = isRecording || recorderState === "stopping";
+  const capturing = isRecording || recorderState === "stopping";
   const finalizationForThread =
     finalization && finalization.threadId === selectedThreadId ? finalization : null;
   const status =
     finalizationForThread?.message ??
-    (live
-      ? (liveStatus?.message ?? "Transcribing locally…")
+    (capturing
+      ? "Recording — transcript ready when you stop"
       : (transcriptionStatus?.message ?? "Checking local transcription…"));
 
   return (
@@ -56,8 +53,8 @@ export function CaptureBar({
         <span className="record-glyph" aria-hidden="true" />
         <span>{isRecording ? "Stop" : busy ? `${statusLabel}…` : "Record"}</span>
       </button>
-      {live && <time className="capture-elapsed">{formatDuration(meters.elapsedMs)}</time>}
-      {live && (
+      {capturing && <time className="capture-elapsed">{formatDuration(meters.elapsedMs)}</time>}
+      {capturing && (
         <div className="capture-meters">
           <CaptureMeter label="Mic" level={meters.micLevel} />
           <CaptureMeter label="Sys" level={meters.systemLevel} />

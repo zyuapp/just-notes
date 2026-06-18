@@ -1,5 +1,4 @@
 import type { ThreadDetail } from "../../bindings/ThreadDetail";
-import { applyLiveSegmentToThread, applyLiveSegmentToThreadList } from "../../lib/transcript";
 import { emptyMeters, type AppAction, type AppState } from "./state";
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -32,6 +31,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         threads: state.threads.filter((thread) => thread.id !== action.threadId),
         selectedThreadId: state.selectedThreadId === action.threadId ? null : state.selectedThreadId,
+        recordingThreadId:
+          state.recordingThreadId === action.threadId ? null : state.recordingThreadId,
         selectedThread:
           state.selectedThread?.summary.id === action.threadId ? null : state.selectedThread,
       };
@@ -49,12 +50,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         selectedThreadId: action.payload.thread.summary.id,
+        recordingThreadId: action.payload.thread.summary.id,
         selectedThread: action.payload.thread,
         transcriptionStatus: action.payload.transcription,
         recorderState: "recording",
       };
     case "recordingStartFailed":
-      return { ...state, error: action.message, recorderState: "idle" };
+      return { ...state, error: action.message, recorderState: "idle", recordingThreadId: null };
     case "recordingStopping":
       return { ...state, error: null, recorderState: "stopping" };
     case "recordingStopped":
@@ -64,26 +66,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         selectedThread: action.detail,
         threads: replaceThreadSummary(state, action.detail),
         meters: emptyMeters,
+        recordingThreadId: null,
         recorderState: "idle",
       };
     case "recordingStopFailed":
       return { ...state, error: action.message, recorderState: "recording" };
     case "meterReceived":
       return { ...state, meters: action.payload };
-    case "liveSegmentReceived":
-      return {
-        ...state,
-        selectedThread: applyLiveSegmentToThread(
-          state.selectedThread,
-          action.payload,
-          action.updatedAtMs,
-        ),
-        threads: applyLiveSegmentToThreadList(state.threads, action.payload, action.updatedAtMs),
-      };
-    case "liveStatusReceived":
-      return { ...state, liveStatus: action.payload };
-    case "liveErrorReceived":
-      return { ...state, liveStatus: action.payload, error: action.payload.message };
   }
 }
 

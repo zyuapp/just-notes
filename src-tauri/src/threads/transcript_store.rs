@@ -1,24 +1,10 @@
 use std::{
     fs,
-    fs::OpenOptions,
     io::{BufRead, BufReader, Write},
     path::Path,
 };
 
 use super::TranscriptSegment;
-
-pub(crate) fn append_live_segment(path: &Path, segment: &TranscriptSegment) -> Result<(), String> {
-    if let Some(last) = read_last_transcript_segment(path)? {
-        if transcript_segment_order(&last, segment).is_gt() {
-            let mut segments = read_transcript_jsonl(path)?;
-            segments.push(segment.clone());
-            segments.sort_by(transcript_segment_order);
-            return write_transcript_jsonl(path, &segments);
-        }
-    }
-
-    append_transcript_jsonl_line(path, segment)
-}
 
 pub(crate) fn read_transcript_jsonl(path: &Path) -> Result<Vec<TranscriptSegment>, String> {
     if !path.is_file() {
@@ -129,33 +115,6 @@ pub(crate) fn write_text_atomic(path: &Path, content: &str) -> Result<(), String
     })
 }
 
-fn append_transcript_jsonl_line(path: &Path, segment: &TranscriptSegment) -> Result<(), String> {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|err| format!("Failed to open transcript {}: {err}", path.display()))?;
-    let line = serde_json::to_string(segment)
-        .map_err(|err| format!("Failed to encode transcript segment: {err}"))?;
-    writeln!(file, "{line}")
-        .map_err(|err| format!("Failed to append transcript {}: {err}", path.display()))
-}
-
-fn read_last_transcript_segment(path: &Path) -> Result<Option<TranscriptSegment>, String> {
-    if !path.is_file() {
-        return Ok(None);
-    }
-
-    let content = fs::read_to_string(path)
-        .map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
-    let Some(line) = content.lines().rev().find(|line| !line.trim().is_empty()) else {
-        return Ok(None);
-    };
-    serde_json::from_str(line)
-        .map(Some)
-        .map_err(|err| format!("Invalid transcript line in {}: {err}", path.display()))
-}
-
 pub(crate) fn write_transcript_jsonl(
     path: &Path,
     segments: &[TranscriptSegment],
@@ -170,21 +129,11 @@ pub(crate) fn write_transcript_jsonl(
     write_text_atomic(path, &content)
 }
 
-fn transcript_segment_order(
-    left: &TranscriptSegment,
-    right: &TranscriptSegment,
-) -> std::cmp::Ordering {
-    left.start_ms
-        .cmp(&right.start_ms)
-        .then_with(|| left.end_ms.cmp(&right.end_ms))
-        .then_with(|| left.source.cmp(&right.source))
-}
-
 #[cfg(test)]
 mod tests {
     use std::{env, fs, time::UNIX_EPOCH};
 
-    use super::{append_live_segment, read_first_segment_text, read_transcript_jsonl};
+    use super::{read_first_segment_text, write_transcript_jsonl};
     use crate::threads::TranscriptSegment;
 
     fn temp_jsonl(name: &str) -> std::path::PathBuf {
@@ -209,35 +158,15 @@ mod tests {
     }
 
     #[test]
-    fn append_live_segment_keeps_jsonl_chronological() {
-        let path = temp_jsonl("transcript-order");
-        let later = segment("Others", "system", 4_000, 8_000, "System section two.");
-        let earlier = segment("You", "mic", 3_000, 12_000, "Microphone checkpoint alpha.");
-
-        append_live_segment(&path, &later).unwrap();
-        append_live_segment(&path, &earlier).unwrap();
-
-        let segments = read_transcript_jsonl(&path).unwrap();
-        let _ = fs::remove_file(&path);
-        assert_eq!(
-            segments
-                .iter()
-                .map(|segment| segment.source.as_str())
-                .collect::<Vec<_>>(),
-            vec!["mic", "system"],
-        );
-    }
-
-    #[test]
     fn snippet_skips_non_speech_annotations_unless_nothing_else_exists() {
         let path = temp_jsonl("transcript-snippet");
         let chirp = segment("You", "mic", 0, 2_000, "(birds chirping)");
         let speech = segment("Others", "system", 1_000, 4_000, "Actual spoken words.");
 
-        append_live_segment(&path, &chirp).unwrap();
+        write_transcript_jsonl(&path, std::slice::from_ref(&chirp)).unwrap();
         let annotation_only = read_first_segment_text(&path).unwrap();
 
-        append_live_segment(&path, &speech).unwrap();
+        write_transcript_jsonl(&path, &[chirp, speech]).unwrap();
         let with_speech = read_first_segment_text(&path).unwrap();
 
         let _ = fs::remove_file(&path);

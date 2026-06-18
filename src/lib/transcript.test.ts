@@ -1,29 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { LiveTranscriptSegmentPayload } from "../bindings/LiveTranscriptSegmentPayload";
-import type { ThreadDetail } from "../bindings/ThreadDetail";
-import type { ThreadSummary } from "../bindings/ThreadSummary";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import {
-  applyLiveSegmentToThread,
-  applyLiveSegmentToThreadList,
   displaySpeaker,
   showsSpeakerHeader,
   sortTranscriptSegments,
   visibleSegments,
 } from "./transcript";
-
-const baseSummary: ThreadSummary = {
-  id: "thread-1",
-  title: "Thread",
-  createdAtMs: 100,
-  updatedAtMs: 100,
-  segmentCount: 1,
-  status: "idle",
-  durationMs: 0,
-  snippet: "",
-  hasAudio: false,
-  path: "/threads/thread-1",
-};
 
 function segment(source: string, startMs: number, endMs: number): TranscriptSegment {
   return {
@@ -32,14 +14,6 @@ function segment(source: string, startMs: number, endMs: number): TranscriptSegm
     startMs,
     endMs,
     text: `${source} ${startMs}`,
-  };
-}
-
-function livePayload(threadId = "thread-1"): LiveTranscriptSegmentPayload {
-  return {
-    threadId,
-    committedUntilMs: 12_000,
-    segment: segment("mic", 3_000, 12_000),
   };
 }
 
@@ -56,48 +30,6 @@ describe("sortTranscriptSegments", () => {
       "3000:system",
       "5000:system",
     ]);
-  });
-});
-
-describe("applyLiveSegmentToThread", () => {
-  test("adds matching live segments and updates the summary", () => {
-    const thread: ThreadDetail = {
-      summary: baseSummary,
-      segments: [segment("system", 4_000, 8_000)],
-      speakerLabels: {},
-      transcriptMarkdownPath: "/tmp/transcript.md",
-    };
-
-    const updated = applyLiveSegmentToThread(thread, livePayload(), 200);
-
-    expect(updated?.segments.map((item) => `${item.startMs}:${item.source}`)).toEqual([
-      "3000:mic",
-      "4000:system",
-    ]);
-    expect(updated?.summary.segmentCount).toBe(2);
-    expect(updated?.summary.updatedAtMs).toBe(200);
-  });
-
-  test("ignores payloads for other threads", () => {
-    const thread: ThreadDetail = {
-      summary: baseSummary,
-      segments: [],
-      speakerLabels: {},
-      transcriptMarkdownPath: "/tmp/transcript.md",
-    };
-
-    expect(applyLiveSegmentToThread(thread, livePayload("other"), 200)).toBe(thread);
-  });
-});
-
-describe("applyLiveSegmentToThreadList", () => {
-  test("increments only the matching thread", () => {
-    const other = { ...baseSummary, id: "thread-2" };
-    const updated = applyLiveSegmentToThreadList([baseSummary, other], livePayload(), 200);
-
-    expect(updated[0].segmentCount).toBe(2);
-    expect(updated[0].updatedAtMs).toBe(200);
-    expect(updated[1]).toBe(other);
   });
 });
 

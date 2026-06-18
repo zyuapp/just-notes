@@ -55,12 +55,6 @@ pub(crate) struct TranscriptionPaths {
     pub(crate) available_models: Vec<WhisperModelStatus>,
 }
 
-#[derive(Clone, Copy)]
-enum ModelUse {
-    Live,
-    Finalize,
-}
-
 pub(crate) fn discover_whisper_models(model_dir: &Path) -> Vec<WhisperModelStatus> {
     WHISPER_MODEL_CANDIDATES
         .iter()
@@ -77,18 +71,10 @@ pub(crate) fn discover_whisper_models(model_dir: &Path) -> Vec<WhisperModelStatu
         .collect()
 }
 
-pub(crate) fn live_transcription_paths(paths: &AppPaths) -> TranscriptionPaths {
-    transcription_paths_for(paths, ModelUse::Live)
-}
-
 pub(crate) fn finalization_transcription_paths(paths: &AppPaths) -> TranscriptionPaths {
-    transcription_paths_for(paths, ModelUse::Finalize)
-}
-
-fn transcription_paths_for(paths: &AppPaths, model_use: ModelUse) -> TranscriptionPaths {
     let mut available_models =
         discover_whisper_models(&paths.data_dir.join("models").join("whisper"));
-    let selected_model = select_model(&available_models, model_use);
+    let selected_model = select_model(&available_models);
     for model in &mut available_models {
         model.selected = model.filename == selected_model.filename;
     }
@@ -100,20 +86,17 @@ fn transcription_paths_for(paths: &AppPaths, model_use: ModelUse) -> Transcripti
     }
 }
 
-fn select_model(
-    available_models: &[WhisperModelStatus],
-    model_use: ModelUse,
-) -> WhisperModelStatus {
-    let installed = match model_use {
-        ModelUse::Live => available_models.iter().rev().find(|model| model.installed),
-        ModelUse::Finalize => available_models.iter().find(|model| model.installed),
-    };
-    installed.cloned().unwrap_or_else(|| {
-        available_models
-            .last()
-            .expect("whisper model candidates")
-            .clone()
-    })
+fn select_model(available_models: &[WhisperModelStatus]) -> WhisperModelStatus {
+    available_models
+        .iter()
+        .find(|model| model.installed)
+        .cloned()
+        .unwrap_or_else(|| {
+            available_models
+                .last()
+                .expect("whisper model candidates")
+                .clone()
+        })
 }
 
 #[cfg(test)]
@@ -124,20 +107,8 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::{finalization_transcription_paths, live_transcription_paths};
+    use super::finalization_transcription_paths;
     use crate::app::AppPaths;
-
-    #[test]
-    fn live_transcription_prefers_the_fastest_installed_model() {
-        let fixture = ModelDirFixture::new();
-        fixture.install("ggml-base.en.bin");
-        fixture.install("ggml-small.en.bin");
-
-        let paths = live_transcription_paths(&fixture.app_paths());
-
-        assert_eq!(paths.model_name, "base.en");
-        assert!(selected_model(&paths.available_models, "base.en"));
-    }
 
     #[test]
     fn finalization_prefers_the_largest_installed_model() {
@@ -167,7 +138,7 @@ mod tests {
     fn missing_models_fall_back_to_base_model_path() {
         let fixture = ModelDirFixture::new();
 
-        let paths = live_transcription_paths(&fixture.app_paths());
+        let paths = finalization_transcription_paths(&fixture.app_paths());
 
         assert_eq!(paths.model_name, "base.en");
         assert!(paths.model_path.ends_with("ggml-base.en.bin"));

@@ -166,7 +166,7 @@ pub(crate) fn load_thread_detail(thread_dir: &Path) -> Result<ThreadDetail, Stri
 }
 
 pub(crate) fn thread_has_audio(thread_dir: &Path) -> bool {
-    thread_dir.join("mic.wav").is_file() || thread_dir.join("system.wav").is_file()
+    super::RecordingAudioPaths::for_thread_dir(thread_dir).has_any()
 }
 
 fn load_thread_summary(thread_dir: &Path) -> Result<ThreadSummary, String> {

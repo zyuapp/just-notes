@@ -6,7 +6,7 @@ type AppDispatch = (action: AppAction) => void;
 
 const FINALIZATION_TERMINAL_STATES = new Set(["done", "failed", "cancelled"]);
 
-export function useLiveTranscriptEvents(
+export function useAppEvents(
   dispatch: AppDispatch,
   onFinalizationSettled: (threadId: string) => void,
 ) {
@@ -14,15 +14,6 @@ export function useLiveTranscriptEvents(
     const subscriptions = [
       api.events.onMeter((payload) => {
         dispatch({ type: "meterReceived", payload });
-      }),
-      api.events.onLiveTranscriptSegment((payload) => {
-        dispatch({ type: "liveSegmentReceived", payload, updatedAtMs: Date.now() });
-      }),
-      api.events.onLiveTranscriptStatus((payload) => {
-        dispatch({ type: "liveStatusReceived", payload });
-      }),
-      api.events.onLiveTranscriptError((payload) => {
-        dispatch({ type: "liveErrorReceived", payload });
       }),
       api.events.onRecordingStopped((detail) => {
         dispatch({ type: "recordingStopped", detail });

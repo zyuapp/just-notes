@@ -73,7 +73,7 @@ export function SettingsView({
           </div>
           <SettingsToggle
             label="Save raw audio"
-            description="Keep mic.wav and system.wav with each recording, and use them to polish the transcript after you stop."
+            description="Keep mic.wav and system.wav after the transcript is polished."
             checked={settings.saveRawAudio}
             onToggle={onToggleRawAudio}
           />
@@ -141,4 +141,3 @@ export function SettingsView({
     </div>
   );
 }
-
