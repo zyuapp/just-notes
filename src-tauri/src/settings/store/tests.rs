@@ -9,7 +9,7 @@ fn settings_round_trip_and_defaults() {
     let dir = env::temp_dir().join(format!("just-notes-settings-{}", std::process::id()));
     fs::create_dir_all(&dir).unwrap();
 
-    let defaults = load_settings(&dir);
+    let defaults = load_settings(&dir, TranscriptionProviderPreference::default);
     assert!(defaults.save_raw_audio);
     assert!(defaults.markdown_copy);
     assert_eq!(defaults.transcripts_dir, None);
@@ -21,7 +21,7 @@ fn settings_round_trip_and_defaults() {
         transcription_provider: TranscriptionProviderPreference::Whisper,
     };
     save_settings(&dir, &custom).unwrap();
-    let loaded = load_settings(&dir);
+    let loaded = load_settings(&dir, TranscriptionProviderPreference::default);
     assert_eq!(loaded.transcripts_dir.as_deref(), Some("/tmp/notes"));
     assert!(!loaded.save_raw_audio);
     assert_eq!(
@@ -46,24 +46,19 @@ fn settings_round_trip_and_defaults() {
 }
 
 #[test]
-fn missing_provider_preserves_existing_whisper_install() {
+fn missing_provider_uses_supplied_default() {
     let dir = env::temp_dir().join(format!(
         "just-notes-settings-whisper-upgrade-{}",
         std::process::id()
     ));
-    fs::create_dir_all(dir.join("models").join("whisper")).unwrap();
-    fs::write(
-        dir.join("models").join("whisper").join("ggml-small.en.bin"),
-        "",
-    )
-    .unwrap();
+    fs::create_dir_all(&dir).unwrap();
     fs::write(
         dir.join("settings.json"),
         r#"{"saveRawAudio":true,"markdownCopy":true,"transcriptsDir":null}"#,
     )
     .unwrap();
 
-    let loaded = load_settings(&dir);
+    let loaded = load_settings(&dir, || TranscriptionProviderPreference::Whisper);
 
     assert_eq!(
         loaded.transcription_provider,
@@ -74,19 +69,14 @@ fn missing_provider_preserves_existing_whisper_install() {
 }
 
 #[test]
-fn missing_settings_file_preserves_existing_whisper_install() {
+fn missing_settings_file_uses_supplied_default() {
     let dir = env::temp_dir().join(format!(
         "just-notes-settings-no-file-whisper-upgrade-{}",
         std::process::id()
     ));
-    fs::create_dir_all(dir.join("models").join("whisper")).unwrap();
-    fs::write(
-        dir.join("models").join("whisper").join("ggml-small.en.bin"),
-        "",
-    )
-    .unwrap();
+    fs::create_dir_all(&dir).unwrap();
 
-    let loaded = load_settings(&dir);
+    let loaded = load_settings(&dir, || TranscriptionProviderPreference::Whisper);
 
     assert_eq!(
         loaded.transcription_provider,
@@ -109,7 +99,7 @@ fn missing_provider_keeps_new_default_without_legacy_whisper() {
     )
     .unwrap();
 
-    let loaded = load_settings(&dir);
+    let loaded = load_settings(&dir, TranscriptionProviderPreference::default);
 
     assert_eq!(
         loaded.transcription_provider,

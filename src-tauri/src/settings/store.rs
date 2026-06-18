@@ -6,19 +6,6 @@ use std::{
 
 use crate::app::AppPaths;
 
-const LEGACY_WHISPER_MODEL_FILES: [&str; 3] = [
-    "ggml-medium.en.bin",
-    "ggml-small.en.bin",
-    "ggml-base.en.bin",
-];
-const PARAKEET_MODEL_ID: &str = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8";
-const PARAKEET_MODEL_FILES: [&str; 4] = [
-    "encoder.int8.onnx",
-    "decoder.int8.onnx",
-    "joiner.int8.onnx",
-    "tokens.txt",
-];
-
 #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export)]
@@ -77,10 +64,13 @@ pub(crate) fn settings_path(data_dir: &Path) -> PathBuf {
     data_dir.join("settings.json")
 }
 
-pub(crate) fn load_settings(data_dir: &Path) -> AppSettings {
+pub(crate) fn load_settings(
+    data_dir: &Path,
+    default_transcription_provider: impl FnOnce() -> TranscriptionProviderPreference,
+) -> AppSettings {
     let path = settings_path(data_dir);
     let Ok(json) = fs::read_to_string(&path) else {
-        return settings_with_upgrade_provider(data_dir);
+        return settings_with_transcription_provider(default_transcription_provider());
     };
     let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
         return AppSettings::default();
@@ -88,41 +78,18 @@ pub(crate) fn load_settings(data_dir: &Path) -> AppSettings {
     let missing_provider = value.get("transcriptionProvider").is_none();
     let mut settings = serde_json::from_value::<AppSettings>(value).unwrap_or_default();
     if missing_provider {
-        settings.transcription_provider = default_provider_for_upgrade(data_dir);
+        settings.transcription_provider = default_transcription_provider();
     }
     settings
 }
 
-fn settings_with_upgrade_provider(data_dir: &Path) -> AppSettings {
+fn settings_with_transcription_provider(
+    transcription_provider: TranscriptionProviderPreference,
+) -> AppSettings {
     AppSettings {
-        transcription_provider: default_provider_for_upgrade(data_dir),
+        transcription_provider,
         ..AppSettings::default()
     }
-}
-
-fn default_provider_for_upgrade(data_dir: &Path) -> TranscriptionProviderPreference {
-    if !parakeet_model_exists(data_dir) && whisper_model_exists(data_dir) {
-        TranscriptionProviderPreference::Whisper
-    } else {
-        TranscriptionProviderPreference::default()
-    }
-}
-
-fn parakeet_model_exists(data_dir: &Path) -> bool {
-    let model_dir = data_dir
-        .join("models")
-        .join("parakeet")
-        .join(PARAKEET_MODEL_ID);
-    PARAKEET_MODEL_FILES
-        .iter()
-        .all(|filename| model_dir.join(filename).is_file())
-}
-
-fn whisper_model_exists(data_dir: &Path) -> bool {
-    let model_dir = data_dir.join("models").join("whisper");
-    LEGACY_WHISPER_MODEL_FILES
-        .iter()
-        .any(|filename| model_dir.join(filename).is_file())
 }
 
 pub(crate) fn save_settings(data_dir: &Path, settings: &AppSettings) -> Result<(), String> {
