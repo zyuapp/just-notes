@@ -1,3 +1,5 @@
+mod icon;
+
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
@@ -31,7 +33,9 @@ pub(crate) fn init_tray(
         ],
     )?;
 
-    let mut builder = TrayIconBuilder::with_id(TRAY_ID)
+    TrayIconBuilder::with_id(TRAY_ID)
+        .icon(icon::template_icon())
+        .icon_as_template(true)
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(move |app, event| match event.id().as_ref() {
@@ -44,13 +48,8 @@ pub(crate) fn init_tray(
             }
             "tray-quit" => app.exit(0),
             _ => {}
-        });
-    if let Some(icon) = app.default_window_icon().cloned() {
-        builder = builder.icon(icon).icon_as_template(true);
-    } else {
-        builder = builder.title("Just Notes");
-    }
-    builder.build(app)?;
+        })
+        .build(app)?;
 
     app.manage(TrayMenuItems { status, stop });
     Ok(())
