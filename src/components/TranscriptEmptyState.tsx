@@ -1,28 +1,20 @@
 import { Mic } from "lucide-react";
-import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
-import { downloadActionLabel, downloadPercent } from "../lib/transcriptionModel";
-import { DownloadingLabel } from "./DownloadingLabel";
+import type { RecorderState } from "../features/app/state";
 
 type TranscriptEmptyStateProps = {
   hasThread: boolean;
-  canStart: boolean;
+  recorderState: RecorderState;
   transcriptionStatus: TranscriptionStatusPayload | null;
-  onStartModelDownload: () => void;
-  onStartRecording: () => void;
 };
 
 export function TranscriptEmptyState({
   hasThread,
-  canStart,
+  recorderState,
   transcriptionStatus,
-  onStartModelDownload,
-  onStartRecording,
 }: TranscriptEmptyStateProps) {
-  const selectedModel = transcriptionStatus?.availableModels.find((model) => model.selected);
-  const missingSelectedModel = Boolean(transcriptionStatus && !transcriptionStatus.ready);
-  const primaryAction =
-    missingSelectedModel && selectedModel?.canDownload ? onStartModelDownload : onStartRecording;
+  const capturing = recorderState !== "idle";
+  const modelMissing = !capturing && Boolean(transcriptionStatus && !transcriptionStatus.ready);
 
   return (
     <div className="empty-state">
@@ -30,31 +22,17 @@ export function TranscriptEmptyState({
         <Mic size={20} aria-hidden="true" />
       </div>
       <div>
-        <h2>{hasThread ? "Ready when you are" : "Ready to capture"}</h2>
-        <p>
-          {hasThread
-            ? "Start recording to add the first transcript segment to this thread."
-            : "Start recording to capture your first transcript."}
-        </p>
-      </div>
-      <div className="empty-actions">
-        <button
-          type="button"
-          className="empty-primary"
-          onClick={primaryAction}
-          disabled={!canStart || (missingSelectedModel && !selectedModel?.canDownload)}
-        >
-          <span className="record-glyph" aria-hidden="true" />
-          <span>{missingSelectedModel ? emptyDownloadLabel(selectedModel) : "Start recording"}</span>
-        </button>
+        <h2>{capturing ? "Listening…" : hasThread ? "Ready when you are" : "Ready to capture"}</h2>
+        <p>{emptyHint(capturing, modelMissing, hasThread)}</p>
       </div>
     </div>
   );
 }
 
-function emptyDownloadLabel(model: TranscriptionModelStatus | undefined) {
-  if (!model) return "Model required";
-  if (model.downloadState === "downloading") return <DownloadingLabel percent={downloadPercent(model)} />;
-  if (model.downloadState === "installing") return "Installing model";
-  return downloadActionLabel();
+function emptyHint(capturing: boolean, modelMissing: boolean, hasThread: boolean) {
+  if (capturing) return "Your transcript will appear here as you speak.";
+  if (modelMissing) return "Download the transcription model below to start.";
+  return hasThread
+    ? "Press Record below to add the first transcript segment to this thread."
+    : "Press Record below to capture your first transcript.";
 }

@@ -39,37 +39,3 @@
   font-size: 13px;
   line-height: 1.55;
 }
-
-.empty-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.empty-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 30px;
-  cursor: pointer;
-  font-size: 12.5px;
-}
-
-.empty-primary {
-  padding: 0 14px;
-  border: 1px solid rgba(229, 72, 77, 0.5);
-  border-radius: 15px;
-  color: var(--text-bright);
-  font-weight: 600;
-}
-
-.empty-primary:hover:not(:disabled) {
-  background: var(--red-soft);
-}
-
-.empty-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
