@@ -112,3 +112,6 @@ fn selected_model_message(
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
