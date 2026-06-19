@@ -26,7 +26,6 @@ export type AppState = {
   finalization: FinalizationStatusPayload | null;
   settingsOpen: boolean;
   archiveOpen: boolean;
-  archivedNotice: { threadId: string; title: string } | null;
   error: string | null;
 };
 
@@ -51,7 +50,6 @@ export const initialAppState: AppState = {
   finalization: null,
   settingsOpen: false,
   archiveOpen: false,
-  archivedNotice: null,
   error: null,
 };
 
@@ -70,7 +68,6 @@ export type AppAction =
   | { type: "threadSelected"; detail: ThreadDetail }
   | { type: "threadUpdated"; detail: ThreadDetail }
   | { type: "threadArchived"; summary: ThreadSummary }
-  | { type: "archiveNoticeCleared"; threadId?: string }
   | { type: "archiveOpenChanged"; open: boolean }
   | { type: "settingsLoaded"; settings: AppSettings }
   | { type: "transcriptionStatusLoaded"; transcriptionStatus: TranscriptionStatusPayload }

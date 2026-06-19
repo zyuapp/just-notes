@@ -4,6 +4,7 @@ import type { AppInfo } from "../bindings/AppInfo";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
 import { ThreadContextMenu } from "./ThreadContextMenu";
 import { ThreadList } from "./ThreadList";
+import { useArchiveFlight } from "./useArchiveFlight";
 
 type ThreadSidebarProps = {
   activeThreadId: string | null;
@@ -43,9 +44,15 @@ export function ThreadSidebar({
   onRevealStorage,
 }: ThreadSidebarProps) {
   const [menu, setMenu] = useState<ThreadMenuState | null>(null);
+  const { iconRef, scopeRef, flyToArchive } = useArchiveFlight();
+
+  const handleArchive = (threadId: string) => {
+    flyToArchive(threadId);
+    onArchiveThread(threadId);
+  };
 
   return (
-    <aside className="thread-sidebar" aria-label="Threads">
+    <aside className="thread-sidebar" aria-label="Threads" ref={scopeRef}>
       <div className="sidebar-drag" data-tauri-drag-region="" />
       <header className="sidebar-head" data-tauri-drag-region="">
         <div className="brand">
@@ -84,6 +91,7 @@ export function ThreadSidebar({
 
       <footer className="sidebar-foot">
         <button
+          ref={iconRef}
           type="button"
           className="icon-button"
           onClick={onOpenArchive}
@@ -119,7 +127,7 @@ export function ThreadSidebar({
           onClose={() => setMenu(null)}
           onExport={onExportThread}
           onReveal={onRevealThread}
-          onArchive={onArchiveThread}
+          onArchive={handleArchive}
         />
       )}
     </aside>

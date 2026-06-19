@@ -40,7 +40,7 @@ export function useThreadActions(
       const wasSelected = state.selectedThreadId === targetId;
       try {
         await api.threads.archive(targetId);
-        // Optimistically drop the row and raise the undo notice when we know it.
+        // Optimistically drop the row and bounce the archive icon when we know it.
         if (summary) {
           dispatch({ type: "threadArchived", summary });
         }
@@ -60,8 +60,6 @@ export function useThreadActions(
 
   const restoreThread = useCallback(
     async (targetId: string) => {
-      // Retract the undo affordance up front so it can't race the restore.
-      dispatch({ type: "archiveNoticeCleared", threadId: targetId });
       try {
         await api.threads.restore(targetId);
         await refreshThreads();
@@ -69,20 +67,18 @@ export function useThreadActions(
         fail(error);
       }
     },
-    [dispatch, fail, refreshThreads],
+    [fail, refreshThreads],
   );
 
   const deleteArchivedThread = useCallback(
     async (targetId: string) => {
-      // A deleted thread can't be restored, so retract the undo before deleting.
-      dispatch({ type: "archiveNoticeCleared", threadId: targetId });
       try {
         await api.threads.delete(targetId);
       } catch (error) {
         fail(error);
       }
     },
-    [dispatch, fail],
+    [fail],
   );
 
   const renameSpeaker = useCallback(

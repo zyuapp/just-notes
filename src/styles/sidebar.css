@@ -100,3 +100,37 @@
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-2);
 }
+
+/* Pill that flies from a thread row into the archive icon when a thread is archived. */
+.archive-fly {
+  position: fixed;
+  z-index: 60;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  padding: 7px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--raised);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.archive-fly-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+.archive-fly-title {
+  overflow: hidden;
+  max-width: 200px;
+  text-overflow: ellipsis;
+}

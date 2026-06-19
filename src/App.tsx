@@ -3,7 +3,6 @@ import { ArchivedView } from "./components/ArchivedView";
 import { SettingsView } from "./components/SettingsView";
 import { ThreadSidebar } from "./components/ThreadSidebar";
 import { TranscriptPanel } from "./components/TranscriptPanel";
-import { UndoToast } from "./components/UndoToast";
 import { buildNotice } from "./features/app/buildNotice";
 import { appReducer, getActiveThreadId, getStatusLabel, initialAppState } from "./features/app/state";
 import { useAppEvents } from "./features/app/useAppEvents";
@@ -26,11 +25,6 @@ export default function App() {
     [actions.refreshThreads],
   );
   useAppEvents(dispatch, onFinalizationSettled);
-
-  const dismissArchiveNotice = useCallback(
-    () => dispatch({ type: "archiveNoticeCleared" }),
-    [dispatch],
-  );
 
   const activeThreadId = getActiveThreadId(state);
   const statusLabel = useMemo(() => getStatusLabel(state), [state]);
@@ -118,13 +112,6 @@ export default function App() {
           onDeletePermanently={(threadId) => threadActions.deleteArchivedThread(threadId)}
         />
       )}
-      <UndoToast
-        notice={state.archivedNotice}
-        onUndo={() => {
-          if (state.archivedNotice) void threadActions.restoreThread(state.archivedNotice.threadId);
-        }}
-        onDismiss={dismissArchiveNotice}
-      />
     </main>
   );
 }

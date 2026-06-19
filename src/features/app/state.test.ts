@@ -100,7 +100,7 @@ describe("appReducer", () => {
     expect(updated.threads[0].title).toBe("Renamed");
   });
 
-  test("removes the thread, clears selection, and sets the undo notice when archived", () => {
+  test("removes the thread and clears selection when archived", () => {
     const state = {
       ...initialAppState,
       threads: [summary],
@@ -113,7 +113,6 @@ describe("appReducer", () => {
     expect(updated.threads).toHaveLength(0);
     expect(updated.selectedThreadId).toBeNull();
     expect(updated.selectedThread).toBeNull();
-    expect(updated.archivedNotice).toEqual({ threadId: "thread-1", title: "Thread" });
   });
 
   test("stores finalization progress", () => {
