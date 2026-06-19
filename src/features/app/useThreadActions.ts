@@ -33,18 +33,21 @@ export function useThreadActions(
     [dispatch, fail, threadId],
   );
 
-  const deleteThread = useCallback(async () => {
-    if (!threadId) return;
-    try {
-      const index = state.threads.findIndex((thread) => thread.id === threadId);
-      const neighbor = state.threads[index + 1] ?? state.threads[index - 1];
-      await api.threads.delete(threadId);
-      dispatch({ type: "threadDeleted", threadId });
-      await refreshThreads(neighbor?.id);
-    } catch (error) {
-      fail(error);
-    }
-  }, [dispatch, fail, refreshThreads, state.threads, threadId]);
+  const deleteThread = useCallback(
+    async (targetId: string) => {
+      try {
+        const index = state.threads.findIndex((thread) => thread.id === targetId);
+        const neighbor = state.threads[index + 1] ?? state.threads[index - 1];
+        await api.threads.delete(targetId);
+        dispatch({ type: "threadDeleted", threadId: targetId });
+        const keepSelected = state.selectedThreadId && state.selectedThreadId !== targetId;
+        await refreshThreads(keepSelected ? state.selectedThreadId ?? undefined : neighbor?.id);
+      } catch (error) {
+        fail(error);
+      }
+    },
+    [dispatch, fail, refreshThreads, state.threads, state.selectedThreadId],
+  );
 
   const renameSpeaker = useCallback(
     async (speaker: string, label: string) => {
@@ -83,15 +86,17 @@ export function useThreadActions(
     }
   }, [fail, selected]);
 
-  const exportMarkdown = useCallback(async () => {
-    if (!threadId) return;
-    try {
-      const path = await api.threads.exportMarkdown(threadId);
-      await api.system.revealInFinder(path);
-    } catch (error) {
-      fail(error);
-    }
-  }, [fail, threadId]);
+  const exportMarkdown = useCallback(
+    async (targetId: string) => {
+      try {
+        const path = await api.threads.exportMarkdown(targetId);
+        await api.system.revealInFinder(path);
+      } catch (error) {
+        fail(error);
+      }
+    },
+    [fail],
+  );
 
   const revealPath = useCallback(
     async (path: string) => {

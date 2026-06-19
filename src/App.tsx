@@ -60,6 +60,9 @@ export default function App() {
         onSearchChange={search.setQuery}
         onCreateThread={actions.createThread}
         onSelectThread={(threadId) => void actions.selectThread(threadId)}
+        onExportThread={(threadId) => void threadActions.exportMarkdown(threadId)}
+        onRevealThread={(path) => void threadActions.revealPath(path)}
+        onDeleteThread={(threadId) => void threadActions.deleteThread(threadId)}
         onOpenSettings={settingsActions.openSettings}
         onRevealStorage={() => {
           if (state.appInfo) void threadActions.revealPath(state.appInfo.threadsDir);

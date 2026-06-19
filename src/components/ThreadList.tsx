@@ -9,6 +9,7 @@ type ThreadListProps = {
   threads: ThreadSummary[];
   searching: boolean;
   onSelectThread: (threadId: string) => void;
+  onOpenMenu: (thread: ThreadSummary, x: number, y: number) => void;
 };
 
 export function ThreadList({
@@ -17,6 +18,7 @@ export function ThreadList({
   threads,
   searching,
   onSelectThread,
+  onOpenMenu,
 }: ThreadListProps) {
   if (threads.length === 0) {
     return (
@@ -40,6 +42,7 @@ export function ThreadList({
               active={thread.id === activeThreadId}
               selected={thread.id === selectedThreadId}
               onSelect={() => onSelectThread(thread.id)}
+              onOpenMenu={(x, y) => onOpenMenu(thread, x, y)}
             />
           ))}
         </section>
@@ -53,9 +56,10 @@ type ThreadItemProps = {
   active: boolean;
   selected: boolean;
   onSelect: () => void;
+  onOpenMenu: (x: number, y: number) => void;
 };
 
-function ThreadItem({ thread, active, selected, onSelect }: ThreadItemProps) {
+function ThreadItem({ thread, active, selected, onSelect, onOpenMenu }: ThreadItemProps) {
   const transcribing = thread.status === "transcribing";
   const metaParts = [];
   if (thread.durationMs > 0) metaParts.push(formatDuration(thread.durationMs));
@@ -70,6 +74,10 @@ function ThreadItem({ thread, active, selected, onSelect }: ThreadItemProps) {
       type="button"
       className={selected ? "thread-item selected" : "thread-item"}
       onClick={onSelect}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onOpenMenu(event.clientX, event.clientY);
+      }}
     >
       <span className="thread-row">
         {(active || transcribing) && (
