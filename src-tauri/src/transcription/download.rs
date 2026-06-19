@@ -64,7 +64,7 @@ impl DownloadSnapshot {
         Self::new(TranscriptionModelDownloadState::Idle, 0, total_bytes, None)
     }
 
-    fn active(&self) -> bool {
+    pub(super) fn active(&self) -> bool {
         matches!(
             self.state,
             TranscriptionModelDownloadState::Downloading

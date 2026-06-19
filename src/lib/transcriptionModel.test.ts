@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
-import { downloadActionLabel, downloadPercent } from "./transcriptionModel";
+import { downloadActionLabel, downloadPercent, isModelDownloadActive } from "./transcriptionModel";
 
 function model(overrides: Partial<TranscriptionModelStatus>): TranscriptionModelStatus {
   return {
@@ -45,5 +45,18 @@ describe("downloadActionLabel", () => {
     expect(downloadActionLabel(model({ provider: "whisper", name: "small.en" }))).toBe(
       "Download small.en",
     );
+  });
+});
+
+describe("isModelDownloadActive", () => {
+  test("true while downloading or installing", () => {
+    expect(isModelDownloadActive(model({ downloadState: "downloading" }))).toBe(true);
+    expect(isModelDownloadActive(model({ downloadState: "installing" }))).toBe(true);
+  });
+
+  test("false when idle, failed, or cancelled", () => {
+    for (const downloadState of ["idle", "failed", "cancelled"] as const) {
+      expect(isModelDownloadActive(model({ downloadState }))).toBe(false);
+    }
   });
 });

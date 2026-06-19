@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import type { TranscriptionProvider } from "../../bindings/TranscriptionProvider";
+import { isModelDownloadActive } from "../../lib/transcriptionModel";
 import type { AppAction, AppState } from "./state";
 
 type AppDispatch = (action: AppAction) => void;
@@ -47,9 +48,7 @@ export function useTranscriptionModelController(state: AppState, dispatch: AppDi
 
   useEffect(() => {
     const selectedModel = state.transcriptionStatus?.availableModels.find((model) => model.selected);
-    const activeDownload =
-      selectedModel?.downloadState === "downloading" || selectedModel?.downloadState === "installing";
-    if (!activeDownload) return undefined;
+    if (!selectedModel || !isModelDownloadActive(selectedModel)) return undefined;
 
     const timer = window.setTimeout(() => {
       void refreshTranscriptionStatus();

@@ -59,10 +59,7 @@ pub(crate) fn transcription_status_with_downloads(
 
 fn apply_download_state(model: &mut TranscriptionModelStatus, downloads: &ModelDownloadState) {
     let snapshot = downloads.snapshot_for(model.provider, model.total_bytes);
-    let active = matches!(
-        snapshot.state,
-        TranscriptionModelDownloadState::Downloading | TranscriptionModelDownloadState::Installing
-    );
+    let active = snapshot.active();
     model.download_state = snapshot.state;
     model.progress_bytes = snapshot.progress_bytes;
     model.total_bytes = snapshot.total_bytes;

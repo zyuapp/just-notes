@@ -5,7 +5,11 @@ import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelSta
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
 import { formatDuration } from "../lib/format";
-import { downloadActionLabel, downloadPercent } from "../lib/transcriptionModel";
+import {
+  downloadActionLabel,
+  downloadPercent,
+  isModelDownloadActive,
+} from "../lib/transcriptionModel";
 import { CaptureMeter } from "./CaptureMeter";
 
 type CaptureBarProps = {
@@ -52,8 +56,7 @@ export function CaptureBar({
   const selectedModel = transcriptionStatus?.availableModels.find((model) => model.selected);
   const missingSelectedModel =
     recorderState === "idle" && Boolean(transcriptionStatus && !transcriptionStatus.ready);
-  const activeDownload =
-    selectedModel?.downloadState === "downloading" || selectedModel?.downloadState === "installing";
+  const activeDownload = Boolean(selectedModel && isModelDownloadActive(selectedModel));
   const whisperInstalled = transcriptionStatus?.availableModels.some(
     (model) => model.provider === "whisper" && model.installed,
   );

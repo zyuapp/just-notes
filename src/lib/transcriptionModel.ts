@@ -8,3 +8,7 @@ export function downloadPercent(model: TranscriptionModelStatus): number {
 export function downloadActionLabel(model: TranscriptionModelStatus): string {
   return model.provider === "parakeet" ? "Download Parakeet" : `Download ${model.name}`;
 }
+
+export function isModelDownloadActive(model: TranscriptionModelStatus): boolean {
+  return model.downloadState === "downloading" || model.downloadState === "installing";
+}
