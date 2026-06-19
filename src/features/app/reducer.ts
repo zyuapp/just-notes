@@ -36,23 +36,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           state.recordingThreadId === threadId ? null : state.recordingThreadId,
         selectedThread:
           state.selectedThread?.summary.id === threadId ? null : state.selectedThread,
-        archivedNotice: { threadId, title: action.summary.title },
       };
     }
-    case "archiveNoticeCleared":
-      // A targeted clear (from restore/permanent-delete of a specific thread)
-      // must compare against current state, not a value captured in a stale
-      // closure; an untargeted clear (the auto-dismiss timer) always clears.
-      if (action.threadId && state.archivedNotice?.threadId !== action.threadId) return state;
-      return { ...state, archivedNotice: null };
     case "archiveOpenChanged":
-      // Opening the archive view retires the undo affordance: the user is now
-      // managing archived threads directly, so the toast would be redundant.
-      return {
-        ...state,
-        archiveOpen: action.open,
-        archivedNotice: action.open ? null : state.archivedNotice,
-      };
+      return { ...state, archiveOpen: action.open };
     case "settingsLoaded":
       return { ...state, settings: action.settings };
     case "transcriptionStatusLoaded":

@@ -73,6 +73,7 @@ function ThreadItem({ thread, active, selected, onSelect, onOpenMenu }: ThreadIt
     <button
       type="button"
       className={selected ? "thread-item selected" : "thread-item"}
+      data-thread-id={thread.id}
       onClick={onSelect}
       onContextMenu={(event) => {
         event.preventDefault();
