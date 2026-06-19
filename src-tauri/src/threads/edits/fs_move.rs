@@ -81,3 +81,65 @@ fn copy_dir_all(source: &Path, dest: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{env, fs, path::Path, time::UNIX_EPOCH};
+
+    use super::{copy_dir_all, move_thread_dir};
+
+    fn temp_root(name: &str) -> std::path::PathBuf {
+        let stamp = UNIX_EPOCH.elapsed().unwrap().as_nanos();
+        env::temp_dir().join(format!("just-notes-fsmove-{name}-{stamp}"))
+    }
+
+    #[test]
+    fn copy_dir_all_reproduces_files_subdirs_and_symlinks() {
+        let root = temp_root("copy");
+        let source = root.join("source");
+        let dest = root.join("dest");
+        fs::create_dir_all(source.join("work")).unwrap();
+        fs::write(source.join("thread.json"), "{}").unwrap();
+        fs::write(source.join("work/audio.bin"), b"pcm").unwrap();
+        std::os::unix::fs::symlink("thread.json", source.join("latest.json")).unwrap();
+
+        copy_dir_all(&source, &dest).unwrap();
+
+        assert_eq!(fs::read_to_string(dest.join("thread.json")).unwrap(), "{}");
+        assert_eq!(
+            fs::read(dest.join("work/audio.bin")).unwrap(),
+            b"pcm".to_vec()
+        );
+        // The symlink is recreated as a link, not dereferenced into a copy.
+        assert_eq!(
+            fs::read_link(dest.join("latest.json")).unwrap(),
+            Path::new("thread.json")
+        );
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn move_thread_dir_refuses_to_overwrite_an_existing_destination() {
+        let root = temp_root("collision");
+        let source = root.join("source");
+        let dest = root.join("dest");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join("thread.json"), "source").unwrap();
+        fs::create_dir_all(&dest).unwrap();
+        fs::write(dest.join("thread.json"), "dest").unwrap();
+
+        assert!(move_thread_dir(&source, &dest).is_err());
+        // Neither store was touched: both originals remain intact.
+        assert_eq!(
+            fs::read_to_string(source.join("thread.json")).unwrap(),
+            "source"
+        );
+        assert_eq!(
+            fs::read_to_string(dest.join("thread.json")).unwrap(),
+            "dest"
+        );
+
+        let _ = fs::remove_dir_all(&root);
+    }
+}

@@ -1,8 +1,9 @@
 import { ArchiveRestore, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
 import { formatThreadDate } from "../lib/format";
 import { useConfirmAction } from "./useConfirmAction";
+import { useDismissOnEscape } from "./useDismissOnEscape";
 
 type ArchivedViewProps = {
   items: ThreadSummary[] | null;
@@ -22,19 +23,7 @@ export function ArchivedView({
   onDeletePermanently,
 }: ArchivedViewProps) {
   const [busy, setBusy] = useState(false);
-
-  // macOS webviews never deliver keydown for Escape (tauri#5790); keyup does.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("keyup", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("keyup", onKey);
-    };
-  }, [onClose]);
+  useDismissOnEscape(onClose);
 
   // Reload after a mutation so the list reflects what actually happened, even
   // when the action reported an error through the app toast. The busy flag

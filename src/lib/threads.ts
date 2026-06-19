@@ -1,6 +1,20 @@
+import type { ThreadDetail } from "../bindings/ThreadDetail";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
 
 export type ThreadGroup = { label: string; threads: ThreadSummary[] };
+
+// Resolve a thread's summary by id from the loaded list, falling back to the
+// open thread (which may not be in the list, e.g. a filtered search view).
+export function findThreadSummary(
+  threads: ThreadSummary[],
+  selectedThread: ThreadDetail | null,
+  threadId: string,
+): ThreadSummary | null {
+  return (
+    threads.find((thread) => thread.id === threadId) ??
+    (selectedThread?.summary.id === threadId ? selectedThread.summary : null)
+  );
+}
 
 export function groupThreadsByDay(threads: ThreadSummary[], now = new Date()): ThreadGroup[] {
   // In-place updates (rename, live segments) leave the list out of order between

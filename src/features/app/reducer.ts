@@ -46,7 +46,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       if (action.threadId && state.archivedNotice?.threadId !== action.threadId) return state;
       return { ...state, archivedNotice: null };
     case "archiveOpenChanged":
-      return { ...state, archiveOpen: action.open };
+      // Opening the archive view retires the undo affordance: the user is now
+      // managing archived threads directly, so the toast would be redundant.
+      return {
+        ...state,
+        archiveOpen: action.open,
+        archivedNotice: action.open ? null : state.archivedNotice,
+      };
     case "settingsLoaded":
       return { ...state, settings: action.settings };
     case "transcriptionStatusLoaded":

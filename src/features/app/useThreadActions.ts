@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import { formatDuration } from "../../lib/format";
-import { neighborThreadId } from "../../lib/threads";
+import { findThreadSummary, neighborThreadId } from "../../lib/threads";
 import { transcriptToText } from "../../lib/transcript";
 import type { AppAction, AppState } from "./state";
 
@@ -36,19 +36,18 @@ export function useThreadActions(
 
   const archiveThread = useCallback(
     async (targetId: string) => {
+      const summary = findThreadSummary(state.threads, state.selectedThread, targetId);
+      const wasSelected = state.selectedThreadId === targetId;
       try {
-        const summary =
-          state.threads.find((thread) => thread.id === targetId) ??
-          (state.selectedThread?.summary.id === targetId ? state.selectedThread.summary : null);
-        const wasSelected = state.selectedThreadId === targetId;
-        const neighborId = wasSelected ? neighborThreadId(state.threads, targetId) : undefined;
         await api.threads.archive(targetId);
+        // Optimistically drop the row and raise the undo notice when we know it.
         if (summary) {
           dispatch({ type: "threadArchived", summary });
         }
-        // Open thread needs a neighbor selected; a missing summary needs a refresh.
+        // Reconcile from the backend: the open thread needs a neighbor selected,
+        // and a thread we couldn't drop optimistically needs a refetch.
         if (wasSelected) {
-          await refreshThreads(neighborId);
+          await refreshThreads(neighborThreadId(state.threads, targetId));
         } else if (!summary) {
           await refreshThreads();
         }

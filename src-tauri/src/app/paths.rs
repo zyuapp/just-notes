@@ -1,5 +1,9 @@
 use std::{env, fs, path::PathBuf};
 
+// The archive store's directory name under the data dir. Single source of truth
+// so the live and settings-overlay paths can't drift apart.
+pub(crate) const ARCHIVED_DIR_NAME: &str = "archived";
+
 #[derive(Clone)]
 pub(crate) struct AppPaths {
     pub(crate) data_dir: PathBuf,
@@ -17,7 +21,7 @@ impl AppPaths {
         let data_dir = home.join(".just-notes");
         Ok(Self {
             threads_dir: data_dir.join("threads"),
-            archived_dir: data_dir.join("archived"),
+            archived_dir: data_dir.join(ARCHIVED_DIR_NAME),
             data_dir,
         })
     }

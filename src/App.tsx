@@ -119,7 +119,7 @@ export default function App() {
         />
       )}
       <UndoToast
-        notice={state.archiveOpen ? null : state.archivedNotice}
+        notice={state.archivedNotice}
         onUndo={() => {
           if (state.archivedNotice) void threadActions.restoreThread(state.archivedNotice.threadId);
         }}

@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::app::AppPaths;
+use crate::app::{AppPaths, ARCHIVED_DIR_NAME};
 
 #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase", default)]
@@ -98,7 +98,7 @@ pub(crate) fn validate_settings(base: &AppPaths, settings: &AppSettings) -> Resu
         .data_dir
         .canonicalize()
         .unwrap_or_else(|_| base.data_dir.clone());
-    let archived_dir = data_dir.join("archived");
+    let archived_dir = data_dir.join(ARCHIVED_DIR_NAME);
     if data_dir.starts_with(&dir) || dir.starts_with(&archived_dir) {
         return Err(
             "The transcripts folder can't contain or sit inside the Just Notes data \
@@ -117,7 +117,9 @@ pub(crate) fn effective_paths(base: &AppPaths, settings: &AppSettings) -> AppPat
         .unwrap_or_else(|| base.data_dir.join("threads"));
     AppPaths {
         threads_dir,
-        archived_dir: base.data_dir.join("archived"),
+        // The archive store stays under the data dir regardless of a custom
+        // transcripts folder, so it never lands inside the crawled corpus.
+        archived_dir: base.archived_dir.clone(),
         data_dir: base.data_dir.clone(),
     }
 }
