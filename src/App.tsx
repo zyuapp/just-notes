@@ -22,7 +22,7 @@ export default function App() {
   const actions = useJustNotesController(state, dispatch);
   const threadActions = useThreadActions(state, dispatch, actions.refreshThreads);
   const settingsActions = useSettingsController(state, dispatch, actions.bootstrap);
-  const search = useThreadSearch(dispatch);
+  const search = useThreadSearch(dispatch, state.threads);
 
   const onFinalizationSettled = useCallback(
     () => void actions.refreshThreads(),

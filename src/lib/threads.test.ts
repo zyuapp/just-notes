@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
-import { groupThreadsByDay, nextSelectedAfterDelete } from "./threads";
+import { groupThreadsByDay, neighborThreadId } from "./threads";
 
 function thread(id: string, updatedAtMs: number): ThreadSummary {
   return {
@@ -60,26 +60,22 @@ describe("groupThreadsByDay", () => {
   });
 });
 
-describe("nextSelectedAfterDelete", () => {
+describe("neighborThreadId", () => {
   const threads = [thread("a", 3), thread("b", 2), thread("c", 1)];
 
-  test("keeps the current selection when a different thread is deleted", () => {
-    expect(nextSelectedAfterDelete(threads, "a", "c")).toBe("a");
+  test("returns the following thread", () => {
+    expect(neighborThreadId(threads, "b")).toBe("c");
   });
 
-  test("falls to the following neighbor when the selected thread is deleted", () => {
-    expect(nextSelectedAfterDelete(threads, "b", "b")).toBe("c");
+  test("returns the previous thread when the last one is removed", () => {
+    expect(neighborThreadId(threads, "c")).toBe("b");
   });
 
-  test("falls to the previous neighbor when the last thread is deleted", () => {
-    expect(nextSelectedAfterDelete(threads, "c", "c")).toBe("b");
+  test("returns undefined when it is the only thread", () => {
+    expect(neighborThreadId([thread("a", 1)], "a")).toBeUndefined();
   });
 
-  test("returns undefined when the only thread is deleted", () => {
-    expect(nextSelectedAfterDelete([thread("a", 1)], "a", "a")).toBeUndefined();
-  });
-
-  test("falls to a neighbor when nothing is selected", () => {
-    expect(nextSelectedAfterDelete(threads, null, "a")).toBe("b");
+  test("returns undefined when the thread is absent", () => {
+    expect(neighborThreadId(threads, "missing")).toBeUndefined();
   });
 });

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import { formatDuration } from "../../lib/format";
-import { nextSelectedAfterDelete } from "../../lib/threads";
+import { neighborThreadId } from "../../lib/threads";
 import { transcriptToText } from "../../lib/transcript";
 import type { AppAction, AppState } from "./state";
 
@@ -37,10 +37,16 @@ export function useThreadActions(
   const deleteThread = useCallback(
     async (targetId: string) => {
       try {
-        const nextSelectedId = nextSelectedAfterDelete(state.threads, state.selectedThreadId, targetId);
+        const wasSelected = state.selectedThreadId === targetId;
+        const neighborId = wasSelected ? neighborThreadId(state.threads, targetId) : undefined;
         await api.threads.delete(targetId);
         dispatch({ type: "threadDeleted", threadId: targetId });
-        await refreshThreads(nextSelectedId);
+        // Deleting the open thread needs a neighbor selected; deleting any other
+        // thread is fully handled by the optimistic removal, so skip the refresh
+        // that would otherwise re-fetch the still-open thread.
+        if (wasSelected) {
+          await refreshThreads(neighborId);
+        }
       } catch (error) {
         fail(error);
       }
