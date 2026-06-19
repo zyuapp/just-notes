@@ -8,17 +8,20 @@ use std::{
 };
 
 mod install;
-mod settings;
 
-use crate::{app::AppPaths, settings::SettingsState};
+use crate::app::AppPaths;
 
 use super::{
     artifact_for_provider, ModelArtifact, TranscriptionModelDownloadState, TranscriptionProvider,
 };
-use settings::persist_selected_provider;
 
 type DownloadSnapshots = Arc<Mutex<HashMap<TranscriptionProvider, DownloadSnapshot>>>;
 type DownloadCancellations = Arc<Mutex<HashMap<TranscriptionProvider, Arc<AtomicBool>>>>;
+
+/// Invoked on the download worker thread after a model installs successfully.
+/// The download flow stays unaware of settings; the caller decides what a
+/// completed install means (e.g. switching the active provider preference).
+pub(crate) type OnInstalled = Box<dyn FnOnce() + Send + 'static>;
 
 #[derive(Clone, Default)]
 pub(crate) struct ModelDownloadState {
@@ -30,7 +33,7 @@ struct DownloadJob {
     provider: TranscriptionProvider,
     artifact: ModelArtifact,
     paths: AppPaths,
-    settings: SettingsState,
+    on_installed: OnInstalled,
     cancellation: Arc<AtomicBool>,
 }
 
@@ -87,7 +90,7 @@ impl ModelDownloadState {
         &self,
         provider: TranscriptionProvider,
         paths: AppPaths,
-        settings: SettingsState,
+        on_installed: OnInstalled,
     ) -> Result<(), String> {
         let artifact = artifact_for_provider(provider)
             .ok_or_else(|| format!("{} is not downloadable", provider.display_name()))?;
@@ -106,7 +109,7 @@ impl ModelDownloadState {
             provider,
             artifact,
             paths,
-            settings,
+            on_installed,
             cancellation,
         });
         Ok(())
@@ -203,7 +206,7 @@ impl ModelDownloadState {
     fn finish_download(&self, job: DownloadJob, result: Result<(), install::DownloadError>) {
         match result {
             Ok(()) => {
-                persist_selected_provider(&job.paths, &job.settings, job.provider);
+                (job.on_installed)();
                 self.set_snapshot(
                     job.provider,
                     DownloadSnapshot::idle(job.artifact.archive_bytes),

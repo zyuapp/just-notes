@@ -2,7 +2,7 @@ use tauri::State;
 
 use crate::{
     app::AppPaths,
-    settings::SettingsState,
+    settings::{set_transcription_provider, SettingsState},
     transcription::{
         transcription_status_with_downloads, ModelDownloadState, TranscriptionProvider,
         TranscriptionStatusPayload,
@@ -29,7 +29,15 @@ pub(crate) fn start_transcription_model_download(
     downloads: State<'_, ModelDownloadState>,
     provider: TranscriptionProvider,
 ) -> Result<TranscriptionStatusPayload, String> {
-    downloads.start_download(provider, paths.inner().clone(), settings.inner().clone())?;
+    let persist_paths = paths.inner().clone();
+    let persist_settings = settings.inner().clone();
+    downloads.start_download(
+        provider,
+        paths.inner().clone(),
+        Box::new(move || {
+            set_transcription_provider(&persist_paths, &persist_settings, provider.into());
+        }),
+    )?;
     Ok(transcription_status_with_downloads(
         &paths,
         settings.snapshot().transcription_provider.into(),

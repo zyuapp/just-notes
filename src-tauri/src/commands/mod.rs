@@ -23,3 +23,12 @@ impl From<TranscriptionProviderPreference> for TranscriptionProvider {
         }
     }
 }
+
+impl From<TranscriptionProvider> for TranscriptionProviderPreference {
+    fn from(provider: TranscriptionProvider) -> Self {
+        match provider {
+            TranscriptionProvider::Parakeet => Self::Parakeet,
+            TranscriptionProvider::Whisper => Self::Whisper,
+        }
+    }
+}

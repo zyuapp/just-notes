@@ -92,6 +92,18 @@ fn settings_with_transcription_provider(
     }
 }
 
+pub(crate) fn set_transcription_provider(
+    paths: &AppPaths,
+    settings: &SettingsState,
+    provider: TranscriptionProviderPreference,
+) {
+    let mut next = settings.snapshot();
+    next.transcription_provider = provider;
+    if save_settings(&paths.data_dir, &next).is_ok() {
+        settings.replace(next);
+    }
+}
+
 pub(crate) fn save_settings(data_dir: &Path, settings: &AppSettings) -> Result<(), String> {
     let path = settings_path(data_dir);
     let json = serde_json::to_string_pretty(settings)
