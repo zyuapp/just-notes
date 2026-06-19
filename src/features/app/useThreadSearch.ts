@@ -7,7 +7,7 @@ type AppDispatch = (action: AppAction) => void;
 
 const SEARCH_DEBOUNCE_MS = 200;
 
-export function useThreadSearch(dispatch: AppDispatch) {
+export function useThreadSearch(dispatch: AppDispatch, threads: ThreadSummary[]) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ThreadSummary[] | null>(null);
 
@@ -22,8 +22,8 @@ export function useThreadSearch(dispatch: AppDispatch) {
     const handle = setTimeout(() => {
       api.threads
         .search(trimmed)
-        .then((threads) => {
-          if (!cancelled) setResults(threads);
+        .then((matches) => {
+          if (!cancelled) setResults(matches);
         })
         .catch((error) => {
           if (!cancelled) dispatch({ type: "failed", message: getApiErrorMessage(error) });
@@ -35,6 +35,16 @@ export function useThreadSearch(dispatch: AppDispatch) {
       clearTimeout(handle);
     };
   }, [dispatch, query]);
+
+  // Drop results for threads that no longer exist (e.g. deleted) so the filtered
+  // list can't show stale rows that error when clicked.
+  useEffect(() => {
+    setResults((current) => {
+      if (current === null) return null;
+      const live = current.filter((result) => threads.some((thread) => thread.id === result.id));
+      return live.length === current.length ? current : live;
+    });
+  }, [threads]);
 
   return { query, setQuery, results };
 }

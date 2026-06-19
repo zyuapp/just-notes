@@ -21,6 +21,16 @@ export function groupThreadsByDay(threads: ThreadSummary[], now = new Date()): T
   return groups;
 }
 
+// Thread to fall back to once `threadId` is removed: the one after it, or the
+// one before if it was last. `undefined` when there is no neighbor or the id is
+// not present.
+export function neighborThreadId(threads: ThreadSummary[], threadId: string): string | undefined {
+  const index = threads.findIndex((thread) => thread.id === threadId);
+  if (index === -1) return undefined;
+  const neighbor = threads[index + 1] ?? threads[index - 1];
+  return neighbor?.id;
+}
+
 function dayLabel(date: Date, now: Date): string {
   const dayStart = (value: Date) =>
     new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import { formatDuration } from "../../lib/format";
+import { neighborThreadId } from "../../lib/threads";
 import { transcriptToText } from "../../lib/transcript";
 import type { AppAction, AppState } from "./state";
 
@@ -33,18 +34,25 @@ export function useThreadActions(
     [dispatch, fail, threadId],
   );
 
-  const deleteThread = useCallback(async () => {
-    if (!threadId) return;
-    try {
-      const index = state.threads.findIndex((thread) => thread.id === threadId);
-      const neighbor = state.threads[index + 1] ?? state.threads[index - 1];
-      await api.threads.delete(threadId);
-      dispatch({ type: "threadDeleted", threadId });
-      await refreshThreads(neighbor?.id);
-    } catch (error) {
-      fail(error);
-    }
-  }, [dispatch, fail, refreshThreads, state.threads, threadId]);
+  const deleteThread = useCallback(
+    async (targetId: string) => {
+      try {
+        const wasSelected = state.selectedThreadId === targetId;
+        const neighborId = wasSelected ? neighborThreadId(state.threads, targetId) : undefined;
+        await api.threads.delete(targetId);
+        dispatch({ type: "threadDeleted", threadId: targetId });
+        // Deleting the open thread needs a neighbor selected; deleting any other
+        // thread is fully handled by the optimistic removal, so skip the refresh
+        // that would otherwise re-fetch the still-open thread.
+        if (wasSelected) {
+          await refreshThreads(neighborId);
+        }
+      } catch (error) {
+        fail(error);
+      }
+    },
+    [dispatch, fail, refreshThreads, state.threads, state.selectedThreadId],
+  );
 
   const renameSpeaker = useCallback(
     async (speaker: string, label: string) => {
@@ -83,15 +91,17 @@ export function useThreadActions(
     }
   }, [fail, selected]);
 
-  const exportMarkdown = useCallback(async () => {
-    if (!threadId) return;
-    try {
-      const path = await api.threads.exportMarkdown(threadId);
-      await api.system.revealInFinder(path);
-    } catch (error) {
-      fail(error);
-    }
-  }, [fail, threadId]);
+  const exportMarkdown = useCallback(
+    async (targetId: string) => {
+      try {
+        const path = await api.threads.exportMarkdown(targetId);
+        await api.system.revealInFinder(path);
+      } catch (error) {
+        fail(error);
+      }
+    },
+    [fail],
+  );
 
   const revealPath = useCallback(
     async (path: string) => {

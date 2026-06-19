@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
-import { groupThreadsByDay } from "./threads";
+import { groupThreadsByDay, neighborThreadId } from "./threads";
 
 function thread(id: string, updatedAtMs: number): ThreadSummary {
   return {
@@ -57,5 +57,25 @@ describe("groupThreadsByDay", () => {
 
     expect(groups.map((group) => group.label)).toEqual(["Today", "Yesterday"]);
     expect(groups[1].threads.map((item) => item.id)).toEqual(["b", "c"]);
+  });
+});
+
+describe("neighborThreadId", () => {
+  const threads = [thread("a", 3), thread("b", 2), thread("c", 1)];
+
+  test("returns the following thread", () => {
+    expect(neighborThreadId(threads, "b")).toBe("c");
+  });
+
+  test("returns the previous thread when the last one is removed", () => {
+    expect(neighborThreadId(threads, "c")).toBe("b");
+  });
+
+  test("returns undefined when it is the only thread", () => {
+    expect(neighborThreadId([thread("a", 1)], "a")).toBeUndefined();
+  });
+
+  test("returns undefined when the thread is absent", () => {
+    expect(neighborThreadId(threads, "missing")).toBeUndefined();
   });
 });

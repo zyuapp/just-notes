@@ -99,9 +99,9 @@ export function TranscriptPanel({
           canModify={canModify}
           onQueryChange={setQuery}
           onCopy={() => void threadActions.copyTranscript()}
-          onExport={() => void threadActions.exportMarkdown()}
+          onExport={() => void threadActions.exportMarkdown(selectedThread.summary.id)}
           onReveal={() => void threadActions.revealPath(selectedThread.summary.path)}
-          onDelete={() => void threadActions.deleteThread()}
+          onDelete={() => void threadActions.deleteThread(selectedThread.summary.id)}
           onRenameSpeaker={(speaker, label) => void threadActions.renameSpeaker(speaker, label)}
         />
       )}

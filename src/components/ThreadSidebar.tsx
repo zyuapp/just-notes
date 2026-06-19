@@ -1,6 +1,8 @@
 import { Folder, Plus, Search, Settings } from "lucide-react";
+import { useState } from "react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
+import { ThreadContextMenu } from "./ThreadContextMenu";
 import { ThreadList } from "./ThreadList";
 
 type ThreadSidebarProps = {
@@ -13,9 +15,14 @@ type ThreadSidebarProps = {
   onSearchChange: (query: string) => void;
   onCreateThread: () => void;
   onSelectThread: (threadId: string) => void;
+  onExportThread: (threadId: string) => void;
+  onRevealThread: (path: string) => void;
+  onDeleteThread: (threadId: string) => void;
   onOpenSettings: () => void;
   onRevealStorage: () => void;
 };
+
+type ThreadMenuState = { thread: ThreadSummary; x: number; y: number };
 
 export function ThreadSidebar({
   activeThreadId,
@@ -27,9 +34,14 @@ export function ThreadSidebar({
   onSearchChange,
   onCreateThread,
   onSelectThread,
+  onExportThread,
+  onRevealThread,
+  onDeleteThread,
   onOpenSettings,
   onRevealStorage,
 }: ThreadSidebarProps) {
+  const [menu, setMenu] = useState<ThreadMenuState | null>(null);
+
   return (
     <aside className="thread-sidebar" aria-label="Threads">
       <div className="sidebar-drag" data-tauri-drag-region="" />
@@ -65,6 +77,7 @@ export function ThreadSidebar({
         threads={threads}
         searching={searching}
         onSelectThread={onSelectThread}
+        onOpenMenu={(thread, x, y) => setMenu({ thread, x, y })}
       />
 
       <footer className="sidebar-foot">
@@ -86,6 +99,18 @@ export function ThreadSidebar({
           <span>{appInfo?.threadsDir ?? "Locating storage…"}</span>
         </button>
       </footer>
+
+      {menu && (
+        <ThreadContextMenu
+          thread={menu.thread}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          onExport={onExportThread}
+          onReveal={onRevealThread}
+          onDelete={onDeleteThread}
+        />
+      )}
     </aside>
   );
 }

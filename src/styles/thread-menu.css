@@ -1,0 +1,63 @@
+.thread-menu {
+  position: fixed;
+  z-index: 50;
+  display: grid;
+  gap: 1px;
+  min-width: 184px;
+  padding: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--raised);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.thread-menu-item {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.thread-menu-item svg {
+  flex: 0 0 auto;
+  color: var(--text-2);
+}
+
+.thread-menu-item:hover {
+  background: var(--blue-soft);
+  color: var(--text-bright);
+}
+
+.thread-menu-item:hover svg {
+  color: var(--text-bright);
+}
+
+.thread-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--line);
+}
+
+.thread-menu-item.danger {
+  color: #ff9d99;
+}
+
+.thread-menu-item.danger svg {
+  color: #ff9d99;
+}
+
+.thread-menu-item.danger:hover,
+.thread-menu-item.danger.armed {
+  background: var(--red-soft);
+  color: #ff9d99;
+}
+
+.thread-menu-item.danger.armed {
+  font-weight: 500;
+}
