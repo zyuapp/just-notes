@@ -13,6 +13,7 @@ use crate::app::AppPaths;
 use super::{DownloadSnapshot, ModelDownloadState};
 use crate::transcription::{ModelArtifact, TranscriptionModelDownloadState};
 
+#[derive(Debug)]
 pub(super) enum DownloadError {
     Cancelled,
     Failed(String),
@@ -201,3 +202,6 @@ fn cleanup_path(path: &Path) -> Result<(), DownloadError> {
 fn format_io(action: &'static str) -> impl FnOnce(std::io::Error) -> DownloadError {
     move |err| DownloadError::Failed(format!("Failed to {action}: {err}"))
 }
+
+#[cfg(test)]
+mod tests;

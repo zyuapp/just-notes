@@ -246,3 +246,6 @@ fn already_running(provider: TranscriptionProvider) -> Result<(), String> {
         provider.display_name()
     ))
 }
+
+#[cfg(test)]
+mod tests;
