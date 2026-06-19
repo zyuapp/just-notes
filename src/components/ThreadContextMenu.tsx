@@ -1,6 +1,7 @@
 import { FileDown, FolderOpen, Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
+import { useConfirmAction } from "./useConfirmAction";
 
 type ThreadContextMenuProps = {
   thread: ThreadSummary;
@@ -25,7 +26,10 @@ export function ThreadContextMenu({
 }: ThreadContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x, y });
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const confirmDelete = useConfirmAction(() => {
+    onDelete(thread.id);
+    onClose();
+  });
 
   useLayoutEffect(() => {
     const menu = ref.current;
@@ -35,7 +39,7 @@ export function ThreadContextMenu({
       x: Math.max(EDGE_GAP, Math.min(x, window.innerWidth - width - EDGE_GAP)),
       y: Math.max(EDGE_GAP, Math.min(y, window.innerHeight - height - EDGE_GAP)),
     });
-  }, [x, y, confirmingDelete]);
+  }, [x, y, confirmDelete.armed]);
 
   useEffect(() => {
     const dismiss = (event: MouseEvent) => {
@@ -87,18 +91,11 @@ export function ThreadContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={confirmingDelete ? "thread-menu-item danger armed" : "thread-menu-item danger"}
-        onClick={() => {
-          if (confirmingDelete) {
-            onDelete(thread.id);
-            onClose();
-          } else {
-            setConfirmingDelete(true);
-          }
-        }}
+        className={confirmDelete.armed ? "thread-menu-item danger armed" : "thread-menu-item danger"}
+        onClick={confirmDelete.trigger}
       >
         <Trash2 size={14} aria-hidden="true" />
-        <span>{confirmingDelete ? "Confirm delete" : "Delete"}</span>
+        <span>{confirmDelete.armed ? "Confirm delete" : "Delete"}</span>
       </button>
     </div>
   );

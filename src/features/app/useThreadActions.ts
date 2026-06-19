@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import { formatDuration } from "../../lib/format";
+import { nextSelectedAfterDelete } from "../../lib/threads";
 import { transcriptToText } from "../../lib/transcript";
 import type { AppAction, AppState } from "./state";
 
@@ -36,12 +37,10 @@ export function useThreadActions(
   const deleteThread = useCallback(
     async (targetId: string) => {
       try {
-        const index = state.threads.findIndex((thread) => thread.id === targetId);
-        const neighbor = state.threads[index + 1] ?? state.threads[index - 1];
+        const nextSelectedId = nextSelectedAfterDelete(state.threads, state.selectedThreadId, targetId);
         await api.threads.delete(targetId);
         dispatch({ type: "threadDeleted", threadId: targetId });
-        const keepSelected = state.selectedThreadId && state.selectedThreadId !== targetId;
-        await refreshThreads(keepSelected ? state.selectedThreadId ?? undefined : neighbor?.id);
+        await refreshThreads(nextSelectedId);
       } catch (error) {
         fail(error);
       }

@@ -1,5 +1,6 @@
 import { Copy, FileDown, FolderOpen, Search, Trash2, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useConfirmAction } from "./useConfirmAction";
 
 type TranscriptToolbarProps = {
   query: string;
@@ -27,15 +28,7 @@ export function TranscriptToolbar({
   onRenameSpeaker,
 }: TranscriptToolbarProps) {
   const [showSpeakers, setShowSpeakers] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  // macOS WebKit does not focus buttons on click, so blur alone never fires;
-  // disarm the confirm state on a timer as well.
-  useEffect(() => {
-    if (!confirmDelete) return;
-    const timer = setTimeout(() => setConfirmDelete(false), 4000);
-    return () => clearTimeout(timer);
-  }, [confirmDelete]);
+  const confirmDelete = useConfirmAction(onDelete);
 
   return (
     <div className="transcript-toolbar">
@@ -71,21 +64,14 @@ export function TranscriptToolbar({
         </button>
         <button
           type="button"
-          className={confirmDelete ? "toolbar-delete armed" : "toolbar-delete"}
-          onClick={() => {
-            if (confirmDelete) {
-              setConfirmDelete(false);
-              onDelete();
-            } else {
-              setConfirmDelete(true);
-            }
-          }}
-          onBlur={() => setConfirmDelete(false)}
+          className={confirmDelete.armed ? "toolbar-delete armed" : "toolbar-delete"}
+          onClick={confirmDelete.trigger}
+          onBlur={confirmDelete.reset}
           title="Delete thread"
           aria-label="Delete thread"
           disabled={!canModify}
         >
-          {confirmDelete ? <span>Confirm</span> : <Trash2 size={15} aria-hidden="true" />}
+          {confirmDelete.armed ? <span>Confirm</span> : <Trash2 size={15} aria-hidden="true" />}
         </button>
       </div>
       {showSpeakers && (

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
-import { groupThreadsByDay } from "./threads";
+import { groupThreadsByDay, nextSelectedAfterDelete } from "./threads";
 
 function thread(id: string, updatedAtMs: number): ThreadSummary {
   return {
@@ -57,5 +57,29 @@ describe("groupThreadsByDay", () => {
 
     expect(groups.map((group) => group.label)).toEqual(["Today", "Yesterday"]);
     expect(groups[1].threads.map((item) => item.id)).toEqual(["b", "c"]);
+  });
+});
+
+describe("nextSelectedAfterDelete", () => {
+  const threads = [thread("a", 3), thread("b", 2), thread("c", 1)];
+
+  test("keeps the current selection when a different thread is deleted", () => {
+    expect(nextSelectedAfterDelete(threads, "a", "c")).toBe("a");
+  });
+
+  test("falls to the following neighbor when the selected thread is deleted", () => {
+    expect(nextSelectedAfterDelete(threads, "b", "b")).toBe("c");
+  });
+
+  test("falls to the previous neighbor when the last thread is deleted", () => {
+    expect(nextSelectedAfterDelete(threads, "c", "c")).toBe("b");
+  });
+
+  test("returns undefined when the only thread is deleted", () => {
+    expect(nextSelectedAfterDelete([thread("a", 1)], "a", "a")).toBeUndefined();
+  });
+
+  test("falls to a neighbor when nothing is selected", () => {
+    expect(nextSelectedAfterDelete(threads, null, "a")).toBe("b");
   });
 });

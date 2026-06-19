@@ -21,6 +21,22 @@ export function groupThreadsByDay(threads: ThreadSummary[], now = new Date()): T
   return groups;
 }
 
+// Pick the thread to select after deleting `deletedId`: keep the current
+// selection unless it was the deleted thread, otherwise fall to a neighbor.
+// `undefined` means no preference, letting the caller apply its own fallback.
+export function nextSelectedAfterDelete(
+  threads: ThreadSummary[],
+  selectedThreadId: string | null,
+  deletedId: string,
+): string | undefined {
+  if (selectedThreadId !== null && selectedThreadId !== deletedId) {
+    return selectedThreadId;
+  }
+  const index = threads.findIndex((thread) => thread.id === deletedId);
+  const neighbor = threads[index + 1] ?? threads[index - 1];
+  return neighbor?.id;
+}
+
 function dayLabel(date: Date, now: Date): string {
   const dayStart = (value: Date) =>
     new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
