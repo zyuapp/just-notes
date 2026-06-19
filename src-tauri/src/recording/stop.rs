@@ -17,7 +17,6 @@ use crate::{
     transcription::{
         emit_finalization_failure, finalization_transcription_selection, spawn_finalization,
         FinalizationAudioArtifacts, FinalizationConfig, FinalizationStart, FinalizeState,
-        TranscriptionProvider,
     },
     tray,
 };
@@ -118,7 +117,7 @@ fn spawn_final_transcription(config: FinishAudioTranscription<'_>) {
         audio_artifacts: config.audio_artifacts.clone(),
         model_selection: finalization_transcription_selection(
             config.paths,
-            selected_transcription_provider(config.transcription_provider),
+            config.transcription_provider.into(),
         ),
         markdown_copy: config.markdown_copy,
     });
@@ -133,15 +132,6 @@ fn spawn_final_transcription(config: FinishAudioTranscription<'_>) {
         Err(err) => {
             emit_transcription_failure(config.app, config.thread_id, config.audio_artifacts, err)
         }
-    }
-}
-
-fn selected_transcription_provider(
-    provider: TranscriptionProviderPreference,
-) -> TranscriptionProvider {
-    match provider {
-        TranscriptionProviderPreference::Parakeet => TranscriptionProvider::Parakeet,
-        TranscriptionProviderPreference::Whisper => TranscriptionProvider::Whisper,
     }
 }
 

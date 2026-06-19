@@ -2,7 +2,7 @@ use tauri::State;
 
 use crate::{
     app::AppPaths,
-    settings::{SettingsState, TranscriptionProviderPreference},
+    settings::SettingsState,
     transcription::{
         transcription_status_with_downloads, ModelDownloadState, TranscriptionProvider,
         TranscriptionStatusPayload,
@@ -17,7 +17,7 @@ pub(crate) fn get_transcription_status(
 ) -> Result<TranscriptionStatusPayload, String> {
     Ok(transcription_status_with_downloads(
         &paths,
-        selected_transcription_provider(settings.snapshot().transcription_provider),
+        settings.snapshot().transcription_provider.into(),
         &downloads,
     ))
 }
@@ -32,7 +32,7 @@ pub(crate) fn start_transcription_model_download(
     downloads.start_download(provider, paths.inner().clone(), settings.inner().clone())?;
     Ok(transcription_status_with_downloads(
         &paths,
-        selected_transcription_provider(settings.snapshot().transcription_provider),
+        settings.snapshot().transcription_provider.into(),
         &downloads,
     ))
 }
@@ -47,16 +47,7 @@ pub(crate) fn cancel_transcription_model_download(
     downloads.cancel_download(provider);
     Ok(transcription_status_with_downloads(
         &paths,
-        selected_transcription_provider(settings.snapshot().transcription_provider),
+        settings.snapshot().transcription_provider.into(),
         &downloads,
     ))
-}
-
-fn selected_transcription_provider(
-    provider: TranscriptionProviderPreference,
-) -> TranscriptionProvider {
-    match provider {
-        TranscriptionProviderPreference::Parakeet => TranscriptionProvider::Parakeet,
-        TranscriptionProviderPreference::Whisper => TranscriptionProvider::Whisper,
-    }
 }
