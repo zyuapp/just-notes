@@ -38,6 +38,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case "settingsLoaded":
       return { ...state, settings: action.settings };
+    case "transcriptionStatusLoaded":
+      return { ...state, transcriptionStatus: action.transcriptionStatus };
     case "permissionsLoaded":
       return { ...state, permissions: action.permissions };
     case "settingsOpenChanged":

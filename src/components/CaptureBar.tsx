@@ -1,5 +1,7 @@
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
+import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
+import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
 import { formatDuration } from "../lib/format";
@@ -13,9 +15,12 @@ type CaptureBarProps = {
   selectedThreadId: string | null;
   statusLabel: string;
   fixtureMode: boolean;
+  onCancelModelDownload: (provider: TranscriptionProvider) => void;
+  onStartModelDownload: (provider: TranscriptionProvider) => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onStartFixtureRecording: () => void;
+  onUseWhisper: () => void;
 };
 
 export function CaptureBar({
@@ -26,9 +31,12 @@ export function CaptureBar({
   selectedThreadId,
   statusLabel,
   fixtureMode,
+  onCancelModelDownload,
+  onStartModelDownload,
   onStartRecording,
   onStopRecording,
   onStartFixtureRecording,
+  onUseWhisper,
 }: CaptureBarProps) {
   const isRecording = recorderState === "recording";
   const busy = recorderState === "starting" || recorderState === "stopping";
@@ -40,19 +48,50 @@ export function CaptureBar({
     (capturing
       ? "Recording — transcript ready when you stop"
       : (transcriptionStatus?.message ?? "Checking local transcription…"));
+  const selectedModel = transcriptionStatus?.availableModels.find((model) => model.selected);
+  const missingSelectedModel =
+    recorderState === "idle" && Boolean(transcriptionStatus && !transcriptionStatus.ready);
+  const activeDownload =
+    selectedModel?.downloadState === "downloading" || selectedModel?.downloadState === "installing";
+  const whisperInstalled = transcriptionStatus?.availableModels.some(
+    (model) => model.provider === "whisper" && model.installed,
+  );
+  const showWhisperFallback =
+    missingSelectedModel && selectedModel?.provider === "parakeet" && Boolean(whisperInstalled);
+  const recordButtonLabel = buttonLabel(isRecording, busy, statusLabel, selectedModel);
+  const recordButtonAction =
+    missingSelectedModel && selectedModel?.canDownload
+      ? () => onStartModelDownload(selectedModel.provider)
+      : isRecording
+        ? onStopRecording
+        : onStartRecording;
 
   return (
     <footer className={isRecording ? "capture-bar recording" : "capture-bar"}>
       <button
         type="button"
         className="record-button"
-        onClick={isRecording ? onStopRecording : onStartRecording}
-        disabled={busy}
+        onClick={recordButtonAction}
+        disabled={busy || (missingSelectedModel && !selectedModel?.canDownload)}
         aria-label={statusLabel}
       >
         <span className="record-glyph" aria-hidden="true" />
-        <span>{isRecording ? "Stop" : busy ? `${statusLabel}…` : "Record"}</span>
+        <span>{recordButtonLabel}</span>
       </button>
+      {activeDownload && selectedModel?.canCancel && (
+        <button
+          type="button"
+          className="capture-secondary"
+          onClick={() => onCancelModelDownload(selectedModel.provider)}
+        >
+          Cancel
+        </button>
+      )}
+      {showWhisperFallback && (
+        <button type="button" className="capture-secondary" onClick={onUseWhisper}>
+          Use Whisper
+        </button>
+      )}
       {capturing && <time className="capture-elapsed">{formatDuration(meters.elapsedMs)}</time>}
       {capturing && (
         <div className="capture-meters">
@@ -73,4 +112,27 @@ export function CaptureBar({
       )}
     </footer>
   );
+}
+
+function buttonLabel(
+  isRecording: boolean,
+  busy: boolean,
+  statusLabel: string,
+  selectedModel: TranscriptionModelStatus | undefined,
+) {
+  if (isRecording) return "Stop";
+  if (busy) return `${statusLabel}…`;
+  if (!selectedModel?.installed && selectedModel?.downloadable) {
+    if (selectedModel.downloadState === "downloading") {
+      return `Downloading ${downloadPercent(selectedModel)}%`;
+    }
+    if (selectedModel.downloadState === "installing") return "Installing";
+    return `Download ${selectedModel.provider === "parakeet" ? "Parakeet" : selectedModel.name}`;
+  }
+  return "Record";
+}
+
+function downloadPercent(model: TranscriptionModelStatus) {
+  if (model.totalBytes === 0) return 0;
+  return Math.min(100, Math.floor((model.progressBytes * 100) / model.totalBytes));
 }

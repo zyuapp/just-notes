@@ -7,7 +7,6 @@ use crate::{
     ipc::{AppInfo, PermissionsPayload},
     platform,
     settings::SettingsState,
-    transcription::{transcription_status, TranscriptionStatusPayload},
 };
 
 #[tauri::command]
@@ -21,13 +20,6 @@ pub(crate) fn get_app_info(
         threads_dir: paths.threads_dir.display().to_string(),
         fixture_mode: cfg!(any(debug_assertions, feature = "qa-fixtures")),
     }
-}
-
-#[tauri::command]
-pub(crate) fn get_transcription_status(
-    paths: State<'_, AppPaths>,
-) -> Result<TranscriptionStatusPayload, String> {
-    Ok(transcription_status(&paths))
 }
 
 #[tauri::command]

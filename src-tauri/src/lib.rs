@@ -14,19 +14,22 @@ mod tray;
 
 use app::AppPaths;
 use recording::RecorderState;
-use settings::SettingsState;
+use settings::{SettingsState, TranscriptionProviderPreference};
 use threads::repository::reset_stale_recording_threads;
-use transcription::FinalizeState;
+use transcription::{FinalizeState, ModelDownloadState, TranscriptionProvider};
 
 pub fn run() {
     let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
-    let initial_settings = settings::load_settings(&paths.data_dir);
+    let initial_settings = settings::load_settings(&paths.data_dir, || {
+        default_transcription_provider_for_upgrade(&paths)
+    });
 
     let builder = Builder::default()
         .manage(paths)
         .manage(RecorderState::default())
         .manage(SettingsState::new(initial_settings))
         .manage(FinalizeState::default())
+        .manage(ModelDownloadState::default())
         .setup(|app| {
             let paths = app.state::<AppPaths>();
             let settings = app.state::<SettingsState>().snapshot();
@@ -44,6 +47,20 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Just Notes")
         .run(handle_run_event);
+}
+
+fn default_transcription_provider_for_upgrade(paths: &AppPaths) -> TranscriptionProviderPreference {
+    let parakeet_installed =
+        transcription::finalization_transcription_selection(paths, TranscriptionProvider::Parakeet)
+            .is_installed();
+    let whisper_installed =
+        transcription::finalization_transcription_selection(paths, TranscriptionProvider::Whisper)
+            .is_installed();
+    if !parakeet_installed && whisper_installed {
+        TranscriptionProviderPreference::Whisper
+    } else {
+        TranscriptionProviderPreference::default()
+    }
 }
 
 // A recording must be stopped (WAV headers finalized, duration persisted)
@@ -84,7 +101,9 @@ fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
 fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
     builder.invoke_handler(tauri::generate_handler![
         commands::system::get_app_info,
-        commands::system::get_transcription_status,
+        commands::transcription::get_transcription_status,
+        commands::transcription::start_transcription_model_download,
+        commands::transcription::cancel_transcription_model_download,
         commands::system::get_permissions_status,
         commands::system::reveal_in_finder,
         commands::system::copy_text_to_clipboard,
@@ -115,7 +134,9 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
 fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
     builder.invoke_handler(tauri::generate_handler![
         commands::system::get_app_info,
-        commands::system::get_transcription_status,
+        commands::transcription::get_transcription_status,
+        commands::transcription::start_transcription_model_download,
+        commands::transcription::cancel_transcription_model_download,
         commands::system::get_permissions_status,
         commands::system::reveal_in_finder,
         commands::system::copy_text_to_clipboard,

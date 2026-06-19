@@ -36,6 +36,18 @@ const otherDetail: ThreadDetail = {
   summary: otherSummary,
 };
 
+const transcriptionStatus = {
+  ready: true,
+  engineExists: true,
+  modelExists: true,
+  enginePath: "/tmp/engine",
+  modelPath: "/tmp/model",
+  modelName: "small.en",
+  provider: "whisper" as const,
+  availableModels: [],
+  message: "Ready",
+};
+
 describe("appReducer", () => {
   test("selects threads from details", () => {
     const state = appReducer(initialAppState, { type: "threadSelected", detail });
@@ -47,16 +59,7 @@ describe("appReducer", () => {
   test("marks recording as active after recording starts", () => {
     const payload: RecordingPayload = {
       thread: detail,
-      transcription: {
-        ready: true,
-        engineExists: true,
-        modelExists: true,
-        enginePath: "/tmp/engine",
-        modelPath: "/tmp/model",
-        modelName: "small.en",
-        availableModels: [],
-        message: "Ready",
-      },
+      transcription: transcriptionStatus,
     };
 
     const state = appReducer(initialAppState, { type: "recordingStarted", payload });
@@ -71,16 +74,7 @@ describe("appReducer", () => {
   test("keeps the active recording thread stable while selecting another thread", () => {
     const payload: RecordingPayload = {
       thread: detail,
-      transcription: {
-        ready: true,
-        engineExists: true,
-        modelExists: true,
-        enginePath: "/tmp/engine",
-        modelPath: "/tmp/model",
-        modelName: "small.en",
-        availableModels: [],
-        message: "Ready",
-      },
+      transcription: transcriptionStatus,
     };
     const recording = appReducer(
       { ...initialAppState, threads: [summary, otherSummary] },
@@ -129,5 +123,29 @@ describe("appReducer", () => {
     });
 
     expect(updated.finalization?.state).toBe("running");
+  });
+
+  test("updates transcription status without changing selected thread", () => {
+    const state = {
+      ...initialAppState,
+      threads: [summary, otherSummary],
+      selectedThreadId: "thread-2",
+      selectedThread: otherDetail,
+      transcriptionStatus,
+    };
+    const updatedStatus = {
+      ...transcriptionStatus,
+      provider: "parakeet" as const,
+      modelName: "Parakeet TDT 0.6B v2",
+    };
+
+    const updated = appReducer(state, {
+      type: "transcriptionStatusLoaded",
+      transcriptionStatus: updatedStatus,
+    });
+
+    expect(updated.selectedThreadId).toBe("thread-2");
+    expect(updated.selectedThread).toBe(otherDetail);
+    expect(updated.transcriptionStatus?.provider).toBe("parakeet");
   });
 });

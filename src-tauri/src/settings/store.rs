@@ -13,6 +13,7 @@ pub(crate) struct AppSettings {
     pub(crate) transcripts_dir: Option<String>,
     pub(crate) save_raw_audio: bool,
     pub(crate) markdown_copy: bool,
+    pub(crate) transcription_provider: TranscriptionProviderPreference,
 }
 
 impl Default for AppSettings {
@@ -21,8 +22,20 @@ impl Default for AppSettings {
             transcripts_dir: None,
             save_raw_audio: true,
             markdown_copy: true,
+            transcription_provider: TranscriptionProviderPreference::default(),
         }
     }
+}
+
+#[derive(
+    serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Copy, Debug, Default, PartialEq, Eq,
+)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) enum TranscriptionProviderPreference {
+    #[default]
+    Parakeet,
+    Whisper,
 }
 
 #[derive(Clone, Default)]
@@ -51,12 +64,32 @@ pub(crate) fn settings_path(data_dir: &Path) -> PathBuf {
     data_dir.join("settings.json")
 }
 
-pub(crate) fn load_settings(data_dir: &Path) -> AppSettings {
+pub(crate) fn load_settings(
+    data_dir: &Path,
+    default_transcription_provider: impl FnOnce() -> TranscriptionProviderPreference,
+) -> AppSettings {
     let path = settings_path(data_dir);
     let Ok(json) = fs::read_to_string(&path) else {
+        return settings_with_transcription_provider(default_transcription_provider());
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
         return AppSettings::default();
     };
-    serde_json::from_str(&json).unwrap_or_default()
+    let missing_provider = value.get("transcriptionProvider").is_none();
+    let mut settings = serde_json::from_value::<AppSettings>(value).unwrap_or_default();
+    if missing_provider {
+        settings.transcription_provider = default_transcription_provider();
+    }
+    settings
+}
+
+fn settings_with_transcription_provider(
+    transcription_provider: TranscriptionProviderPreference,
+) -> AppSettings {
+    AppSettings {
+        transcription_provider,
+        ..AppSettings::default()
+    }
 }
 
 pub(crate) fn save_settings(data_dir: &Path, settings: &AppSettings) -> Result<(), String> {
@@ -99,44 +132,4 @@ pub(crate) fn effective_paths(base: &AppPaths, settings: &AppSettings) -> AppPat
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{effective_paths, load_settings, save_settings, AppSettings};
-    use crate::app::AppPaths;
-    use std::{env, fs};
-
-    #[test]
-    fn settings_round_trip_and_defaults() {
-        let dir = env::temp_dir().join(format!("just-notes-settings-{}", std::process::id()));
-        fs::create_dir_all(&dir).unwrap();
-
-        let defaults = load_settings(&dir);
-        assert!(defaults.save_raw_audio);
-        assert!(defaults.markdown_copy);
-        assert_eq!(defaults.transcripts_dir, None);
-
-        let custom = AppSettings {
-            transcripts_dir: Some("/tmp/notes".to_string()),
-            save_raw_audio: false,
-            markdown_copy: true,
-        };
-        save_settings(&dir, &custom).unwrap();
-        let loaded = load_settings(&dir);
-        assert_eq!(loaded.transcripts_dir.as_deref(), Some("/tmp/notes"));
-        assert!(!loaded.save_raw_audio);
-
-        let base = AppPaths {
-            threads_dir: dir.join("threads"),
-            data_dir: dir.clone(),
-        };
-        assert_eq!(
-            effective_paths(&base, &loaded).threads_dir,
-            std::path::PathBuf::from("/tmp/notes")
-        );
-        assert_eq!(
-            effective_paths(&base, &AppSettings::default()).threads_dir,
-            dir.join("threads")
-        );
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-}
+mod tests;

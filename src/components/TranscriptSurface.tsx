@@ -1,25 +1,33 @@
-import { FilePlus2, Mic } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
+import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
+import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
 import { displaySpeaker, showsSpeakerHeader, visibleSegments } from "../lib/transcript";
 import { SegmentBlock } from "./SegmentBlock";
+import { TranscriptEmptyState } from "./TranscriptEmptyState";
 
 type TranscriptSurfaceProps = {
   recorderState: RecorderState;
   selectedThread: ThreadDetail | null;
+  transcriptionStatus: TranscriptionStatusPayload | null;
   query: string;
   onCreateThread: () => void;
+  onStartModelDownload: (provider: TranscriptionProvider) => void;
   onStartRecording: () => void;
+  onUseWhisper: () => void;
   onSaveSegmentText: (index: number, text: string) => void;
 };
 
 export function TranscriptSurface({
   recorderState,
   selectedThread,
+  transcriptionStatus,
   query,
   onCreateThread,
+  onStartModelDownload,
   onStartRecording,
+  onUseWhisper,
   onSaveSegmentText,
 }: TranscriptSurfaceProps) {
   const surfaceRef = useRef<HTMLElement | null>(null);
@@ -36,11 +44,14 @@ export function TranscriptSurface({
   if (!selectedThread || segmentCount === 0) {
     return (
       <section className="transcript-surface" ref={surfaceRef}>
-        <EmptyState
+        <TranscriptEmptyState
           hasThread={selectedThread !== null}
           canStart={recorderState === "idle"}
+          transcriptionStatus={transcriptionStatus}
           onCreateThread={onCreateThread}
+          onStartModelDownload={onStartModelDownload}
           onStartRecording={onStartRecording}
+          onUseWhisper={onUseWhisper}
         />
       </section>
     );
@@ -70,47 +81,5 @@ export function TranscriptSurface({
         )}
       </div>
     </section>
-  );
-}
-
-type EmptyStateProps = {
-  hasThread: boolean;
-  canStart: boolean;
-  onCreateThread: () => void;
-  onStartRecording: () => void;
-};
-
-function EmptyState({ hasThread, canStart, onCreateThread, onStartRecording }: EmptyStateProps) {
-  return (
-    <div className="empty-state">
-      <div className="empty-mark">
-        <Mic size={20} aria-hidden="true" />
-      </div>
-      <div>
-        <h2>{hasThread ? "Ready when you are" : "Ready to capture"}</h2>
-        <p>
-          {hasThread
-            ? "Start recording to add the first transcript segment to this thread."
-            : "Record a conversation now, or create a blank thread for notes you will fill in later."}
-        </p>
-      </div>
-      <div className="empty-actions">
-        <button
-          type="button"
-          className="empty-primary"
-          onClick={onStartRecording}
-          disabled={!canStart}
-        >
-          <span className="record-glyph" aria-hidden="true" />
-          <span>Start recording</span>
-        </button>
-        {!hasThread && (
-          <button type="button" className="empty-secondary" onClick={onCreateThread}>
-            <FilePlus2 size={14} aria-hidden="true" />
-            <span>New blank thread</span>
-          </button>
-        )}
-      </div>
-    </div>
   );
 }

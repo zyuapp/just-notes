@@ -67,6 +67,7 @@ export type AppAction =
   | { type: "threadUpdated"; detail: ThreadDetail }
   | { type: "threadDeleted"; threadId: string }
   | { type: "settingsLoaded"; settings: AppSettings }
+  | { type: "transcriptionStatusLoaded"; transcriptionStatus: TranscriptionStatusPayload }
   | { type: "permissionsLoaded"; permissions: PermissionsPayload }
   | { type: "settingsOpenChanged"; open: boolean }
   | { type: "finalizationReceived"; payload: FinalizationStatusPayload }
