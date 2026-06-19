@@ -14,14 +14,14 @@ mod tray;
 
 use app::AppPaths;
 use recording::RecorderState;
-use settings::{SettingsState, TranscriptionProviderPreference};
+use settings::SettingsState;
 use threads::repository::reset_stale_recording_threads;
-use transcription::{FinalizeState, ModelDownloadState, TranscriptionProvider};
+use transcription::{FinalizeState, ModelDownloadState};
 
 pub fn run() {
     let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
     let initial_settings = settings::load_settings(&paths.data_dir, || {
-        default_transcription_provider_for_upgrade(&paths)
+        transcription::default_provider_for_installed(&paths).into()
     });
 
     let builder = Builder::default()
@@ -47,20 +47,6 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Just Notes")
         .run(handle_run_event);
-}
-
-fn default_transcription_provider_for_upgrade(paths: &AppPaths) -> TranscriptionProviderPreference {
-    let parakeet_installed =
-        transcription::finalization_transcription_selection(paths, TranscriptionProvider::Parakeet)
-            .is_installed();
-    let whisper_installed =
-        transcription::finalization_transcription_selection(paths, TranscriptionProvider::Whisper)
-            .is_installed();
-    if !parakeet_installed && whisper_installed {
-        TranscriptionProviderPreference::Whisper
-    } else {
-        TranscriptionProviderPreference::default()
-    }
 }
 
 // A recording must be stopped (WAV headers finalized, duration persisted)

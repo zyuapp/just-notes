@@ -186,6 +186,20 @@ pub(crate) fn finalization_transcription_selection(
     finalization_transcription_catalog(paths, provider).selection
 }
 
+/// Provider to default to when stored settings predate the provider
+/// preference: Parakeet, unless only Whisper's model is already installed.
+pub(crate) fn default_provider_for_installed(paths: &AppPaths) -> TranscriptionProvider {
+    let parakeet_installed =
+        finalization_transcription_selection(paths, TranscriptionProvider::Parakeet).is_installed();
+    let whisper_installed =
+        finalization_transcription_selection(paths, TranscriptionProvider::Whisper).is_installed();
+    if !parakeet_installed && whisper_installed {
+        TranscriptionProvider::Whisper
+    } else {
+        TranscriptionProvider::Parakeet
+    }
+}
+
 fn discover_models(paths: &AppPaths) -> Vec<TranscriptionModelStatus> {
     let mut models = vec![parakeet_model_status(&parakeet_model_dir(paths))];
     models.extend(discover_whisper_models(
