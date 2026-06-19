@@ -34,10 +34,6 @@ pub(crate) fn load_transcriber(
     }
 }
 
-pub(super) fn samples_to_ms(samples: u64, sample_rate: u32) -> u64 {
-    samples.saturating_mul(1000) / u64::from(sample_rate.max(1))
-}
-
 pub(super) fn default_thread_count() -> usize {
     thread::available_parallelism()
         .map(|count| count.get().clamp(2, 8))

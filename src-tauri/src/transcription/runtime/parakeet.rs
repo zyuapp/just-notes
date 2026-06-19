@@ -2,8 +2,11 @@ use std::path::Path;
 
 use sherpa_onnx::{OfflineRecognizer, OfflineRecognizerConfig, OfflineTransducerModelConfig};
 
-use super::{default_thread_count, samples_to_ms, Transcriber};
-use crate::{threads::TranscriptSegment, transcription::parakeet_model_files};
+use super::{default_thread_count, Transcriber};
+use crate::{
+    threads::TranscriptSegment,
+    transcription::{parakeet_model_files, samples_to_ms},
+};
 
 mod segments;
 
