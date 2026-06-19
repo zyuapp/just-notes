@@ -6,3 +6,5 @@ src-tauri/gen/schemas/
 src-tauri/bindings/
 .DS_Store
 .claude/
+.codex/
+.plans/
