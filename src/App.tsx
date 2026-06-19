@@ -15,6 +15,7 @@ import { useJustNotesController } from "./features/app/useJustNotesController";
 import { useSettingsController } from "./features/app/useSettingsController";
 import { useThreadActions } from "./features/app/useThreadActions";
 import { useThreadSearch } from "./features/app/useThreadSearch";
+import { downloadActionLabel } from "./lib/transcriptionModel";
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
@@ -126,7 +127,7 @@ function buildNotice(
     const selectedModel = state.transcriptionStatus.availableModels.find((model) => model.selected);
     return {
       message: "Install the selected local transcription model before recording.",
-      actionLabel: selectedModel?.canDownload ? `Download ${selectedModel.name}` : "Model status",
+      actionLabel: selectedModel?.canDownload ? downloadActionLabel(selectedModel) : "Model status",
       onAction: selectedModel?.canDownload
         ? () => void startModelDownload(selectedModel.provider)
         : openSettings,

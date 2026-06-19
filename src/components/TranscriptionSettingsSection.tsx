@@ -3,6 +3,7 @@ import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
 import type { TranscriptionProviderPreference } from "../bindings/TranscriptionProviderPreference";
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
+import { downloadPercent } from "../lib/transcriptionModel";
 
 type TranscriptionSettingsSectionProps = {
   settings: AppSettings;
@@ -111,9 +112,4 @@ function ModelAction({
     );
   }
   return null;
-}
-
-function downloadPercent(model: TranscriptionModelStatus) {
-  if (model.totalBytes === 0) return 0;
-  return Math.min(100, Math.floor((model.progressBytes * 100) / model.totalBytes));
 }

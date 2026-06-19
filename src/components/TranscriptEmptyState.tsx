@@ -2,6 +2,7 @@ import { FilePlus2, Mic } from "lucide-react";
 import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
+import { downloadActionLabel, downloadPercent } from "../lib/transcriptionModel";
 
 type TranscriptEmptyStateProps = {
   hasThread: boolean;
@@ -75,11 +76,5 @@ function emptyDownloadLabel(model: TranscriptionModelStatus | undefined) {
   if (!model) return "Model required";
   if (model.downloadState === "downloading") return `Downloading ${downloadPercent(model)}%`;
   if (model.downloadState === "installing") return "Installing model";
-  if (model.provider === "parakeet") return "Download Parakeet";
-  return `Download ${model.name}`;
-}
-
-function downloadPercent(model: TranscriptionModelStatus) {
-  if (model.totalBytes === 0) return 0;
-  return Math.min(100, Math.floor((model.progressBytes * 100) / model.totalBytes));
+  return downloadActionLabel(model);
 }

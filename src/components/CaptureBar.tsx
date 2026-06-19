@@ -5,6 +5,7 @@ import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelSta
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
 import { formatDuration } from "../lib/format";
+import { downloadActionLabel, downloadPercent } from "../lib/transcriptionModel";
 import { CaptureMeter } from "./CaptureMeter";
 
 type CaptureBarProps = {
@@ -127,12 +128,7 @@ function buttonLabel(
       return `Downloading ${downloadPercent(selectedModel)}%`;
     }
     if (selectedModel.downloadState === "installing") return "Installing";
-    return `Download ${selectedModel.provider === "parakeet" ? "Parakeet" : selectedModel.name}`;
+    return downloadActionLabel(selectedModel);
   }
   return "Record";
-}
-
-function downloadPercent(model: TranscriptionModelStatus) {
-  if (model.totalBytes === 0) return 0;
-  return Math.min(100, Math.floor((model.progressBytes * 100) / model.totalBytes));
 }
