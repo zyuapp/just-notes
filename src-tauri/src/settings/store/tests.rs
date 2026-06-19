@@ -1,6 +1,4 @@
-use super::{
-    effective_paths, load_settings, save_settings, AppSettings, TranscriptionProviderPreference,
-};
+use super::{effective_paths, load_settings, save_settings, AppSettings};
 use crate::app::AppPaths;
 use std::{env, fs};
 
@@ -9,7 +7,7 @@ fn settings_round_trip_and_defaults() {
     let dir = env::temp_dir().join(format!("just-notes-settings-{}", std::process::id()));
     fs::create_dir_all(&dir).unwrap();
 
-    let defaults = load_settings(&dir, TranscriptionProviderPreference::default);
+    let defaults = load_settings(&dir);
     assert!(defaults.save_raw_audio);
     assert!(defaults.markdown_copy);
     assert_eq!(defaults.transcripts_dir, None);
@@ -18,16 +16,11 @@ fn settings_round_trip_and_defaults() {
         transcripts_dir: Some("/tmp/notes".to_string()),
         save_raw_audio: false,
         markdown_copy: true,
-        transcription_provider: TranscriptionProviderPreference::Whisper,
     };
     save_settings(&dir, &custom).unwrap();
-    let loaded = load_settings(&dir, TranscriptionProviderPreference::default);
+    let loaded = load_settings(&dir);
     assert_eq!(loaded.transcripts_dir.as_deref(), Some("/tmp/notes"));
     assert!(!loaded.save_raw_audio);
-    assert_eq!(
-        loaded.transcription_provider,
-        TranscriptionProviderPreference::Whisper
-    );
 
     let base = AppPaths {
         threads_dir: dir.join("threads"),
@@ -46,65 +39,40 @@ fn settings_round_trip_and_defaults() {
 }
 
 #[test]
-fn missing_provider_uses_supplied_default() {
+fn legacy_transcription_provider_key_is_ignored() {
     let dir = env::temp_dir().join(format!(
-        "just-notes-settings-whisper-upgrade-{}",
+        "just-notes-settings-legacy-provider-{}",
         std::process::id()
     ));
     fs::create_dir_all(&dir).unwrap();
     fs::write(
         dir.join("settings.json"),
-        r#"{"saveRawAudio":true,"markdownCopy":true,"transcriptsDir":null}"#,
+        r#"{"saveRawAudio":false,"markdownCopy":true,"transcriptsDir":"/tmp/notes","transcriptionProvider":"whisper"}"#,
     )
     .unwrap();
 
-    let loaded = load_settings(&dir, || TranscriptionProviderPreference::Whisper);
+    let loaded = load_settings(&dir);
 
-    assert_eq!(
-        loaded.transcription_provider,
-        TranscriptionProviderPreference::Whisper
-    );
+    assert_eq!(loaded.transcripts_dir.as_deref(), Some("/tmp/notes"));
+    assert!(!loaded.save_raw_audio);
+    assert!(loaded.markdown_copy);
 
     let _ = fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn missing_settings_file_uses_supplied_default() {
+fn missing_settings_file_uses_defaults() {
     let dir = env::temp_dir().join(format!(
-        "just-notes-settings-no-file-whisper-upgrade-{}",
+        "just-notes-settings-no-file-{}",
         std::process::id()
     ));
     fs::create_dir_all(&dir).unwrap();
 
-    let loaded = load_settings(&dir, || TranscriptionProviderPreference::Whisper);
+    let loaded = load_settings(&dir);
 
-    assert_eq!(
-        loaded.transcription_provider,
-        TranscriptionProviderPreference::Whisper
-    );
-
-    let _ = fs::remove_dir_all(&dir);
-}
-
-#[test]
-fn missing_provider_keeps_new_default_without_legacy_whisper() {
-    let dir = env::temp_dir().join(format!(
-        "just-notes-settings-parakeet-default-{}",
-        std::process::id()
-    ));
-    fs::create_dir_all(&dir).unwrap();
-    fs::write(
-        dir.join("settings.json"),
-        r#"{"saveRawAudio":true,"markdownCopy":true,"transcriptsDir":null}"#,
-    )
-    .unwrap();
-
-    let loaded = load_settings(&dir, TranscriptionProviderPreference::default);
-
-    assert_eq!(
-        loaded.transcription_provider,
-        TranscriptionProviderPreference::Parakeet
-    );
+    assert_eq!(loaded.transcripts_dir, None);
+    assert!(loaded.save_raw_audio);
+    assert!(loaded.markdown_copy);
 
     let _ = fs::remove_dir_all(&dir);
 }

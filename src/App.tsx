@@ -82,7 +82,6 @@ export default function App() {
         onStartFixtureRecording={actions.startFixtureRecording}
         onStartRecording={actions.startRecording}
         onStopRecording={actions.stopRecording}
-        onUseWhisper={() => void settingsActions.setTranscriptionProvider("whisper")}
       />
       {state.settingsOpen && state.settings && (
         <SettingsView
@@ -98,11 +97,8 @@ export default function App() {
           }}
           onToggleRawAudio={() => void settingsActions.toggleRawAudio()}
           onToggleMarkdownCopy={() => void settingsActions.toggleMarkdownCopy()}
-          onTranscriptionProviderChange={(provider) =>
-            void settingsActions.setTranscriptionProvider(provider)
-          }
-          onCancelModelDownload={(provider) => void actions.cancelModelDownload(provider)}
-          onStartModelDownload={(provider) => void actions.startModelDownload(provider)}
+          onCancelModelDownload={() => void actions.cancelModelDownload()}
+          onStartModelDownload={() => void actions.startModelDownload()}
           onOpenPrivacy={(pane) => void settingsActions.openPrivacySettings(pane)}
         />
       )}
@@ -114,7 +110,7 @@ function buildNotice(
   state: AppState,
   openSettings: () => void,
   openPrivacy: (pane: "microphone" | "system-audio") => Promise<void>,
-  startModelDownload: (provider: "parakeet" | "whisper") => Promise<void>,
+  startModelDownload: () => Promise<void>,
 ): Notice | null {
   if (state.permissions && ["denied", "restricted"].includes(state.permissions.microphone)) {
     return {
@@ -127,10 +123,8 @@ function buildNotice(
     const selectedModel = state.transcriptionStatus.availableModels.find((model) => model.selected);
     return {
       message: "Install the selected local transcription model before recording.",
-      actionLabel: selectedModel?.canDownload ? downloadActionLabel(selectedModel) : "Model status",
-      onAction: selectedModel?.canDownload
-        ? () => void startModelDownload(selectedModel.provider)
-        : openSettings,
+      actionLabel: selectedModel?.canDownload ? downloadActionLabel() : "Model status",
+      onAction: selectedModel?.canDownload ? () => void startModelDownload() : openSettings,
     };
   }
   return null;

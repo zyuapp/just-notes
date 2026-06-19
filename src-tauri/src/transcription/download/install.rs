@@ -44,15 +44,12 @@ pub(super) fn install_model(
         verify_archive(artifact, &archive_path)?;
         check_cancelled(cancellation)?;
 
-        state.set_snapshot(
-            artifact.provider,
-            DownloadSnapshot::new(
-                TranscriptionModelDownloadState::Installing,
-                artifact.archive_bytes,
-                artifact.archive_bytes,
-                None,
-            ),
-        );
+        state.set_snapshot(DownloadSnapshot::new(
+            TranscriptionModelDownloadState::Installing,
+            artifact.archive_bytes,
+            artifact.archive_bytes,
+            None,
+        ));
         extract_archive(&archive_path, &extracting_dir)?;
         check_cancelled(cancellation)?;
         install_extracted_model(artifact, paths, &extracting_dir)
@@ -91,15 +88,12 @@ fn download_archive(
             .write_all(&buffer[..read])
             .map_err(format_io("write model archive"))?;
         downloaded = downloaded.saturating_add(read as u64);
-        state.set_snapshot(
-            artifact.provider,
-            DownloadSnapshot::new(
-                TranscriptionModelDownloadState::Downloading,
-                downloaded,
-                artifact.archive_bytes,
-                None,
-            ),
-        );
+        state.set_snapshot(DownloadSnapshot::new(
+            TranscriptionModelDownloadState::Downloading,
+            downloaded,
+            artifact.archive_bytes,
+            None,
+        ));
     }
     Ok(())
 }

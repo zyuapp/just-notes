@@ -107,12 +107,9 @@ fn prepare_recording_session(
     } = start;
     recorder.ensure_idle()?;
     paths.ensure()?;
-    let transcription = transcription_status(&paths, settings.transcription_provider.into());
+    let transcription = transcription_status(&paths);
     if !transcription.ready {
-        return Err(format!(
-            "{} model is required before recording",
-            transcription.provider.display_name()
-        ));
+        return Err("Parakeet model is required before recording".to_string());
     }
 
     let thread = select_recording_thread(&paths, requested_thread_id)?;

@@ -4,10 +4,8 @@ use super::TranscriptionModelSelection;
 use crate::threads::TranscriptSegment;
 
 mod parakeet;
-mod whisper;
 
 use parakeet::ParakeetTranscriber;
-use whisper::WhisperTranscriber;
 
 pub(crate) trait Transcriber {
     fn transcribe_segments(
@@ -24,14 +22,7 @@ pub(crate) type BoxedTranscriber = Box<dyn Transcriber>;
 pub(crate) fn load_transcriber(
     selection: &TranscriptionModelSelection,
 ) -> Result<BoxedTranscriber, String> {
-    match selection.provider {
-        super::TranscriptionProvider::Parakeet => {
-            Ok(Box::new(ParakeetTranscriber::load(&selection.model_path)?))
-        }
-        super::TranscriptionProvider::Whisper => {
-            Ok(Box::new(WhisperTranscriber::load(&selection.model_path)?))
-        }
-    }
+    Ok(Box::new(ParakeetTranscriber::load(&selection.model_path)?))
 }
 
 pub(super) fn default_thread_count() -> usize {

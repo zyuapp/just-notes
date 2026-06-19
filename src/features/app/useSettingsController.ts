@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import type { AppSettings } from "../../bindings/AppSettings";
-import type { TranscriptionProviderPreference } from "../../bindings/TranscriptionProviderPreference";
 import type { AppAction, AppState } from "./state";
 
 type AppDispatch = (action: AppAction) => void;
@@ -56,23 +55,6 @@ export function useSettingsController(
     await saveSettings({ ...state.settings, markdownCopy: !state.settings.markdownCopy }, false);
   }, [saveSettings, state.settings]);
 
-  const setTranscriptionProvider = useCallback(
-    async (transcriptionProvider: TranscriptionProviderPreference) => {
-      if (!state.settings || state.settings.transcriptionProvider === transcriptionProvider) {
-        return;
-      }
-      try {
-        const saved = await api.settings.update({ ...state.settings, transcriptionProvider });
-        const transcriptionStatus = await api.transcription.getStatus();
-        dispatch({ type: "settingsLoaded", settings: saved });
-        dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
-      } catch (error) {
-        fail(error);
-      }
-    },
-    [dispatch, fail, state.settings],
-  );
-
   const chooseTranscriptsFolder = useCallback(async () => {
     if (!state.settings) return;
     try {
@@ -106,7 +88,6 @@ export function useSettingsController(
     closeSettings,
     openPrivacySettings,
     openSettings,
-    setTranscriptionProvider,
     toggleMarkdownCopy,
     toggleRawAudio,
     useDefaultFolder,

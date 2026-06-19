@@ -30,12 +30,6 @@ impl AppPaths {
                 "Failed to create engine storage at {}: {err}",
                 self.data_dir.join("engine").display()
             )
-        })?;
-        fs::create_dir_all(self.data_dir.join("models").join("whisper")).map_err(|err| {
-            format!(
-                "Failed to create model storage at {}: {err}",
-                self.data_dir.join("models").join("whisper").display()
-            )
         })
     }
 

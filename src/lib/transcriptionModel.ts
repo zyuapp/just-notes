@@ -5,8 +5,8 @@ export function downloadPercent(model: TranscriptionModelStatus): number {
   return Math.min(100, Math.floor((model.progressBytes * 100) / model.totalBytes));
 }
 
-export function downloadActionLabel(model: TranscriptionModelStatus): string {
-  return model.provider === "parakeet" ? "Download Parakeet" : `Download ${model.name}`;
+export function downloadActionLabel(): string {
+  return "Download Parakeet";
 }
 
 export function isModelDownloadActive(model: TranscriptionModelStatus): boolean {

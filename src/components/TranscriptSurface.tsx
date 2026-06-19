@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
-import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
 import { displaySpeaker, showsSpeakerHeader, visibleSegments } from "../lib/transcript";
@@ -13,9 +12,8 @@ type TranscriptSurfaceProps = {
   transcriptionStatus: TranscriptionStatusPayload | null;
   query: string;
   onCreateThread: () => void;
-  onStartModelDownload: (provider: TranscriptionProvider) => void;
+  onStartModelDownload: () => void;
   onStartRecording: () => void;
-  onUseWhisper: () => void;
   onSaveSegmentText: (index: number, text: string) => void;
 };
 
@@ -27,7 +25,6 @@ export function TranscriptSurface({
   onCreateThread,
   onStartModelDownload,
   onStartRecording,
-  onUseWhisper,
   onSaveSegmentText,
 }: TranscriptSurfaceProps) {
   const surfaceRef = useRef<HTMLElement | null>(null);
@@ -51,7 +48,6 @@ export function TranscriptSurface({
           onCreateThread={onCreateThread}
           onStartModelDownload={onStartModelDownload}
           onStartRecording={onStartRecording}
-          onUseWhisper={onUseWhisper}
         />
       </section>
     );

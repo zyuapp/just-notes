@@ -1,6 +1,5 @@
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
-import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
@@ -21,12 +20,11 @@ type CaptureBarProps = {
   selectedThreadId: string | null;
   statusLabel: string;
   fixtureMode: boolean;
-  onCancelModelDownload: (provider: TranscriptionProvider) => void;
-  onStartModelDownload: (provider: TranscriptionProvider) => void;
+  onCancelModelDownload: () => void;
+  onStartModelDownload: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onStartFixtureRecording: () => void;
-  onUseWhisper: () => void;
 };
 
 export function CaptureBar({
@@ -42,7 +40,6 @@ export function CaptureBar({
   onStartRecording,
   onStopRecording,
   onStartFixtureRecording,
-  onUseWhisper,
 }: CaptureBarProps) {
   const isRecording = recorderState === "recording";
   const busy = recorderState === "starting" || recorderState === "stopping";
@@ -58,15 +55,10 @@ export function CaptureBar({
   const missingSelectedModel =
     recorderState === "idle" && Boolean(transcriptionStatus && !transcriptionStatus.ready);
   const activeDownload = Boolean(selectedModel && isModelDownloadActive(selectedModel));
-  const whisperInstalled = transcriptionStatus?.availableModels.some(
-    (model) => model.provider === "whisper" && model.installed,
-  );
-  const showWhisperFallback =
-    missingSelectedModel && selectedModel?.provider === "parakeet" && Boolean(whisperInstalled);
   const recordButtonLabel = buttonLabel(isRecording, busy, statusLabel, selectedModel);
   const recordButtonAction =
     missingSelectedModel && selectedModel?.canDownload
-      ? () => onStartModelDownload(selectedModel.provider)
+      ? onStartModelDownload
       : isRecording
         ? onStopRecording
         : onStartRecording;
@@ -84,17 +76,8 @@ export function CaptureBar({
         <span>{recordButtonLabel}</span>
       </button>
       {activeDownload && selectedModel?.canCancel && (
-        <button
-          type="button"
-          className="capture-secondary"
-          onClick={() => onCancelModelDownload(selectedModel.provider)}
-        >
+        <button type="button" className="capture-secondary" onClick={onCancelModelDownload}>
           Cancel
-        </button>
-      )}
-      {showWhisperFallback && (
-        <button type="button" className="capture-secondary" onClick={onUseWhisper}>
-          Use Whisper
         </button>
       )}
       {capturing && <time className="capture-elapsed">{formatDuration(meters.elapsedMs)}</time>}
@@ -132,7 +115,7 @@ function buttonLabel(
       return <DownloadingLabel percent={downloadPercent(selectedModel)} />;
     }
     if (selectedModel.downloadState === "installing") return "Installing";
-    return downloadActionLabel(selectedModel);
+    return downloadActionLabel();
   }
   return "Record";
 }

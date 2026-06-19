@@ -38,7 +38,7 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Transcription
 
-`transcription` owns local speech-to-text behavior. It knows model status, Whisper runtime setup, audio math needed by live decoding, text cleanup, duplicate and cross-channel bleed suppression, live transcription workers, and the post-recording finalization pass over saved audio. It reads capture buffers and writes transcript segments through the thread storage boundary.
+`transcription` owns local speech-to-text behavior. It knows model status, the Parakeet (sherpa-onnx) runtime setup, model download/installation, audio math, text cleanup, duplicate and cross-channel bleed suppression, and the post-recording finalization pass over saved audio. It reads capture buffers and writes transcript segments through the thread storage boundary.
 
 ### Recording
 
@@ -73,7 +73,7 @@ The `bun run verify` command runs `scripts/check-rust-domain-boundaries.sh` to g
 ## Rules Of Thumb
 
 - Tauri command declarations belong in the `commands` adapter module and get registered in `lib.rs`; command behavior belongs in domain modules.
-- `recording` coordinates workflows, but should not contain CoreAudio, Whisper, JSONL parsing, or text dedupe logic.
+- `recording` coordinates workflows, but should not contain CoreAudio, model decoding, JSONL parsing, or text dedupe logic.
 - `capture` produces sample buffers and levels, not transcript segments.
 - `transcription` turns audio windows into committed transcript segments.
 - `threads` persists and loads thread state; it should stay usable without audio devices.

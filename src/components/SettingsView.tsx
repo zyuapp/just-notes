@@ -3,8 +3,6 @@ import { useEffect } from "react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { AppSettings } from "../bindings/AppSettings";
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
-import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
-import type { TranscriptionProviderPreference } from "../bindings/TranscriptionProviderPreference";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { permissionLabel, SettingsToggle } from "./SettingsControls";
 import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
@@ -20,9 +18,8 @@ type SettingsViewProps = {
   onRevealFolder: () => void;
   onToggleRawAudio: () => void;
   onToggleMarkdownCopy: () => void;
-  onTranscriptionProviderChange: (provider: TranscriptionProviderPreference) => void;
-  onStartModelDownload: (provider: TranscriptionProvider) => void;
-  onCancelModelDownload: (provider: TranscriptionProvider) => void;
+  onStartModelDownload: () => void;
+  onCancelModelDownload: () => void;
   onOpenPrivacy: (pane: "microphone" | "system-audio") => void;
 };
 
@@ -37,7 +34,6 @@ export function SettingsView({
   onRevealFolder,
   onToggleRawAudio,
   onToggleMarkdownCopy,
-  onTranscriptionProviderChange,
   onStartModelDownload,
   onCancelModelDownload,
   onOpenPrivacy,
@@ -95,9 +91,7 @@ export function SettingsView({
         </section>
 
         <TranscriptionSettingsSection
-          settings={settings}
           transcriptionStatus={transcriptionStatus}
-          onTranscriptionProviderChange={onTranscriptionProviderChange}
           onStartModelDownload={onStartModelDownload}
           onCancelModelDownload={onCancelModelDownload}
         />

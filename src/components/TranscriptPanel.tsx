@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
-import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
 import type { ThreadActions } from "../features/app/useThreadActions";
@@ -26,12 +25,11 @@ type TranscriptPanelProps = {
   transcriptionStatus: TranscriptionStatusPayload | null;
   threadActions: ThreadActions;
   onCreateThread: () => void;
-  onCancelModelDownload: (provider: TranscriptionProvider) => void;
-  onStartModelDownload: (provider: TranscriptionProvider) => void;
+  onCancelModelDownload: () => void;
+  onStartModelDownload: () => void;
   onStartFixtureRecording: () => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
-  onUseWhisper: () => void;
 };
 
 export function TranscriptPanel({
@@ -51,7 +49,6 @@ export function TranscriptPanel({
   onStartFixtureRecording,
   onStartRecording,
   onStopRecording,
-  onUseWhisper,
 }: TranscriptPanelProps) {
   const [query, setQuery] = useState("");
   const isRecording = recorderState === "recording";
@@ -119,7 +116,6 @@ export function TranscriptPanel({
         onCreateThread={onCreateThread}
         onStartModelDownload={onStartModelDownload}
         onStartRecording={onStartRecording}
-        onUseWhisper={onUseWhisper}
         onSaveSegmentText={(index, text) => void threadActions.updateSegmentText(index, text)}
       />
 
@@ -136,7 +132,6 @@ export function TranscriptPanel({
         onStartRecording={onStartRecording}
         onStopRecording={onStopRecording}
         onStartFixtureRecording={onStartFixtureRecording}
-        onUseWhisper={onUseWhisper}
       />
       <ErrorToast message={error} />
     </section>

@@ -11,10 +11,7 @@ use super::install::DownloadError;
 use super::{DownloadJob, ModelDownloadState};
 use crate::{
     app::AppPaths,
-    transcription::{
-        artifact_for_provider, ModelArtifact, TranscriptionModelDownloadState,
-        TranscriptionProvider,
-    },
+    transcription::{parakeet_artifact, ModelArtifact, TranscriptionModelDownloadState},
 };
 
 struct Fixture {
@@ -44,10 +41,6 @@ impl Drop for Fixture {
     }
 }
 
-fn parakeet() -> ModelArtifact {
-    artifact_for_provider(TranscriptionProvider::Parakeet).expect("parakeet artifact")
-}
-
 fn install_model_files(artifact: ModelArtifact, paths: &AppPaths) {
     for path in artifact.expected_files(paths) {
         if let Some(parent) = path.parent() {
@@ -59,7 +52,6 @@ fn install_model_files(artifact: ModelArtifact, paths: &AppPaths) {
 
 fn job(artifact: ModelArtifact, paths: AppPaths, on_installed: super::OnInstalled) -> DownloadJob {
     DownloadJob {
-        provider: TranscriptionProvider::Parakeet,
         artifact,
         paths,
         on_installed,
@@ -71,17 +63,17 @@ fn job(artifact: ModelArtifact, paths: AppPaths, on_installed: super::OnInstalle
 fn start_download_short_circuits_when_already_installed() {
     let fixture = Fixture::new("installed");
     let paths = fixture.paths();
-    let artifact = parakeet();
+    let artifact = parakeet_artifact();
     install_model_files(artifact, &paths);
 
     let state = ModelDownloadState::default();
     state
-        .start_download(TranscriptionProvider::Parakeet, paths, Box::new(|| {}))
+        .start_download(paths, Box::new(|| {}))
         .expect("start_download");
 
-    assert!(!state.download_running(TranscriptionProvider::Parakeet));
+    assert!(!state.download_running());
     assert_eq!(
-        state.snapshot_for(TranscriptionProvider::Parakeet, 0).state,
+        state.snapshot_for(0).state,
         TranscriptionModelDownloadState::Idle
     );
 }
@@ -90,7 +82,7 @@ fn start_download_short_circuits_when_already_installed() {
 fn cancel_download_returns_false_when_not_running() {
     let state = ModelDownloadState::default();
 
-    assert!(!state.cancel_download(TranscriptionProvider::Parakeet));
+    assert!(!state.cancel_download());
 }
 
 #[test]
@@ -99,11 +91,11 @@ fn finish_download_maps_failure_to_snapshot() {
     let state = ModelDownloadState::default();
 
     state.finish_download(
-        job(parakeet(), fixture.paths(), Box::new(|| {})),
+        job(parakeet_artifact(), fixture.paths(), Box::new(|| {})),
         Err(DownloadError::Failed("boom".to_string())),
     );
 
-    let snapshot = state.snapshot_for(TranscriptionProvider::Parakeet, 0);
+    let snapshot = state.snapshot_for(0);
     assert_eq!(snapshot.state, TranscriptionModelDownloadState::Failed);
     assert_eq!(snapshot.error_message.as_deref(), Some("boom"));
 }
@@ -117,7 +109,7 @@ fn finish_download_runs_callback_and_marks_idle_on_success() {
 
     state.finish_download(
         job(
-            parakeet(),
+            parakeet_artifact(),
             fixture.paths(),
             Box::new(move || installed_flag.store(true, Ordering::SeqCst)),
         ),
@@ -126,7 +118,7 @@ fn finish_download_runs_callback_and_marks_idle_on_success() {
 
     assert!(installed.load(Ordering::SeqCst));
     assert_eq!(
-        state.snapshot_for(TranscriptionProvider::Parakeet, 0).state,
+        state.snapshot_for(0).state,
         TranscriptionModelDownloadState::Idle
     );
 }

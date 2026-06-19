@@ -13,7 +13,6 @@ pub(crate) struct AppSettings {
     pub(crate) transcripts_dir: Option<String>,
     pub(crate) save_raw_audio: bool,
     pub(crate) markdown_copy: bool,
-    pub(crate) transcription_provider: TranscriptionProviderPreference,
 }
 
 impl Default for AppSettings {
@@ -22,20 +21,8 @@ impl Default for AppSettings {
             transcripts_dir: None,
             save_raw_audio: true,
             markdown_copy: true,
-            transcription_provider: TranscriptionProviderPreference::default(),
         }
     }
-}
-
-#[derive(
-    serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Copy, Debug, Default, PartialEq, Eq,
-)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub(crate) enum TranscriptionProviderPreference {
-    #[default]
-    Parakeet,
-    Whisper,
 }
 
 #[derive(Clone, Default)]
@@ -64,44 +51,12 @@ pub(crate) fn settings_path(data_dir: &Path) -> PathBuf {
     data_dir.join("settings.json")
 }
 
-pub(crate) fn load_settings(
-    data_dir: &Path,
-    default_transcription_provider: impl FnOnce() -> TranscriptionProviderPreference,
-) -> AppSettings {
+pub(crate) fn load_settings(data_dir: &Path) -> AppSettings {
     let path = settings_path(data_dir);
     let Ok(json) = fs::read_to_string(&path) else {
-        return settings_with_transcription_provider(default_transcription_provider());
-    };
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(&json) else {
         return AppSettings::default();
     };
-    let missing_provider = value.get("transcriptionProvider").is_none();
-    let mut settings = serde_json::from_value::<AppSettings>(value).unwrap_or_default();
-    if missing_provider {
-        settings.transcription_provider = default_transcription_provider();
-    }
-    settings
-}
-
-fn settings_with_transcription_provider(
-    transcription_provider: TranscriptionProviderPreference,
-) -> AppSettings {
-    AppSettings {
-        transcription_provider,
-        ..AppSettings::default()
-    }
-}
-
-pub(crate) fn set_transcription_provider(
-    paths: &AppPaths,
-    settings: &SettingsState,
-    provider: TranscriptionProviderPreference,
-) {
-    let mut next = settings.snapshot();
-    next.transcription_provider = provider;
-    if save_settings(&paths.data_dir, &next).is_ok() {
-        settings.replace(next);
-    }
+    serde_json::from_str::<AppSettings>(&json).unwrap_or_default()
 }
 
 pub(crate) fn save_settings(data_dir: &Path, settings: &AppSettings) -> Result<(), String> {

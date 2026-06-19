@@ -7,7 +7,6 @@ use crate::{
     app::AppPaths,
     capture::stop_audio_capture,
     indicator,
-    settings::TranscriptionProviderPreference,
     threads::{
         repository::{
             load_thread_by_id, render_thread_markdown, set_thread_duration, set_thread_status,
@@ -73,7 +72,6 @@ pub(crate) fn stop_recording(
         paths: &paths,
         audio_artifacts: &audio_artifacts,
         markdown_copy: settings.markdown_copy,
-        transcription_provider: settings.transcription_provider,
     };
     finish_audio_transcription(finish_config, audio_sink_result);
 
@@ -90,7 +88,6 @@ struct FinishAudioTranscription<'a> {
     paths: &'a AppPaths,
     audio_artifacts: &'a FinalizationAudioArtifacts,
     markdown_copy: bool,
-    transcription_provider: TranscriptionProviderPreference,
 }
 
 fn finish_audio_transcription(
@@ -115,10 +112,7 @@ fn spawn_final_transcription(config: FinishAudioTranscription<'_>) {
         thread_id: config.thread_id.to_string(),
         thread_dir: config.thread_dir,
         audio_artifacts: config.audio_artifacts.clone(),
-        model_selection: finalization_transcription_selection(
-            config.paths,
-            config.transcription_provider.into(),
-        ),
+        model_selection: finalization_transcription_selection(config.paths),
         markdown_copy: config.markdown_copy,
     });
     match result {

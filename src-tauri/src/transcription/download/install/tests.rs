@@ -6,7 +6,7 @@ use std::{
 use super::install_extracted_model;
 use crate::{
     app::AppPaths,
-    transcription::{artifact_for_provider, ModelArtifact, TranscriptionProvider},
+    transcription::{parakeet_artifact, ModelArtifact},
 };
 
 struct Fixture {
@@ -37,7 +37,7 @@ impl Drop for Fixture {
 }
 
 fn parakeet() -> ModelArtifact {
-    artifact_for_provider(TranscriptionProvider::Parakeet).expect("parakeet artifact")
+    parakeet_artifact()
 }
 
 fn write_model_files(dir: &Path, artifact: ModelArtifact, paths: &AppPaths) {

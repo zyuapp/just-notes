@@ -1,61 +1,27 @@
-import type { AppSettings } from "../bindings/AppSettings";
-import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
-import type { TranscriptionProviderPreference } from "../bindings/TranscriptionProviderPreference";
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { downloadPercent } from "../lib/transcriptionModel";
 import { DownloadingLabel } from "./DownloadingLabel";
 
 type TranscriptionSettingsSectionProps = {
-  settings: AppSettings;
   transcriptionStatus: TranscriptionStatusPayload | null;
-  onTranscriptionProviderChange: (provider: TranscriptionProviderPreference) => void;
-  onStartModelDownload: (provider: TranscriptionProvider) => void;
-  onCancelModelDownload: (provider: TranscriptionProvider) => void;
+  onStartModelDownload: () => void;
+  onCancelModelDownload: () => void;
 };
 
 export function TranscriptionSettingsSection({
-  settings,
   transcriptionStatus,
-  onTranscriptionProviderChange,
   onStartModelDownload,
   onCancelModelDownload,
 }: TranscriptionSettingsSectionProps) {
-  const parakeet = transcriptionStatus?.availableModels.find(
-    (model) => model.provider === "parakeet",
-  );
+  const parakeet = transcriptionStatus?.availableModels[0];
   return (
     <section>
       <h3>Local transcription</h3>
-      <div className="settings-row">
-        <div>
-          <strong>Transcript model</strong>
-          <p className="settings-hint">Parakeet is used for new polished transcripts by default.</p>
-        </div>
-        <div className="settings-segmented" role="group" aria-label="Transcript model">
-          <button
-            type="button"
-            className={settings.transcriptionProvider === "parakeet" ? "selected" : ""}
-            onClick={() => onTranscriptionProviderChange("parakeet")}
-          >
-            Parakeet
-          </button>
-          <button
-            type="button"
-            className={settings.transcriptionProvider === "whisper" ? "selected" : ""}
-            onClick={() => onTranscriptionProviderChange("whisper")}
-          >
-            Whisper
-          </button>
-        </div>
-      </div>
       <p className="settings-hint">{transcriptionStatus?.message ?? "Checking model status..."}</p>
       <ul className="settings-models">
         {transcriptionStatus?.availableModels.map((model) => (
-          <li
-            key={`${model.provider}:${model.filename}`}
-            className={model.selected ? "selected" : ""}
-          >
+          <li key={model.filename} className={model.selected ? "selected" : ""}>
             <i aria-hidden="true" />
             <span className="model-name">{model.name}</span>
             <code>{model.filename}</code>
@@ -98,20 +64,20 @@ function ModelAction({
   onCancelModelDownload,
 }: {
   model: TranscriptionModelStatus;
-  onStartModelDownload: (provider: TranscriptionProvider) => void;
-  onCancelModelDownload: (provider: TranscriptionProvider) => void;
+  onStartModelDownload: () => void;
+  onCancelModelDownload: () => void;
 }) {
   if (!model.downloadable || model.installed) return null;
   if (model.canCancel) {
     return (
-      <button type="button" onClick={() => onCancelModelDownload(model.provider)}>
+      <button type="button" onClick={onCancelModelDownload}>
         Cancel
       </button>
     );
   }
   if (model.canDownload) {
     return (
-      <button type="button" onClick={() => onStartModelDownload(model.provider)}>
+      <button type="button" onClick={onStartModelDownload}>
         {model.downloadState === "failed" || model.downloadState === "cancelled" ? "Retry" : "Download"}
       </button>
     );

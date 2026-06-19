@@ -36,5 +36,4 @@ sherpa-onnx = "1.13.3"
 tauri = { version = "2.9.3", features = ["tray-icon", "macos-private-api"] }
 tar = "0.4.44"
 ts-rs = "12.0.1"
-whisper-rs = { version = "0.16.0", features = ["metal"] }
 bzip2 = "0.5.2"

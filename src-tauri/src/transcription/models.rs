@@ -3,9 +3,6 @@ use std::path::{Path, PathBuf};
 use crate::app::AppPaths;
 
 use super::artifacts::parakeet_artifact;
-use whisper::discover_whisper_models;
-
-mod whisper;
 
 pub(crate) const PARAKEET_MODEL_ID: &str = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8";
 pub(crate) const PARAKEET_MODEL_NAME: &str = "Parakeet TDT 0.6B v2";
@@ -20,6 +17,8 @@ pub(crate) const PARAKEET_MODEL_FILENAMES: [&str; 4] = [
     PARAKEET_JOINER,
     PARAKEET_TOKENS,
 ];
+pub(crate) const PARAKEET_DISPLAY_NAME: &str = "Parakeet";
+pub(crate) const PARAKEET_RUNTIME_NAME: &str = "embedded sherpa-onnx Parakeet runtime";
 
 #[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -31,7 +30,6 @@ pub(crate) struct TranscriptionStatusPayload {
     pub(crate) engine_path: String,
     pub(crate) model_path: String,
     pub(crate) model_name: String,
-    pub(crate) provider: TranscriptionProvider,
     pub(crate) available_models: Vec<TranscriptionModelStatus>,
     pub(crate) message: String,
 }
@@ -42,7 +40,6 @@ pub(crate) struct TranscriptionStatusPayload {
 pub(crate) struct TranscriptionModelStatus {
     pub(crate) name: String,
     pub(crate) filename: String,
-    pub(crate) provider: TranscriptionProvider,
     #[ts(type = "string")]
     pub(crate) path: PathBuf,
     pub(crate) installed: bool,
@@ -57,16 +54,6 @@ pub(crate) struct TranscriptionModelStatus {
     pub(crate) error_message: Option<String>,
 }
 
-#[derive(
-    serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Copy, Debug, Hash, PartialEq, Eq,
-)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub(crate) enum TranscriptionProvider {
-    Parakeet,
-    Whisper,
-}
-
 #[derive(serde::Serialize, ts_rs::TS, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -78,37 +65,17 @@ pub(crate) enum TranscriptionModelDownloadState {
     Cancelled,
 }
 
-impl TranscriptionProvider {
-    pub(crate) fn runtime_name(self) -> &'static str {
-        match self {
-            Self::Parakeet => "embedded sherpa-onnx Parakeet runtime",
-            Self::Whisper => "embedded whisper.cpp runtime",
-        }
-    }
-
-    pub(crate) fn display_name(self) -> &'static str {
-        match self {
-            Self::Parakeet => "Parakeet",
-            Self::Whisper => "Whisper",
-        }
-    }
-}
-
 #[derive(Clone)]
 pub(crate) struct TranscriptionModelSelection {
-    pub(crate) provider: TranscriptionProvider,
     pub(crate) model_path: PathBuf,
     pub(crate) model_name: String,
 }
 
 impl TranscriptionModelSelection {
     pub(crate) fn is_installed(&self) -> bool {
-        match self.provider {
-            TranscriptionProvider::Parakeet => parakeet_model_files(&self.model_path)
-                .iter()
-                .all(|path| path.is_file()),
-            TranscriptionProvider::Whisper => self.model_path.is_file(),
-        }
+        parakeet_model_files(&self.model_path)
+            .iter()
+            .all(|path| path.is_file())
     }
 }
 
@@ -117,54 +84,22 @@ pub(crate) struct TranscriptionModelCatalog {
     pub(crate) available_models: Vec<TranscriptionModelStatus>,
 }
 
-pub(crate) fn finalization_transcription_catalog(
-    paths: &AppPaths,
-    provider: TranscriptionProvider,
-) -> TranscriptionModelCatalog {
-    let mut available_models = discover_models(paths);
-    let selected_model = select_model(&available_models, provider);
-    for model in &mut available_models {
-        model.selected =
-            model.provider == selected_model.provider && model.filename == selected_model.filename;
-    }
-
+pub(crate) fn finalization_transcription_catalog(paths: &AppPaths) -> TranscriptionModelCatalog {
+    let mut model = parakeet_model_status(&parakeet_model_dir(paths));
+    model.selected = true;
     TranscriptionModelCatalog {
         selection: TranscriptionModelSelection {
-            provider: selected_model.provider,
-            model_path: selected_model.path.clone(),
-            model_name: selected_model.name.clone(),
+            model_path: model.path.clone(),
+            model_name: model.name.clone(),
         },
-        available_models,
+        available_models: vec![model],
     }
 }
 
 pub(crate) fn finalization_transcription_selection(
     paths: &AppPaths,
-    provider: TranscriptionProvider,
 ) -> TranscriptionModelSelection {
-    finalization_transcription_catalog(paths, provider).selection
-}
-
-/// Provider to default to when stored settings predate the provider
-/// preference: Parakeet, unless only Whisper's model is already installed.
-pub(crate) fn default_provider_for_installed(paths: &AppPaths) -> TranscriptionProvider {
-    let parakeet_installed =
-        finalization_transcription_selection(paths, TranscriptionProvider::Parakeet).is_installed();
-    let whisper_installed =
-        finalization_transcription_selection(paths, TranscriptionProvider::Whisper).is_installed();
-    if !parakeet_installed && whisper_installed {
-        TranscriptionProvider::Whisper
-    } else {
-        TranscriptionProvider::Parakeet
-    }
-}
-
-fn discover_models(paths: &AppPaths) -> Vec<TranscriptionModelStatus> {
-    let mut models = vec![parakeet_model_status(&parakeet_model_dir(paths))];
-    models.extend(discover_whisper_models(
-        &paths.data_dir.join("models").join("whisper"),
-    ));
-    models
+    finalization_transcription_catalog(paths).selection
 }
 
 fn parakeet_model_status(model_dir: &Path) -> TranscriptionModelStatus {
@@ -175,7 +110,6 @@ fn parakeet_model_status(model_dir: &Path) -> TranscriptionModelStatus {
     TranscriptionModelStatus {
         name: PARAKEET_MODEL_NAME.to_string(),
         filename: PARAKEET_MODEL_ID.to_string(),
-        provider: TranscriptionProvider::Parakeet,
         path: model_dir.to_path_buf(),
         installed,
         selected: false,
@@ -200,23 +134,6 @@ pub(crate) fn parakeet_model_dir(paths: &AppPaths) -> PathBuf {
 
 pub(crate) fn parakeet_model_files(model_dir: &Path) -> [PathBuf; 4] {
     PARAKEET_MODEL_FILENAMES.map(|name| model_dir.join(name))
-}
-
-fn select_model(
-    available_models: &[TranscriptionModelStatus],
-    provider: TranscriptionProvider,
-) -> TranscriptionModelStatus {
-    let provider_models = available_models
-        .iter()
-        .filter(|model| model.provider == provider)
-        .collect::<Vec<_>>();
-    provider_models
-        .iter()
-        .find(|model| model.installed)
-        .copied()
-        .or_else(|| provider_models.last().copied())
-        .expect("provider model candidates")
-        .clone()
 }
 
 #[cfg(test)]

@@ -137,7 +137,7 @@ fn run_finalization_guarded(
     config: &FinalizationConfig,
     cancel: &AtomicBool,
 ) -> Result<FinalizationOutcome, String> {
-    // catch_unwind keeps a whisper/decoder panic from leaking the
+    // catch_unwind keeps a decoder panic from leaking the
     // Transcribing status and the registry entry for this thread.
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         run_finalization(

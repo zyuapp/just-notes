@@ -2,11 +2,8 @@ use std::path::PathBuf;
 
 use crate::app::AppPaths;
 
-use super::{
-    models::{
-        PARAKEET_MODEL_FILENAMES, PARAKEET_MODEL_ID, PARAKEET_MODEL_NAME, PARAKEET_MODEL_SUBDIR,
-    },
-    TranscriptionProvider,
+use super::models::{
+    PARAKEET_MODEL_FILENAMES, PARAKEET_MODEL_ID, PARAKEET_MODEL_NAME, PARAKEET_MODEL_SUBDIR,
 };
 
 pub(crate) const PARAKEET_ARCHIVE_URL: &str = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8.tar.bz2";
@@ -16,7 +13,6 @@ pub(crate) const PARAKEET_ARCHIVE_BYTES: u64 = 482_468_385;
 
 #[derive(Clone, Copy)]
 pub(crate) struct ModelArtifact {
-    pub(crate) provider: TranscriptionProvider,
     pub(crate) model_id: &'static str,
     pub(crate) display_name: &'static str,
     pub(crate) model_subdir: &'static str,
@@ -59,7 +55,6 @@ impl ModelArtifact {
 
 pub(crate) fn parakeet_artifact() -> ModelArtifact {
     ModelArtifact {
-        provider: TranscriptionProvider::Parakeet,
         model_id: PARAKEET_MODEL_ID,
         display_name: PARAKEET_MODEL_NAME,
         model_subdir: PARAKEET_MODEL_SUBDIR,
@@ -68,12 +63,5 @@ pub(crate) fn parakeet_artifact() -> ModelArtifact {
         archive_sha256: PARAKEET_ARCHIVE_SHA256,
         archive_bytes: PARAKEET_ARCHIVE_BYTES,
         display_size: "460 MB",
-    }
-}
-
-pub(crate) fn artifact_for_provider(provider: TranscriptionProvider) -> Option<ModelArtifact> {
-    match provider {
-        TranscriptionProvider::Parakeet => Some(parakeet_artifact()),
-        TranscriptionProvider::Whisper => None,
     }
 }

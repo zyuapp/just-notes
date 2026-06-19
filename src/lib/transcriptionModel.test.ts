@@ -6,7 +6,6 @@ function model(overrides: Partial<TranscriptionModelStatus>): TranscriptionModel
   return {
     name: "Parakeet TDT 0.6B v2",
     filename: "parakeet",
-    provider: "parakeet",
     path: "/models/parakeet",
     installed: false,
     selected: true,
@@ -37,14 +36,8 @@ describe("downloadPercent", () => {
 });
 
 describe("downloadActionLabel", () => {
-  test("uses the short label for Parakeet", () => {
-    expect(downloadActionLabel(model({ provider: "parakeet" }))).toBe("Download Parakeet");
-  });
-
-  test("uses the model name for other providers", () => {
-    expect(downloadActionLabel(model({ provider: "whisper", name: "small.en" }))).toBe(
-      "Download small.en",
-    );
+  test("labels the Parakeet download", () => {
+    expect(downloadActionLabel()).toBe("Download Parakeet");
   });
 });
 

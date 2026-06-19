@@ -42,8 +42,7 @@ const transcriptionStatus = {
   modelExists: true,
   enginePath: "/tmp/engine",
   modelPath: "/tmp/model",
-  modelName: "small.en",
-  provider: "whisper" as const,
+  modelName: "Parakeet TDT 0.6B v2",
   availableModels: [],
   message: "Ready",
 };
@@ -135,8 +134,7 @@ describe("appReducer", () => {
     };
     const updatedStatus = {
       ...transcriptionStatus,
-      provider: "parakeet" as const,
-      modelName: "Parakeet TDT 0.6B v2",
+      modelName: "Parakeet TDT 0.6B v2 (updated)",
     };
 
     const updated = appReducer(state, {
@@ -146,6 +144,6 @@ describe("appReducer", () => {
 
     expect(updated.selectedThreadId).toBe("thread-2");
     expect(updated.selectedThread).toBe(otherDetail);
-    expect(updated.transcriptionStatus?.provider).toBe("parakeet");
+    expect(updated.transcriptionStatus?.modelName).toBe("Parakeet TDT 0.6B v2 (updated)");
   });
 });

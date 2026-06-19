@@ -20,9 +20,7 @@ use transcription::{FinalizeState, ModelDownloadState};
 
 pub fn run() {
     let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
-    let initial_settings = settings::load_settings(&paths.data_dir, || {
-        transcription::default_provider_for_installed(&paths).into()
-    });
+    let initial_settings = settings::load_settings(&paths.data_dir);
 
     let builder = Builder::default()
         .manage(paths)

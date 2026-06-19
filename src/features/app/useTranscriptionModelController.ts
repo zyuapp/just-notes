@@ -1,6 +1,5 @@
 import { useCallback, useEffect } from "react";
 import { api, getApiErrorMessage } from "../../api";
-import type { TranscriptionProvider } from "../../bindings/TranscriptionProvider";
 import { isModelDownloadActive } from "../../lib/transcriptionModel";
 import type { AppAction, AppState } from "./state";
 
@@ -20,31 +19,25 @@ export function useTranscriptionModelController(state: AppState, dispatch: AppDi
     }
   }, [dispatch]);
 
-  const startModelDownload = useCallback(
-    async (provider: TranscriptionProvider) => {
-      dispatch({ type: "errorCleared" });
-      try {
-        const transcriptionStatus = await api.transcription.startModelDownload(provider);
-        dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
-      } catch (error) {
-        dispatch({ type: "failed", message: getApiErrorMessage(error) });
-      }
-    },
-    [dispatch],
-  );
+  const startModelDownload = useCallback(async () => {
+    dispatch({ type: "errorCleared" });
+    try {
+      const transcriptionStatus = await api.transcription.startModelDownload();
+      dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
+    } catch (error) {
+      dispatch({ type: "failed", message: getApiErrorMessage(error) });
+    }
+  }, [dispatch]);
 
-  const cancelModelDownload = useCallback(
-    async (provider: TranscriptionProvider) => {
-      dispatch({ type: "errorCleared" });
-      try {
-        const transcriptionStatus = await api.transcription.cancelModelDownload(provider);
-        dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
-      } catch (error) {
-        dispatch({ type: "failed", message: getApiErrorMessage(error) });
-      }
-    },
-    [dispatch],
-  );
+  const cancelModelDownload = useCallback(async () => {
+    dispatch({ type: "errorCleared" });
+    try {
+      const transcriptionStatus = await api.transcription.cancelModelDownload();
+      dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
+    } catch (error) {
+      dispatch({ type: "failed", message: getApiErrorMessage(error) });
+    }
+  }, [dispatch]);
 
   useEffect(() => {
     const selectedModel = state.transcriptionStatus?.availableModels.find((model) => model.selected);

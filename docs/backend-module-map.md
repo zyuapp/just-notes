@@ -85,7 +85,7 @@ Use this when changing how audio is acquired, buffered, leveled, or fixture-driv
 
 - `models.rs`: transcription status payloads, model path selection, and available model discovery.
 - `status.rs`: current transcription readiness/status assembly.
-- `runtime.rs`: Whisper model loading, initial-prompt conditioning, and raw Whisper segment transcription.
+- `runtime.rs`: transcriber loading and the `Transcriber` trait; `runtime/parakeet.rs` holds the sherpa-onnx Parakeet model loading and segment transcription.
 - `audio.rs`: sample/time conversion, RMS, audible-start detection, and resampling.
 - `finalize.rs`: post-recording finalization — chunked re-transcription of saved WAVs, transcript replacement, cancellation registry, and status events.
 - `live/worker.rs`: live transcription thread lifecycle and status/error event emission.
@@ -100,7 +100,7 @@ Use this when changing how audio is acquired, buffered, leveled, or fixture-driv
 - `text/words.rs`: shared word normalization, n-gram, and sentence splitting helpers.
 - `mod.rs`: transcription facade used by recording and tests.
 
-Use this when changing model status, Whisper behavior, live transcription timing, finalization, cleanup, dedupe, or audio math.
+Use this when changing model status, Parakeet behavior, model download, finalization, cleanup, dedupe, or audio math.
 
 ## `src-tauri/src/recording`
 

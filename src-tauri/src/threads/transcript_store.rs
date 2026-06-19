@@ -74,7 +74,7 @@ fn make_snippet(text: &str) -> String {
     snippet
 }
 
-// Whisper renders non-speech sounds as a bracketed annotation like
+// Non-speech sounds are rendered as a bracketed annotation like
 // "(birds chirping)" or "[music]"; spoken text makes a better preview.
 fn is_non_speech_annotation(text: &str) -> bool {
     let inner = trim_wrapped(text, '(', ')').or_else(|| trim_wrapped(text, '[', ']'));

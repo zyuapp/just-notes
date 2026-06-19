@@ -4,7 +4,7 @@ use super::transcription_status_with_downloads;
 use crate::app::AppPaths;
 use crate::transcription::download::{DownloadSnapshot, ModelDownloadState};
 use crate::transcription::models::TranscriptionModelStatus;
-use crate::transcription::{TranscriptionModelDownloadState, TranscriptionProvider};
+use crate::transcription::TranscriptionModelDownloadState;
 
 struct Fixture {
     root: PathBuf,
@@ -34,26 +34,21 @@ impl Drop for Fixture {
 }
 
 fn parakeet_model(models: &[TranscriptionModelStatus]) -> &TranscriptionModelStatus {
-    models
-        .iter()
-        .find(|model| model.provider == TranscriptionProvider::Parakeet)
-        .expect("parakeet model in status")
+    models.first().expect("parakeet model in status")
 }
 
 #[test]
 fn downloading_snapshot_drives_progress_cancel_and_message() {
     let fixture = Fixture::new("downloading");
     let downloads = ModelDownloadState::default();
-    downloads.set_snapshot(
-        TranscriptionProvider::Parakeet,
-        DownloadSnapshot::new(TranscriptionModelDownloadState::Downloading, 50, 100, None),
-    );
+    downloads.set_snapshot(DownloadSnapshot::new(
+        TranscriptionModelDownloadState::Downloading,
+        50,
+        100,
+        None,
+    ));
 
-    let status = transcription_status_with_downloads(
-        &fixture.paths(),
-        TranscriptionProvider::Parakeet,
-        &downloads,
-    );
+    let status = transcription_status_with_downloads(&fixture.paths(), &downloads);
 
     let parakeet = parakeet_model(&status.available_models);
     assert_eq!(
@@ -71,16 +66,14 @@ fn downloading_snapshot_drives_progress_cancel_and_message() {
 fn zero_total_bytes_reports_zero_percent() {
     let fixture = Fixture::new("zero-total");
     let downloads = ModelDownloadState::default();
-    downloads.set_snapshot(
-        TranscriptionProvider::Parakeet,
-        DownloadSnapshot::new(TranscriptionModelDownloadState::Downloading, 0, 0, None),
-    );
+    downloads.set_snapshot(DownloadSnapshot::new(
+        TranscriptionModelDownloadState::Downloading,
+        0,
+        0,
+        None,
+    ));
 
-    let status = transcription_status_with_downloads(
-        &fixture.paths(),
-        TranscriptionProvider::Parakeet,
-        &downloads,
-    );
+    let status = transcription_status_with_downloads(&fixture.paths(), &downloads);
 
     assert_eq!(status.message, "Downloading Parakeet model (0%)");
 }
@@ -90,11 +83,7 @@ fn idle_uninstalled_model_can_download() {
     let fixture = Fixture::new("idle");
     let downloads = ModelDownloadState::default();
 
-    let status = transcription_status_with_downloads(
-        &fixture.paths(),
-        TranscriptionProvider::Parakeet,
-        &downloads,
-    );
+    let status = transcription_status_with_downloads(&fixture.paths(), &downloads);
 
     let parakeet = parakeet_model(&status.available_models);
     assert_eq!(

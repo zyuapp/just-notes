@@ -1,15 +1,13 @@
 use crate::app::AppPaths;
 
 use super::{
-    finalization_transcription_catalog, models::TranscriptionModelStatus, ModelDownloadState,
-    TranscriptionModelDownloadState, TranscriptionProvider, TranscriptionStatusPayload,
+    finalization_transcription_catalog,
+    models::{TranscriptionModelStatus, PARAKEET_DISPLAY_NAME, PARAKEET_RUNTIME_NAME},
+    ModelDownloadState, TranscriptionModelDownloadState, TranscriptionStatusPayload,
 };
 
-pub(crate) fn transcription_status(
-    paths: &AppPaths,
-    provider: TranscriptionProvider,
-) -> TranscriptionStatusPayload {
-    let catalog = finalization_transcription_catalog(paths, provider);
+pub(crate) fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPayload {
+    let catalog = finalization_transcription_catalog(paths);
     let selection = catalog.selection;
     let model_exists = catalog
         .available_models
@@ -17,24 +15,19 @@ pub(crate) fn transcription_status(
         .any(|model| model.selected && model.installed);
     let message = match model_exists {
         true => format!(
-            "{} transcription is ready ({})",
-            selection.provider.display_name(),
+            "{PARAKEET_DISPLAY_NAME} transcription is ready ({})",
             selection.model_name
         ),
-        false => format!(
-            "{} transcription model is missing",
-            selection.provider.display_name()
-        ),
+        false => format!("{PARAKEET_DISPLAY_NAME} transcription model is missing"),
     };
 
     TranscriptionStatusPayload {
         ready: model_exists,
         engine_exists: true,
         model_exists,
-        engine_path: selection.provider.runtime_name().to_string(),
+        engine_path: PARAKEET_RUNTIME_NAME.to_string(),
         model_path: selection.model_path.display().to_string(),
         model_name: selection.model_name,
-        provider: selection.provider,
         available_models: catalog.available_models,
         message,
     }
@@ -42,10 +35,9 @@ pub(crate) fn transcription_status(
 
 pub(crate) fn transcription_status_with_downloads(
     paths: &AppPaths,
-    provider: TranscriptionProvider,
     downloads: &ModelDownloadState,
 ) -> TranscriptionStatusPayload {
-    let mut status = transcription_status(paths, provider);
+    let mut status = transcription_status(paths);
     for model in &mut status.available_models {
         if model.downloadable {
             apply_download_state(model, downloads);
@@ -58,13 +50,13 @@ pub(crate) fn transcription_status_with_downloads(
 }
 
 fn apply_download_state(model: &mut TranscriptionModelStatus, downloads: &ModelDownloadState) {
-    let snapshot = downloads.snapshot_for(model.provider, model.total_bytes);
+    let snapshot = downloads.snapshot_for(model.total_bytes);
     let active = snapshot.active();
     model.download_state = snapshot.state;
     model.progress_bytes = snapshot.progress_bytes;
     model.total_bytes = snapshot.total_bytes;
     model.can_cancel = active;
-    model.can_download = !model.installed && !active && !downloads.download_running(model.provider);
+    model.can_download = !model.installed && !active && !downloads.download_running();
     model.error_message = snapshot.error_message;
 }
 
@@ -73,7 +65,6 @@ fn selected_download_message(models: &[TranscriptionModelStatus]) -> Option<Stri
         .iter()
         .find(|model| model.selected && !model.installed)?;
     Some(selected_model_message(
-        model.provider,
         model.download_state,
         model.progress_bytes,
         model.total_bytes,
@@ -81,7 +72,6 @@ fn selected_download_message(models: &[TranscriptionModelStatus]) -> Option<Stri
 }
 
 fn selected_model_message(
-    provider: TranscriptionProvider,
     download_state: TranscriptionModelDownloadState,
     progress_bytes: u64,
     total_bytes: u64,
@@ -93,19 +83,19 @@ fn selected_model_message(
             } else {
                 progress_bytes.saturating_mul(100) / total_bytes
             };
-            format!("Downloading {} model ({percent}%)", provider.display_name())
+            format!("Downloading {PARAKEET_DISPLAY_NAME} model ({percent}%)")
         }
         TranscriptionModelDownloadState::Installing => {
-            format!("Installing {} model", provider.display_name())
+            format!("Installing {PARAKEET_DISPLAY_NAME} model")
         }
         TranscriptionModelDownloadState::Failed => {
-            format!("{} model download failed", provider.display_name())
+            format!("{PARAKEET_DISPLAY_NAME} model download failed")
         }
         TranscriptionModelDownloadState::Cancelled => {
-            format!("{} model download cancelled", provider.display_name())
+            format!("{PARAKEET_DISPLAY_NAME} model download cancelled")
         }
         TranscriptionModelDownloadState::Idle => {
-            format!("{} transcription model is missing", provider.display_name())
+            format!("{PARAKEET_DISPLAY_NAME} transcription model is missing")
         }
     }
 }
