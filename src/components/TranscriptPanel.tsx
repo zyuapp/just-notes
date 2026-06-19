@@ -24,7 +24,6 @@ type TranscriptPanelProps = {
   statusLabel: string;
   transcriptionStatus: TranscriptionStatusPayload | null;
   threadActions: ThreadActions;
-  onCreateThread: () => void;
   onCancelModelDownload: () => void;
   onStartModelDownload: () => void;
   onStartFixtureRecording: () => void;
@@ -43,7 +42,6 @@ export function TranscriptPanel({
   statusLabel,
   transcriptionStatus,
   threadActions,
-  onCreateThread,
   onCancelModelDownload,
   onStartModelDownload,
   onStartFixtureRecording,
@@ -113,7 +111,6 @@ export function TranscriptPanel({
         selectedThread={selectedThread}
         transcriptionStatus={transcriptionStatus}
         query={query}
-        onCreateThread={onCreateThread}
         onStartModelDownload={onStartModelDownload}
         onStartRecording={onStartRecording}
         onSaveSegmentText={(index, text) => void threadActions.updateSegmentText(index, text)}

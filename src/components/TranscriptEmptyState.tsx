@@ -1,4 +1,4 @@
-import { FilePlus2, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { downloadActionLabel, downloadPercent } from "../lib/transcriptionModel";
@@ -8,7 +8,6 @@ type TranscriptEmptyStateProps = {
   hasThread: boolean;
   canStart: boolean;
   transcriptionStatus: TranscriptionStatusPayload | null;
-  onCreateThread: () => void;
   onStartModelDownload: () => void;
   onStartRecording: () => void;
 };
@@ -17,7 +16,6 @@ export function TranscriptEmptyState({
   hasThread,
   canStart,
   transcriptionStatus,
-  onCreateThread,
   onStartModelDownload,
   onStartRecording,
 }: TranscriptEmptyStateProps) {
@@ -36,7 +34,7 @@ export function TranscriptEmptyState({
         <p>
           {hasThread
             ? "Start recording to add the first transcript segment to this thread."
-            : "Record a conversation now, or create a blank thread for notes you will fill in later."}
+            : "Start recording to capture your first transcript."}
         </p>
       </div>
       <div className="empty-actions">
@@ -49,12 +47,6 @@ export function TranscriptEmptyState({
           <span className="record-glyph" aria-hidden="true" />
           <span>{missingSelectedModel ? emptyDownloadLabel(selectedModel) : "Start recording"}</span>
         </button>
-        {!hasThread && (
-          <button type="button" className="empty-secondary" onClick={onCreateThread}>
-            <FilePlus2 size={14} aria-hidden="true" />
-            <span>New blank thread</span>
-          </button>
-        )}
       </div>
     </div>
   );
