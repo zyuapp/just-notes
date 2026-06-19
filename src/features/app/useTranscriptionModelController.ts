@@ -1,0 +1,61 @@
+import { useCallback, useEffect } from "react";
+import { api, getApiErrorMessage } from "../../api";
+import type { TranscriptionProvider } from "../../bindings/TranscriptionProvider";
+import type { AppAction, AppState } from "./state";
+
+type AppDispatch = (action: AppAction) => void;
+
+export function useTranscriptionModelController(state: AppState, dispatch: AppDispatch) {
+  const refreshTranscriptionStatus = useCallback(async () => {
+    try {
+      const [transcriptionStatus, settings] = await Promise.all([
+        api.transcription.getStatus(),
+        api.settings.get(),
+      ]);
+      dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
+      dispatch({ type: "settingsLoaded", settings });
+    } catch (error) {
+      dispatch({ type: "failed", message: getApiErrorMessage(error) });
+    }
+  }, [dispatch]);
+
+  const startModelDownload = useCallback(
+    async (provider: TranscriptionProvider) => {
+      dispatch({ type: "errorCleared" });
+      try {
+        const transcriptionStatus = await api.transcription.startModelDownload(provider);
+        dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
+      } catch (error) {
+        dispatch({ type: "failed", message: getApiErrorMessage(error) });
+      }
+    },
+    [dispatch],
+  );
+
+  const cancelModelDownload = useCallback(
+    async (provider: TranscriptionProvider) => {
+      dispatch({ type: "errorCleared" });
+      try {
+        const transcriptionStatus = await api.transcription.cancelModelDownload(provider);
+        dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
+      } catch (error) {
+        dispatch({ type: "failed", message: getApiErrorMessage(error) });
+      }
+    },
+    [dispatch],
+  );
+
+  useEffect(() => {
+    const selectedModel = state.transcriptionStatus?.availableModels.find((model) => model.selected);
+    const activeDownload =
+      selectedModel?.downloadState === "downloading" || selectedModel?.downloadState === "installing";
+    if (!activeDownload) return undefined;
+
+    const timer = window.setTimeout(() => {
+      void refreshTranscriptionStatus();
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [refreshTranscriptionStatus, state.transcriptionStatus]);
+
+  return { cancelModelDownload, refreshTranscriptionStatus, startModelDownload };
+}

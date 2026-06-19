@@ -31,9 +31,7 @@
   transition: background 0.15s ease;
 }
 
-.record-button:hover:not(:disabled) {
-  background: var(--red-soft);
-}
+.record-button:hover:not(:disabled) { background: var(--red-soft); }
 
 .record-button:disabled {
   cursor: not-allowed;
@@ -43,6 +41,15 @@
 .record-button:focus-visible {
   outline-color: rgba(255, 255, 255, 0.6);
 }
+
+.capture-secondary {
+  display: inline-flex; align-items: center; height: 30px;
+  flex: 0 0 auto;
+  padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 7px;
+  background: var(--raised); color: var(--text); cursor: pointer; font-size: 12px;
+}
+
+.capture-secondary:hover { color: var(--text-bright); }
 
 .record-glyph {
   width: 9px;
@@ -68,11 +75,7 @@
   animation: record-glyph-breathe 1.6s ease-in-out infinite;
 }
 
-@keyframes record-glyph-breathe {
-  50% {
-    opacity: 0.5;
-  }
-}
+@keyframes record-glyph-breathe { 50% { opacity: 0.5; } }
 
 .capture-elapsed {
   flex: 0 0 auto;

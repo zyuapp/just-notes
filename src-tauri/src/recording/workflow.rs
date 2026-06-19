@@ -107,6 +107,16 @@ fn prepare_recording_session(
     } = start;
     recorder.ensure_idle()?;
     paths.ensure()?;
+    let transcription = transcription_status(
+        &paths,
+        selected_transcription_provider(settings.transcription_provider),
+    );
+    if !transcription.ready {
+        return Err(format!(
+            "{} model is required before recording",
+            transcription.provider.display_name()
+        ));
+    }
 
     let thread = select_recording_thread(&paths, requested_thread_id)?;
     let thread_id = thread.summary.id.clone();
@@ -117,10 +127,6 @@ fn prepare_recording_session(
     let input = prepare_audio_input(&app, input_mode)?;
     set_thread_status(&thread_dir, ThreadStatus::Recording)?;
 
-    let transcription = transcription_status(
-        &paths,
-        selected_transcription_provider(settings.transcription_provider),
-    );
     let config = RecordingSessionConfig {
         app: app.clone(),
         thread_id: thread_id.clone(),

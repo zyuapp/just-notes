@@ -32,8 +32,19 @@ export default function App() {
   const activeThreadId = getActiveThreadId(state);
   const statusLabel = useMemo(() => getStatusLabel(state), [state]);
   const notice = useMemo(
-    () => buildNotice(state, settingsActions.openSettings, settingsActions.openPrivacySettings),
-    [state, settingsActions.openSettings, settingsActions.openPrivacySettings],
+    () =>
+      buildNotice(
+        state,
+        settingsActions.openSettings,
+        settingsActions.openPrivacySettings,
+        actions.startModelDownload,
+      ),
+    [
+      actions.startModelDownload,
+      state,
+      settingsActions.openPrivacySettings,
+      settingsActions.openSettings,
+    ],
   );
 
   return (
@@ -65,9 +76,12 @@ export default function App() {
         transcriptionStatus={state.transcriptionStatus}
         threadActions={threadActions}
         onCreateThread={actions.createThread}
+        onCancelModelDownload={actions.cancelModelDownload}
+        onStartModelDownload={actions.startModelDownload}
         onStartFixtureRecording={actions.startFixtureRecording}
         onStartRecording={actions.startRecording}
         onStopRecording={actions.stopRecording}
+        onUseWhisper={() => void settingsActions.setTranscriptionProvider("whisper")}
       />
       {state.settingsOpen && state.settings && (
         <SettingsView
@@ -86,6 +100,8 @@ export default function App() {
           onTranscriptionProviderChange={(provider) =>
             void settingsActions.setTranscriptionProvider(provider)
           }
+          onCancelModelDownload={(provider) => void actions.cancelModelDownload(provider)}
+          onStartModelDownload={(provider) => void actions.startModelDownload(provider)}
           onOpenPrivacy={(pane) => void settingsActions.openPrivacySettings(pane)}
         />
       )}
@@ -97,6 +113,7 @@ function buildNotice(
   state: AppState,
   openSettings: () => void,
   openPrivacy: (pane: "microphone" | "system-audio") => Promise<void>,
+  startModelDownload: (provider: "parakeet" | "whisper") => Promise<void>,
 ): Notice | null {
   if (state.permissions && ["denied", "restricted"].includes(state.permissions.microphone)) {
     return {
@@ -106,11 +123,13 @@ function buildNotice(
     };
   }
   if (state.transcriptionStatus && !state.transcriptionStatus.ready) {
+    const selectedModel = state.transcriptionStatus.availableModels.find((model) => model.selected);
     return {
-      message:
-        "The local transcription model is not installed yet, so recordings will capture audio without a transcript.",
-      actionLabel: "Model status",
-      onAction: openSettings,
+      message: "Install the selected local transcription model before recording.",
+      actionLabel: selectedModel?.canDownload ? `Download ${selectedModel.name}` : "Model status",
+      onAction: selectedModel?.canDownload
+        ? () => void startModelDownload(selectedModel.provider)
+        : openSettings,
     };
   }
   return null;

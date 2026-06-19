@@ -120,7 +120,27 @@
 .settings-models em {
   margin-left: auto;
   flex: 0 0 auto;
+  max-width: 180px;
+  overflow: hidden;
   color: var(--text-3);
   font-size: 11px;
   font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-models button {
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--raised);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 11.5px;
+}
+
+.settings-models button:hover {
+  color: var(--text-bright);
 }

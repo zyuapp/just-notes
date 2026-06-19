@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { AppSettings } from "../bindings/AppSettings";
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
+import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
 import type { TranscriptionProviderPreference } from "../bindings/TranscriptionProviderPreference";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { permissionLabel, SettingsToggle } from "./SettingsControls";
@@ -20,6 +21,8 @@ type SettingsViewProps = {
   onToggleRawAudio: () => void;
   onToggleMarkdownCopy: () => void;
   onTranscriptionProviderChange: (provider: TranscriptionProviderPreference) => void;
+  onStartModelDownload: (provider: TranscriptionProvider) => void;
+  onCancelModelDownload: (provider: TranscriptionProvider) => void;
   onOpenPrivacy: (pane: "microphone" | "system-audio") => void;
 };
 
@@ -35,6 +38,8 @@ export function SettingsView({
   onToggleRawAudio,
   onToggleMarkdownCopy,
   onTranscriptionProviderChange,
+  onStartModelDownload,
+  onCancelModelDownload,
   onOpenPrivacy,
 }: SettingsViewProps) {
   // macOS webviews never deliver keydown for Escape (tauri#5790); keyup does.
@@ -93,6 +98,8 @@ export function SettingsView({
           settings={settings}
           transcriptionStatus={transcriptionStatus}
           onTranscriptionProviderChange={onTranscriptionProviderChange}
+          onStartModelDownload={onStartModelDownload}
+          onCancelModelDownload={onCancelModelDownload}
         />
 
         <section>

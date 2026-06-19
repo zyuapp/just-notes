@@ -1,10 +1,12 @@
 import { useCallback, useEffect } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import type { AppAction, AppState } from "./state";
+import { useTranscriptionModelController } from "./useTranscriptionModelController";
 
 type AppDispatch = (action: AppAction) => void;
 
 export function useJustNotesController(state: AppState, dispatch: AppDispatch) {
+  const modelActions = useTranscriptionModelController(state, dispatch);
   const selectThread = useCallback(
     async (threadId: string) => {
       dispatch({ type: "errorCleared" });
@@ -108,5 +110,6 @@ export function useJustNotesController(state: AppState, dispatch: AppDispatch) {
     startFixtureRecording,
     startRecording,
     stopRecording,
+    ...modelActions,
   };
 }

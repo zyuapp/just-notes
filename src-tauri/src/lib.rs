@@ -16,7 +16,7 @@ use app::AppPaths;
 use recording::RecorderState;
 use settings::{SettingsState, TranscriptionProviderPreference};
 use threads::repository::reset_stale_recording_threads;
-use transcription::{FinalizeState, TranscriptionProvider};
+use transcription::{FinalizeState, ModelDownloadState, TranscriptionProvider};
 
 pub fn run() {
     let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
@@ -29,6 +29,7 @@ pub fn run() {
         .manage(RecorderState::default())
         .manage(SettingsState::new(initial_settings))
         .manage(FinalizeState::default())
+        .manage(ModelDownloadState::default())
         .setup(|app| {
             let paths = app.state::<AppPaths>();
             let settings = app.state::<SettingsState>().snapshot();
@@ -100,7 +101,9 @@ fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
 fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
     builder.invoke_handler(tauri::generate_handler![
         commands::system::get_app_info,
-        commands::system::get_transcription_status,
+        commands::transcription::get_transcription_status,
+        commands::transcription::start_transcription_model_download,
+        commands::transcription::cancel_transcription_model_download,
         commands::system::get_permissions_status,
         commands::system::reveal_in_finder,
         commands::system::copy_text_to_clipboard,
@@ -131,7 +134,9 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
 fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
     builder.invoke_handler(tauri::generate_handler![
         commands::system::get_app_info,
-        commands::system::get_transcription_status,
+        commands::transcription::get_transcription_status,
+        commands::transcription::start_transcription_model_download,
+        commands::transcription::cancel_transcription_model_download,
         commands::system::get_permissions_status,
         commands::system::reveal_in_finder,
         commands::system::copy_text_to_clipboard,
