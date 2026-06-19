@@ -11,6 +11,7 @@ import {
   isModelDownloadActive,
 } from "../lib/transcriptionModel";
 import { CaptureMeter } from "./CaptureMeter";
+import { DownloadingLabel } from "./DownloadingLabel";
 
 type CaptureBarProps = {
   recorderState: RecorderState;
@@ -128,7 +129,7 @@ function buttonLabel(
   if (busy) return `${statusLabel}…`;
   if (!selectedModel?.installed && selectedModel?.downloadable) {
     if (selectedModel.downloadState === "downloading") {
-      return `Downloading ${downloadPercent(selectedModel)}%`;
+      return <DownloadingLabel percent={downloadPercent(selectedModel)} />;
     }
     if (selectedModel.downloadState === "installing") return "Installing";
     return downloadActionLabel(selectedModel);

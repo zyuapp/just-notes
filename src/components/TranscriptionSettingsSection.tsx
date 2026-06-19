@@ -4,6 +4,7 @@ import type { TranscriptionProviderPreference } from "../bindings/TranscriptionP
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { downloadPercent } from "../lib/transcriptionModel";
+import { DownloadingLabel } from "./DownloadingLabel";
 
 type TranscriptionSettingsSectionProps = {
   settings: AppSettings;
@@ -78,7 +79,11 @@ export function TranscriptionSettingsSection({
 
 function ModelStatusText({ model }: { model: TranscriptionModelStatus }) {
   if (model.downloadState === "downloading") {
-    return <em>{`Downloading ${downloadPercent(model)}%`}</em>;
+    return (
+      <em>
+        <DownloadingLabel percent={downloadPercent(model)} />
+      </em>
+    );
   }
   if (model.downloadState === "installing") return <em>Installing</em>;
   if (model.downloadState === "failed") return <em>{model.errorMessage ?? "Download failed"}</em>;

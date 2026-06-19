@@ -58,6 +58,13 @@ textarea {
   outline-offset: 2px;
 }
 
+.download-percent {
+  display: inline-block;
+  min-width: 3ch;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .icon-button {
   display: grid;
   width: 26px;

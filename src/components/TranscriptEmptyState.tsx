@@ -3,6 +3,7 @@ import type { TranscriptionProvider } from "../bindings/TranscriptionProvider";
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { downloadActionLabel, downloadPercent } from "../lib/transcriptionModel";
+import { DownloadingLabel } from "./DownloadingLabel";
 
 type TranscriptEmptyStateProps = {
   hasThread: boolean;
@@ -74,7 +75,7 @@ export function TranscriptEmptyState({
 
 function emptyDownloadLabel(model: TranscriptionModelStatus | undefined) {
   if (!model) return "Model required";
-  if (model.downloadState === "downloading") return `Downloading ${downloadPercent(model)}%`;
+  if (model.downloadState === "downloading") return <DownloadingLabel percent={downloadPercent(model)} />;
   if (model.downloadState === "installing") return "Installing model";
   return downloadActionLabel(model);
 }
