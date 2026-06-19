@@ -3,21 +3,10 @@ use std::path::{Path, PathBuf};
 use crate::app::AppPaths;
 
 use super::artifacts::parakeet_artifact;
+use whisper::discover_whisper_models;
 
-const WHISPER_MODEL_CANDIDATES: [WhisperModelCandidate; 3] = [
-    WhisperModelCandidate {
-        name: "medium.en",
-        filename: "ggml-medium.en.bin",
-    },
-    WhisperModelCandidate {
-        name: "small.en",
-        filename: "ggml-small.en.bin",
-    },
-    WhisperModelCandidate {
-        name: "base.en",
-        filename: "ggml-base.en.bin",
-    },
-];
+mod whisper;
+
 pub(crate) const PARAKEET_MODEL_ID: &str = "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8";
 pub(crate) const PARAKEET_MODEL_NAME: &str = "Parakeet TDT 0.6B v2";
 pub(crate) const PARAKEET_ENCODER: &str = "encoder.int8.onnx";
@@ -31,11 +20,6 @@ pub(crate) const PARAKEET_MODEL_FILENAMES: [&str; 4] = [
     PARAKEET_JOINER,
     PARAKEET_TOKENS,
 ];
-
-struct WhisperModelCandidate {
-    name: &'static str,
-    filename: &'static str,
-}
 
 #[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -131,31 +115,6 @@ impl TranscriptionModelSelection {
 pub(crate) struct TranscriptionModelCatalog {
     pub(crate) selection: TranscriptionModelSelection,
     pub(crate) available_models: Vec<TranscriptionModelStatus>,
-}
-
-pub(crate) fn discover_whisper_models(model_dir: &Path) -> Vec<TranscriptionModelStatus> {
-    WHISPER_MODEL_CANDIDATES
-        .iter()
-        .map(|candidate| {
-            let path = model_dir.join(candidate.filename);
-            TranscriptionModelStatus {
-                name: candidate.name.to_string(),
-                filename: candidate.filename.to_string(),
-                provider: TranscriptionProvider::Whisper,
-                installed: path.is_file(),
-                path,
-                selected: false,
-                downloadable: false,
-                download_state: TranscriptionModelDownloadState::Idle,
-                progress_bytes: 0,
-                total_bytes: 0,
-                display_size: String::new(),
-                can_download: false,
-                can_cancel: false,
-                error_message: None,
-            }
-        })
-        .collect()
 }
 
 pub(crate) fn finalization_transcription_catalog(

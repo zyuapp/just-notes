@@ -8,12 +8,14 @@ use std::{
 };
 
 mod install;
+mod snapshot;
 
 use crate::app::AppPaths;
 
 use super::{
     artifact_for_provider, ModelArtifact, TranscriptionModelDownloadState, TranscriptionProvider,
 };
+pub(crate) use snapshot::DownloadSnapshot;
 
 type DownloadSnapshots = Arc<Mutex<HashMap<TranscriptionProvider, DownloadSnapshot>>>;
 type DownloadCancellations = Arc<Mutex<HashMap<TranscriptionProvider, Arc<AtomicBool>>>>;
@@ -35,42 +37,6 @@ struct DownloadJob {
     paths: AppPaths,
     on_installed: OnInstalled,
     cancellation: Arc<AtomicBool>,
-}
-
-#[derive(Clone)]
-pub(crate) struct DownloadSnapshot {
-    pub(crate) state: TranscriptionModelDownloadState,
-    pub(crate) progress_bytes: u64,
-    pub(crate) total_bytes: u64,
-    pub(crate) error_message: Option<String>,
-}
-
-impl DownloadSnapshot {
-    pub(super) fn new(
-        state: TranscriptionModelDownloadState,
-        progress_bytes: u64,
-        total_bytes: u64,
-        error_message: Option<String>,
-    ) -> Self {
-        Self {
-            state,
-            progress_bytes,
-            total_bytes,
-            error_message,
-        }
-    }
-
-    fn idle(total_bytes: u64) -> Self {
-        Self::new(TranscriptionModelDownloadState::Idle, 0, total_bytes, None)
-    }
-
-    pub(super) fn active(&self) -> bool {
-        matches!(
-            self.state,
-            TranscriptionModelDownloadState::Downloading
-                | TranscriptionModelDownloadState::Installing
-        )
-    }
 }
 
 impl ModelDownloadState {
