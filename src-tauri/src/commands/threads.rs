@@ -43,6 +43,32 @@ pub(crate) fn rename_thread(
 }
 
 #[tauri::command]
+pub(crate) fn list_archived_threads(
+    paths: State<'_, AppPaths>,
+    settings: State<'_, SettingsState>,
+) -> Result<Vec<ThreadSummary>, String> {
+    repository::list_archived_threads(&effective_paths(&paths, &settings))
+}
+
+#[tauri::command]
+pub(crate) fn archive_thread(
+    paths: State<'_, AppPaths>,
+    settings: State<'_, SettingsState>,
+    thread_id: String,
+) -> Result<(), String> {
+    edits::archive_thread(&effective_paths(&paths, &settings), &thread_id)
+}
+
+#[tauri::command]
+pub(crate) fn restore_thread(
+    paths: State<'_, AppPaths>,
+    settings: State<'_, SettingsState>,
+    thread_id: String,
+) -> Result<(), String> {
+    edits::restore_thread(&effective_paths(&paths, &settings), &thread_id)
+}
+
+#[tauri::command]
 pub(crate) fn delete_thread(
     paths: State<'_, AppPaths>,
     settings: State<'_, SettingsState>,

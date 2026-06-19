@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "bindings:rs": "cd src-tauri && cargo test export_bindings",
     "bindings:rs:check": "scripts/check-bindings-clean.sh",
-    "test:fe": "bun test ./src/**/*.test.ts",
+    "test:fe": "bun test ./src",
     "lint:fe:boundary": "scripts/check-frontend-api-boundary.sh",
     "lint:fe:components": "scripts/check-frontend-component-boundary.sh",
     "lint:fe:files": "scripts/check-frontend-file-lines.sh",

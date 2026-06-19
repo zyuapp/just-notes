@@ -1,21 +1,17 @@
 import { useCallback, useMemo, useReducer } from "react";
-import type { Notice } from "./components/NoticeBar";
+import { ArchivedView } from "./components/ArchivedView";
 import { SettingsView } from "./components/SettingsView";
 import { ThreadSidebar } from "./components/ThreadSidebar";
 import { TranscriptPanel } from "./components/TranscriptPanel";
-import {
-  appReducer,
-  getActiveThreadId,
-  getStatusLabel,
-  initialAppState,
-  type AppState,
-} from "./features/app/state";
+import { UndoToast } from "./components/UndoToast";
+import { buildNotice } from "./features/app/buildNotice";
+import { appReducer, getActiveThreadId, getStatusLabel, initialAppState } from "./features/app/state";
 import { useAppEvents } from "./features/app/useAppEvents";
+import { useArchivedThreads } from "./features/app/useArchivedThreads";
 import { useJustNotesController } from "./features/app/useJustNotesController";
 import { useSettingsController } from "./features/app/useSettingsController";
 import { useThreadActions } from "./features/app/useThreadActions";
 import { useThreadSearch } from "./features/app/useThreadSearch";
-import { downloadActionLabel } from "./lib/transcriptionModel";
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
@@ -23,12 +19,18 @@ export default function App() {
   const threadActions = useThreadActions(state, dispatch, actions.refreshThreads);
   const settingsActions = useSettingsController(state, dispatch, actions.bootstrap);
   const search = useThreadSearch(dispatch, state.threads);
+  const archived = useArchivedThreads(state.archiveOpen);
 
   const onFinalizationSettled = useCallback(
     () => void actions.refreshThreads(),
     [actions.refreshThreads],
   );
   useAppEvents(dispatch, onFinalizationSettled);
+
+  const dismissArchiveNotice = useCallback(
+    () => dispatch({ type: "archiveNoticeCleared" }),
+    [dispatch],
+  );
 
   const activeThreadId = getActiveThreadId(state);
   const statusLabel = useMemo(() => getStatusLabel(state), [state]);
@@ -62,7 +64,8 @@ export default function App() {
         onSelectThread={(threadId) => void actions.selectThread(threadId)}
         onExportThread={(threadId) => void threadActions.exportMarkdown(threadId)}
         onRevealThread={(path) => void threadActions.revealPath(path)}
-        onDeleteThread={(threadId) => void threadActions.deleteThread(threadId)}
+        onArchiveThread={(threadId) => void threadActions.archiveThread(threadId)}
+        onOpenArchive={() => dispatch({ type: "archiveOpenChanged", open: true })}
         onOpenSettings={settingsActions.openSettings}
         onRevealStorage={() => {
           if (state.appInfo) void threadActions.revealPath(state.appInfo.threadsDir);
@@ -105,30 +108,23 @@ export default function App() {
           onOpenPrivacy={(pane) => void settingsActions.openPrivacySettings(pane)}
         />
       )}
+      {state.archiveOpen && (
+        <ArchivedView
+          items={archived.items}
+          error={archived.error}
+          onReload={archived.reload}
+          onClose={() => dispatch({ type: "archiveOpenChanged", open: false })}
+          onRestore={(threadId) => threadActions.restoreThread(threadId)}
+          onDeletePermanently={(threadId) => threadActions.deleteArchivedThread(threadId)}
+        />
+      )}
+      <UndoToast
+        notice={state.archivedNotice}
+        onUndo={() => {
+          if (state.archivedNotice) void threadActions.restoreThread(state.archivedNotice.threadId);
+        }}
+        onDismiss={dismissArchiveNotice}
+      />
     </main>
   );
-}
-
-function buildNotice(
-  state: AppState,
-  openSettings: () => void,
-  openPrivacy: (pane: "microphone" | "system-audio") => Promise<void>,
-  startModelDownload: () => Promise<void>,
-): Notice | null {
-  if (state.permissions && ["denied", "restricted"].includes(state.permissions.microphone)) {
-    return {
-      message: "Microphone access is blocked, so recordings will miss your voice.",
-      actionLabel: "Open System Settings",
-      onAction: () => void openPrivacy("microphone"),
-    };
-  }
-  if (state.transcriptionStatus && !state.transcriptionStatus.ready) {
-    const selectedModel = state.transcriptionStatus.availableModels.find((model) => model.selected);
-    return {
-      message: "Install the selected local transcription model before recording.",
-      actionLabel: selectedModel?.canDownload ? downloadActionLabel() : "Model status",
-      onAction: selectedModel?.canDownload ? () => void startModelDownload() : openSettings,
-    };
-  }
-  return null;
 }

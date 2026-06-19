@@ -1,11 +1,11 @@
 import { X } from "lucide-react";
-import { useEffect } from "react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { AppSettings } from "../bindings/AppSettings";
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { permissionLabel, SettingsToggle } from "./SettingsControls";
 import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
+import { useDismissOnEscape } from "./useDismissOnEscape";
 
 type SettingsViewProps = {
   settings: AppSettings;
@@ -38,18 +38,7 @@ export function SettingsView({
   onCancelModelDownload,
   onOpenPrivacy,
 }: SettingsViewProps) {
-  // macOS webviews never deliver keydown for Escape (tauri#5790); keyup does.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("keyup", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("keyup", onKey);
-    };
-  }, [onClose]);
+  useDismissOnEscape(onClose);
 
   return (
     <div className="settings-overlay" role="dialog" aria-label="Settings">

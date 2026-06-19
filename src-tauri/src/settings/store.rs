@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::app::AppPaths;
+use crate::app::{AppPaths, ARCHIVED_DIR_NAME};
 
 #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase", default)]
@@ -70,7 +70,7 @@ pub(crate) fn save_settings(data_dir: &Path, settings: &AppSettings) -> Result<(
         .map_err(|err| format!("Failed to replace {}: {err}", path.display()))
 }
 
-pub(crate) fn validate_settings(settings: &AppSettings) -> Result<(), String> {
+pub(crate) fn validate_settings(base: &AppPaths, settings: &AppSettings) -> Result<(), String> {
     let Some(dir) = settings.transcripts_dir.as_deref() else {
         return Ok(());
     };
@@ -83,7 +83,30 @@ pub(crate) fn validate_settings(settings: &AppSettings) -> Result<(), String> {
             "The transcripts folder {} is not writable: {err}",
             dir.display()
         )
-    })
+    })?;
+
+    // The data folder holds the archive store. If the transcripts folder
+    // contained or sat inside it, archived recordings would land back under the
+    // folder agents crawl, defeating the point of archiving.
+    let dir = dir.canonicalize().map_err(|err| {
+        format!(
+            "Cannot resolve the transcripts folder {}: {err}",
+            dir.display()
+        )
+    })?;
+    let data_dir = base
+        .data_dir
+        .canonicalize()
+        .unwrap_or_else(|_| base.data_dir.clone());
+    let archived_dir = data_dir.join(ARCHIVED_DIR_NAME);
+    if data_dir.starts_with(&dir) || dir.starts_with(&archived_dir) {
+        return Err(
+            "The transcripts folder can't contain or sit inside the Just Notes data \
+             folder, where archived recordings are stored. Pick a different folder."
+                .to_string(),
+        );
+    }
+    Ok(())
 }
 
 pub(crate) fn effective_paths(base: &AppPaths, settings: &AppSettings) -> AppPaths {
@@ -93,8 +116,11 @@ pub(crate) fn effective_paths(base: &AppPaths, settings: &AppSettings) -> AppPat
         .map(PathBuf::from)
         .unwrap_or_else(|| base.data_dir.join("threads"));
     AppPaths {
-        data_dir: base.data_dir.clone(),
         threads_dir,
+        // The archive store stays under the data dir regardless of a custom
+        // transcripts folder, so it never lands inside the crawled corpus.
+        archived_dir: base.archived_dir.clone(),
+        data_dir: base.data_dir.clone(),
     }
 }
 

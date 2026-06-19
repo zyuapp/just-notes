@@ -26,15 +26,32 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         selectedThread: action.detail,
         threads: replaceThreadSummary(state, action.detail),
       };
-    case "threadDeleted":
+    case "threadArchived": {
+      const threadId = action.summary.id;
       return {
         ...state,
-        threads: state.threads.filter((thread) => thread.id !== action.threadId),
-        selectedThreadId: state.selectedThreadId === action.threadId ? null : state.selectedThreadId,
+        threads: state.threads.filter((thread) => thread.id !== threadId),
+        selectedThreadId: state.selectedThreadId === threadId ? null : state.selectedThreadId,
         recordingThreadId:
-          state.recordingThreadId === action.threadId ? null : state.recordingThreadId,
+          state.recordingThreadId === threadId ? null : state.recordingThreadId,
         selectedThread:
-          state.selectedThread?.summary.id === action.threadId ? null : state.selectedThread,
+          state.selectedThread?.summary.id === threadId ? null : state.selectedThread,
+        archivedNotice: { threadId, title: action.summary.title },
+      };
+    }
+    case "archiveNoticeCleared":
+      // A targeted clear (from restore/permanent-delete of a specific thread)
+      // must compare against current state, not a value captured in a stale
+      // closure; an untargeted clear (the auto-dismiss timer) always clears.
+      if (action.threadId && state.archivedNotice?.threadId !== action.threadId) return state;
+      return { ...state, archivedNotice: null };
+    case "archiveOpenChanged":
+      // Opening the archive view retires the undo affordance: the user is now
+      // managing archived threads directly, so the toast would be redundant.
+      return {
+        ...state,
+        archiveOpen: action.open,
+        archivedNotice: action.open ? null : state.archivedNotice,
       };
     case "settingsLoaded":
       return { ...state, settings: action.settings };

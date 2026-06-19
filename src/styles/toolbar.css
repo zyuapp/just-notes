@@ -45,33 +45,6 @@
   color: var(--text-bright);
 }
 
-.toolbar-delete {
-  display: grid;
-  height: 26px;
-  min-width: 26px;
-  place-items: center;
-  border-radius: 6px;
-  color: var(--text-2);
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.toolbar-delete:hover:not(:disabled),
-.toolbar-delete.armed {
-  background: var(--red-soft);
-  color: #ff9d99;
-}
-
-.toolbar-delete.armed {
-  padding: 0 10px;
-  font-weight: 500;
-}
-
-.toolbar-delete:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
 .speaker-renames {
   display: flex;
   flex-basis: 100%;

@@ -26,6 +26,7 @@ impl Fixture {
         AppPaths {
             data_dir: self.root.clone(),
             threads_dir: self.root.join("threads"),
+            archived_dir: self.root.join("archived"),
         }
     }
 }

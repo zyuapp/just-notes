@@ -1,6 +1,5 @@
-import { Copy, FileDown, FolderOpen, Search, Trash2, Users } from "lucide-react";
+import { Archive, Copy, FileDown, FolderOpen, Search, Users } from "lucide-react";
 import { useState } from "react";
-import { useConfirmAction } from "./useConfirmAction";
 
 type TranscriptToolbarProps = {
   query: string;
@@ -11,7 +10,7 @@ type TranscriptToolbarProps = {
   onCopy: () => void;
   onExport: () => void;
   onReveal: () => void;
-  onDelete: () => void;
+  onArchive: () => void;
   onRenameSpeaker: (speaker: string, label: string) => void;
 };
 
@@ -24,11 +23,10 @@ export function TranscriptToolbar({
   onCopy,
   onExport,
   onReveal,
-  onDelete,
+  onArchive,
   onRenameSpeaker,
 }: TranscriptToolbarProps) {
   const [showSpeakers, setShowSpeakers] = useState(false);
-  const confirmDelete = useConfirmAction(onDelete);
 
   return (
     <div className="transcript-toolbar">
@@ -64,14 +62,13 @@ export function TranscriptToolbar({
         </button>
         <button
           type="button"
-          className={confirmDelete.armed ? "toolbar-delete armed" : "toolbar-delete"}
-          onClick={confirmDelete.trigger}
-          onBlur={confirmDelete.reset}
-          title="Delete thread"
-          aria-label="Delete thread"
+          className="icon-button"
+          onClick={onArchive}
+          title="Archive thread"
+          aria-label="Archive thread"
           disabled={!canModify}
         >
-          {confirmDelete.armed ? <span>Confirm</span> : <Trash2 size={15} aria-hidden="true" />}
+          <Archive size={15} aria-hidden="true" />
         </button>
       </div>
       {showSpeakers && (
