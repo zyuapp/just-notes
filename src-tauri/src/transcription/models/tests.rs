@@ -25,16 +25,16 @@ fn finalization_prefers_the_largest_installed_model() {
 }
 
 #[test]
-fn finalization_policy_marks_the_largest_installed_model_as_selected() {
+fn finalization_prefers_medium_over_smaller_installed_models() {
     let fixture = ModelDirFixture::new();
-    fixture.install("ggml-base.en.bin");
     fixture.install("ggml-small.en.bin");
+    fixture.install("ggml-medium.en.bin");
 
     let catalog =
         finalization_transcription_catalog(&fixture.app_paths(), TranscriptionProvider::Whisper);
 
-    assert_eq!(catalog.selection.model_name, "small.en");
-    assert!(selected_model(&catalog.available_models, "small.en"));
+    assert_eq!(catalog.selection.model_name, "medium.en");
+    assert!(selected_model(&catalog.available_models, "medium.en"));
 }
 
 #[test]
