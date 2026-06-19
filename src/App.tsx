@@ -85,8 +85,6 @@ export default function App() {
           transcriptionStatus={state.transcriptionStatus}
           permissions={state.permissions}
           onClose={settingsActions.closeSettings}
-          onChooseFolder={() => void settingsActions.chooseTranscriptsFolder()}
-          onUseDefaultFolder={() => void settingsActions.useDefaultFolder()}
           onRevealFolder={() => {
             if (state.appInfo) void threadActions.revealPath(state.appInfo.threadsDir);
           }}

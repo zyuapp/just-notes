@@ -55,23 +55,6 @@ export function useSettingsController(
     await saveSettings({ ...state.settings, markdownCopy: !state.settings.markdownCopy }, false);
   }, [saveSettings, state.settings]);
 
-  const chooseTranscriptsFolder = useCallback(async () => {
-    if (!state.settings) return;
-    try {
-      const folder = await api.settings.pickFolder();
-      if (folder) {
-        await saveSettings({ ...state.settings, transcriptsDir: folder }, true);
-      }
-    } catch (error) {
-      fail(error);
-    }
-  }, [fail, saveSettings, state.settings]);
-
-  const useDefaultFolder = useCallback(async () => {
-    if (!state.settings) return;
-    await saveSettings({ ...state.settings, transcriptsDir: null }, true);
-  }, [saveSettings, state.settings]);
-
   const openPrivacySettings = useCallback(
     async (pane: "microphone" | "system-audio") => {
       try {
@@ -84,12 +67,10 @@ export function useSettingsController(
   );
 
   return {
-    chooseTranscriptsFolder,
     closeSettings,
     openPrivacySettings,
     openSettings,
     toggleMarkdownCopy,
     toggleRawAudio,
-    useDefaultFolder,
   };
 }

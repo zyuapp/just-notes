@@ -13,8 +13,6 @@ type SettingsViewProps = {
   transcriptionStatus: TranscriptionStatusPayload | null;
   permissions: PermissionsPayload | null;
   onClose: () => void;
-  onChooseFolder: () => void;
-  onUseDefaultFolder: () => void;
   onRevealFolder: () => void;
   onToggleRawAudio: () => void;
   onToggleMarkdownCopy: () => void;
@@ -29,8 +27,6 @@ export function SettingsView({
   transcriptionStatus,
   permissions,
   onClose,
-  onChooseFolder,
-  onUseDefaultFolder,
   onRevealFolder,
   onToggleRawAudio,
   onToggleMarkdownCopy,
@@ -58,11 +54,7 @@ export function SettingsView({
               <p className="settings-path">{appInfo?.threadsDir ?? "…"}</p>
             </div>
             <div className="settings-row-actions">
-              <button type="button" onClick={onChooseFolder}>Change…</button>
               <button type="button" onClick={onRevealFolder}>Reveal</button>
-              {settings.transcriptsDir !== null && (
-                <button type="button" onClick={onUseDefaultFolder}>Use default</button>
-              )}
             </div>
           </div>
           <SettingsToggle
