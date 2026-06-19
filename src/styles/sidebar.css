@@ -74,33 +74,6 @@
   border-top: 1px solid var(--line);
 }
 
-.storage-path {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  padding: 4px 6px;
-  border-radius: 6px;
-  color: var(--text-3);
-  cursor: pointer;
-  font-size: 11.5px;
-}
-
-.storage-path svg {
-  flex: 0 0 auto;
-}
-
-.storage-path span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.storage-path:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-2);
-}
-
 /* Pill that flies from a thread row into the archive icon when a thread is archived. */
 .archive-fly {
   position: fixed;

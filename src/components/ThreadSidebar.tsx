@@ -1,6 +1,5 @@
-import { Archive, Folder, Plus, Search, Settings } from "lucide-react";
+import { Archive, Plus, Search, Settings } from "lucide-react";
 import { useState } from "react";
-import type { AppInfo } from "../bindings/AppInfo";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
 import { ThreadContextMenu } from "./ThreadContextMenu";
 import { ThreadList } from "./ThreadList";
@@ -8,7 +7,6 @@ import { useArchiveFlight } from "./useArchiveFlight";
 
 type ThreadSidebarProps = {
   activeThreadId: string | null;
-  appInfo: AppInfo | null;
   selectedThreadId: string | null;
   threads: ThreadSummary[];
   searchQuery: string;
@@ -21,14 +19,12 @@ type ThreadSidebarProps = {
   onArchiveThread: (threadId: string) => void;
   onOpenArchive: () => void;
   onOpenSettings: () => void;
-  onRevealStorage: () => void;
 };
 
 type ThreadMenuState = { thread: ThreadSummary; x: number; y: number };
 
 export function ThreadSidebar({
   activeThreadId,
-  appInfo,
   selectedThreadId,
   threads,
   searchQuery,
@@ -41,7 +37,6 @@ export function ThreadSidebar({
   onArchiveThread,
   onOpenArchive,
   onOpenSettings,
-  onRevealStorage,
 }: ThreadSidebarProps) {
   const [menu, setMenu] = useState<ThreadMenuState | null>(null);
   const { iconRef, scopeRef, flyToArchive } = useArchiveFlight();
@@ -107,15 +102,6 @@ export function ThreadSidebar({
           aria-label="Settings"
         >
           <Settings size={15} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="storage-path"
-          onClick={onRevealStorage}
-          title="Reveal in Finder"
-        >
-          <Folder size={13} aria-hidden="true" />
-          <span>{appInfo?.threadsDir ?? "Locating storage…"}</span>
         </button>
       </footer>
 

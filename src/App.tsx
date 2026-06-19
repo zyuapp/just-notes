@@ -48,7 +48,6 @@ export default function App() {
     <main className="app-shell">
       <ThreadSidebar
         activeThreadId={activeThreadId}
-        appInfo={state.appInfo}
         selectedThreadId={state.selectedThreadId}
         threads={search.results ?? state.threads}
         searchQuery={search.query}
@@ -61,9 +60,6 @@ export default function App() {
         onArchiveThread={(threadId) => void threadActions.archiveThread(threadId)}
         onOpenArchive={() => dispatch({ type: "archiveOpenChanged", open: true })}
         onOpenSettings={settingsActions.openSettings}
-        onRevealStorage={() => {
-          if (state.appInfo) void threadActions.revealPath(state.appInfo.threadsDir);
-        }}
       />
       <TranscriptPanel
         error={state.error}
