@@ -92,6 +92,7 @@ export default function App() {
           onToggleMarkdownCopy={() => void settingsActions.toggleMarkdownCopy()}
           onCancelModelDownload={() => void actions.cancelModelDownload()}
           onStartModelDownload={() => void actions.startModelDownload()}
+          onDeleteModel={() => void actions.deleteModel()}
           onOpenPrivacy={(pane) => void settingsActions.openPrivacySettings(pane)}
         />
       )}

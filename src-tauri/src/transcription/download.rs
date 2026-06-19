@@ -174,6 +174,10 @@ impl ModelDownloadState {
             *slot = Some(snapshot);
         }
     }
+
+    pub(crate) fn reset_to_idle(&self) {
+        self.set_snapshot(DownloadSnapshot::idle(parakeet_artifact().archive_bytes));
+    }
 }
 
 fn already_running() -> Result<(), String> {

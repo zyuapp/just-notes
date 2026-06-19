@@ -39,6 +39,16 @@ export function useTranscriptionModelController(state: AppState, dispatch: AppDi
     }
   }, [dispatch]);
 
+  const deleteModel = useCallback(async () => {
+    dispatch({ type: "errorCleared" });
+    try {
+      const transcriptionStatus = await api.transcription.deleteModel();
+      dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
+    } catch (error) {
+      dispatch({ type: "failed", message: getApiErrorMessage(error) });
+    }
+  }, [dispatch]);
+
   useEffect(() => {
     const selectedModel = state.transcriptionStatus?.availableModels.find((model) => model.selected);
     if (!selectedModel || !isModelDownloadActive(selectedModel)) return undefined;
@@ -49,5 +59,5 @@ export function useTranscriptionModelController(state: AppState, dispatch: AppDi
     return () => window.clearTimeout(timer);
   }, [refreshTranscriptionStatus, state.transcriptionStatus]);
 
-  return { cancelModelDownload, refreshTranscriptionStatus, startModelDownload };
+  return { cancelModelDownload, deleteModel, refreshTranscriptionStatus, startModelDownload };
 }

@@ -18,6 +18,7 @@ type SettingsViewProps = {
   onToggleMarkdownCopy: () => void;
   onStartModelDownload: () => void;
   onCancelModelDownload: () => void;
+  onDeleteModel: () => void;
   onOpenPrivacy: (pane: "microphone" | "system-audio") => void;
 };
 
@@ -32,6 +33,7 @@ export function SettingsView({
   onToggleMarkdownCopy,
   onStartModelDownload,
   onCancelModelDownload,
+  onDeleteModel,
   onOpenPrivacy,
 }: SettingsViewProps) {
   useDismissOnEscape(onClose);
@@ -75,6 +77,7 @@ export function SettingsView({
           transcriptionStatus={transcriptionStatus}
           onStartModelDownload={onStartModelDownload}
           onCancelModelDownload={onCancelModelDownload}
+          onDeleteModel={onDeleteModel}
         />
 
         <section>

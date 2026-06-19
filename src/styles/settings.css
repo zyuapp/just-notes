@@ -103,3 +103,13 @@
   color: var(--text-bright);
 }
 
+.settings-row-actions button.settings-danger {
+  color: #ff9d99;
+}
+
+.settings-row-actions button.settings-danger:hover,
+.settings-row-actions button.settings-danger.armed {
+  border-color: transparent;
+  background: var(--red-soft);
+}
+
