@@ -34,24 +34,56 @@ export function useThreadActions(
     [dispatch, fail, threadId],
   );
 
-  const deleteThread = useCallback(
+  const archiveThread = useCallback(
     async (targetId: string) => {
       try {
+        const summary =
+          state.threads.find((thread) => thread.id === targetId) ??
+          (state.selectedThread?.summary.id === targetId ? state.selectedThread.summary : null);
         const wasSelected = state.selectedThreadId === targetId;
         const neighborId = wasSelected ? neighborThreadId(state.threads, targetId) : undefined;
-        await api.threads.delete(targetId);
-        dispatch({ type: "threadDeleted", threadId: targetId });
-        // Deleting the open thread needs a neighbor selected; deleting any other
-        // thread is fully handled by the optimistic removal, so skip the refresh
-        // that would otherwise re-fetch the still-open thread.
+        await api.threads.archive(targetId);
+        if (summary) {
+          dispatch({ type: "threadArchived", summary });
+        }
+        // Open thread needs a neighbor selected; a missing summary needs a refresh.
         if (wasSelected) {
           await refreshThreads(neighborId);
+        } else if (!summary) {
+          await refreshThreads();
         }
       } catch (error) {
         fail(error);
       }
     },
-    [dispatch, fail, refreshThreads, state.threads, state.selectedThreadId],
+    [dispatch, fail, refreshThreads, state.threads, state.selectedThread, state.selectedThreadId],
+  );
+
+  const restoreThread = useCallback(
+    async (targetId: string) => {
+      // Retract the undo affordance up front so it can't race the restore.
+      dispatch({ type: "archiveNoticeCleared", threadId: targetId });
+      try {
+        await api.threads.restore(targetId);
+        await refreshThreads();
+      } catch (error) {
+        fail(error);
+      }
+    },
+    [dispatch, fail, refreshThreads],
+  );
+
+  const deleteArchivedThread = useCallback(
+    async (targetId: string) => {
+      // A deleted thread can't be restored, so retract the undo before deleting.
+      dispatch({ type: "archiveNoticeCleared", threadId: targetId });
+      try {
+        await api.threads.delete(targetId);
+      } catch (error) {
+        fail(error);
+      }
+    },
+    [dispatch, fail],
   );
 
   const renameSpeaker = useCallback(
@@ -115,11 +147,13 @@ export function useThreadActions(
   );
 
   return {
+    archiveThread,
     copyTranscript,
-    deleteThread,
+    deleteArchivedThread,
     exportMarkdown,
     renameSpeaker,
     renameThread,
+    restoreThread,
     revealPath,
     updateSegmentText,
   };

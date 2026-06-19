@@ -11,9 +11,20 @@ use super::{
 
 pub(crate) fn list_threads(paths: &AppPaths) -> Result<Vec<ThreadSummary>, String> {
     paths.ensure()?;
+    list_thread_summaries_in(&paths.threads_dir)
+}
 
-    let mut threads = fs::read_dir(&paths.threads_dir)
-        .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?
+pub(crate) fn list_archived_threads(paths: &AppPaths) -> Result<Vec<ThreadSummary>, String> {
+    list_thread_summaries_in(&paths.archived_dir)
+}
+
+fn list_thread_summaries_in(dir: &Path) -> Result<Vec<ThreadSummary>, String> {
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut threads = fs::read_dir(dir)
+        .map_err(|err| format!("Failed to read {}: {err}", dir.display()))?
         .filter_map(Result::ok)
         .filter_map(|entry| load_thread_summary(&entry.path()).ok())
         .collect::<Vec<_>>();

@@ -24,6 +24,7 @@ fn settings_round_trip_and_defaults() {
 
     let base = AppPaths {
         threads_dir: dir.join("threads"),
+        archived_dir: dir.join("archived"),
         data_dir: dir.clone(),
     };
     assert_eq!(

@@ -1,4 +1,4 @@
-import { Folder, Plus, Search, Settings } from "lucide-react";
+import { Archive, Folder, Plus, Search, Settings } from "lucide-react";
 import { useState } from "react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
@@ -17,7 +17,8 @@ type ThreadSidebarProps = {
   onSelectThread: (threadId: string) => void;
   onExportThread: (threadId: string) => void;
   onRevealThread: (path: string) => void;
-  onDeleteThread: (threadId: string) => void;
+  onArchiveThread: (threadId: string) => void;
+  onOpenArchive: () => void;
   onOpenSettings: () => void;
   onRevealStorage: () => void;
 };
@@ -36,7 +37,8 @@ export function ThreadSidebar({
   onSelectThread,
   onExportThread,
   onRevealThread,
-  onDeleteThread,
+  onArchiveThread,
+  onOpenArchive,
   onOpenSettings,
   onRevealStorage,
 }: ThreadSidebarProps) {
@@ -84,6 +86,15 @@ export function ThreadSidebar({
         <button
           type="button"
           className="icon-button"
+          onClick={onOpenArchive}
+          aria-label="Archived recordings"
+          title="Archived recordings"
+        >
+          <Archive size={15} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="icon-button"
           onClick={onOpenSettings}
           aria-label="Settings"
         >
@@ -108,7 +119,7 @@ export function ThreadSidebar({
           onClose={() => setMenu(null)}
           onExport={onExportThread}
           onReveal={onRevealThread}
-          onDelete={onDeleteThread}
+          onArchive={onArchiveThread}
         />
       )}
     </aside>

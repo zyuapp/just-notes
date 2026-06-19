@@ -19,6 +19,18 @@ export const threadsApi = {
     return invokeCommand("rename_thread", { threadId, title });
   },
 
+  listArchived(): Promise<ThreadSummary[]> {
+    return invokeCommand("list_archived_threads");
+  },
+
+  archive(threadId: string): Promise<void> {
+    return invokeCommand("archive_thread", { threadId });
+  },
+
+  restore(threadId: string): Promise<void> {
+    return invokeCommand("restore_thread", { threadId });
+  },
+
   delete(threadId: string): Promise<void> {
     return invokeCommand("delete_thread", { threadId });
   },

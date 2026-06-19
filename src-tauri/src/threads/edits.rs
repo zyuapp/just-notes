@@ -2,6 +2,7 @@ use std::fs;
 
 use crate::app::AppPaths;
 
+use self::fs_move::move_thread_dir;
 use super::{
     repository::{
         list_threads, load_thread_by_id, load_thread_detail, read_thread_metadata,
@@ -10,6 +11,8 @@ use super::{
     transcript_store::{read_transcript_jsonl, write_transcript_jsonl},
     ThreadDetail, ThreadSummary,
 };
+
+mod fs_move;
 
 pub(crate) fn rename_thread(
     paths: &AppPaths,
@@ -31,14 +34,34 @@ pub(crate) fn rename_thread(
     load_thread_detail(&thread_dir)
 }
 
-pub(crate) fn delete_thread(paths: &AppPaths, thread_id: &str) -> Result<(), String> {
+pub(crate) fn archive_thread(paths: &AppPaths, thread_id: &str) -> Result<(), String> {
     let detail = load_thread_by_id(paths, thread_id)?;
     if detail.summary.status.is_busy() {
         return Err(
-            "Stop the active recording or transcription before deleting this thread".to_string(),
+            "Stop the active recording or transcription before archiving this thread".to_string(),
         );
     }
-    let thread_dir = paths.thread_dir(thread_id);
+    move_thread_dir(
+        &paths.thread_dir(thread_id),
+        &paths.archived_thread_dir(thread_id),
+    )
+}
+
+pub(crate) fn restore_thread(paths: &AppPaths, thread_id: &str) -> Result<(), String> {
+    let source = paths.archived_thread_dir(thread_id);
+    if !source.is_dir() {
+        return Err(format!("Archived thread does not exist: {thread_id}"));
+    }
+    move_thread_dir(&source, &paths.thread_dir(thread_id))
+}
+
+// Permanent removal of an archived thread. The live store only ever archives
+// (a reversible move), so the irreversible delete is scoped to the archive.
+pub(crate) fn delete_thread(paths: &AppPaths, thread_id: &str) -> Result<(), String> {
+    let thread_dir = paths.archived_thread_dir(thread_id);
+    if !thread_dir.is_dir() {
+        return Err(format!("Archived thread does not exist: {thread_id}"));
+    }
     fs::remove_dir_all(&thread_dir)
         .map_err(|err| format!("Failed to delete {}: {err}", thread_dir.display()))
 }
@@ -146,3 +169,6 @@ fn rerender_markdown_if_present(thread_dir: &std::path::Path) -> Result<(), Stri
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests;

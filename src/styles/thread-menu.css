@@ -43,21 +43,3 @@
   margin: 4px 6px;
   background: var(--line);
 }
-
-.thread-menu-item.danger {
-  color: #ff9d99;
-}
-
-.thread-menu-item.danger svg {
-  color: #ff9d99;
-}
-
-.thread-menu-item.danger:hover,
-.thread-menu-item.danger.armed {
-  background: var(--red-soft);
-  color: #ff9d99;
-}
-
-.thread-menu-item.danger.armed {
-  font-weight: 500;
-}

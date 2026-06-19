@@ -17,7 +17,7 @@ pub(crate) fn update_settings(
     state: State<'_, SettingsState>,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
-    validate_settings(&settings)?;
+    validate_settings(&paths, &settings)?;
     save_settings(&paths.data_dir, &settings)?;
     state.replace(settings.clone());
     Ok(settings)

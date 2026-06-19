@@ -1,7 +1,6 @@
-import { FileDown, FolderOpen, Trash2 } from "lucide-react";
+import { Archive, FileDown, FolderOpen } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
-import { useConfirmAction } from "./useConfirmAction";
 
 type ThreadContextMenuProps = {
   thread: ThreadSummary;
@@ -10,7 +9,7 @@ type ThreadContextMenuProps = {
   onClose: () => void;
   onExport: (threadId: string) => void;
   onReveal: (path: string) => void;
-  onDelete: (threadId: string) => void;
+  onArchive: (threadId: string) => void;
 };
 
 const EDGE_GAP = 8;
@@ -22,14 +21,10 @@ export function ThreadContextMenu({
   onClose,
   onExport,
   onReveal,
-  onDelete,
+  onArchive,
 }: ThreadContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x, y });
-  const confirmDelete = useConfirmAction(() => {
-    onDelete(thread.id);
-    onClose();
-  });
 
   useLayoutEffect(() => {
     const menu = ref.current;
@@ -39,7 +34,7 @@ export function ThreadContextMenu({
       x: Math.max(EDGE_GAP, Math.min(x, window.innerWidth - width - EDGE_GAP)),
       y: Math.max(EDGE_GAP, Math.min(y, window.innerHeight - height - EDGE_GAP)),
     });
-  }, [x, y, confirmDelete.armed]);
+  }, [x, y]);
 
   useEffect(() => {
     const dismiss = (event: MouseEvent) => {
@@ -91,11 +86,14 @@ export function ThreadContextMenu({
       <button
         type="button"
         role="menuitem"
-        className={confirmDelete.armed ? "thread-menu-item danger armed" : "thread-menu-item danger"}
-        onClick={confirmDelete.trigger}
+        className="thread-menu-item"
+        onClick={() => {
+          onArchive(thread.id);
+          onClose();
+        }}
       >
-        <Trash2 size={14} aria-hidden="true" />
-        <span>{confirmDelete.armed ? "Confirm delete" : "Delete"}</span>
+        <Archive size={14} aria-hidden="true" />
+        <span>Archive</span>
       </button>
     </div>
   );
