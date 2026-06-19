@@ -24,6 +24,13 @@ pub(crate) const PARAKEET_ENCODER: &str = "encoder.int8.onnx";
 pub(crate) const PARAKEET_DECODER: &str = "decoder.int8.onnx";
 pub(crate) const PARAKEET_JOINER: &str = "joiner.int8.onnx";
 pub(crate) const PARAKEET_TOKENS: &str = "tokens.txt";
+pub(crate) const PARAKEET_MODEL_SUBDIR: &str = "parakeet";
+pub(crate) const PARAKEET_MODEL_FILENAMES: [&str; 4] = [
+    PARAKEET_ENCODER,
+    PARAKEET_DECODER,
+    PARAKEET_JOINER,
+    PARAKEET_TOKENS,
+];
 
 struct WhisperModelCandidate {
     name: &'static str,
@@ -214,17 +221,12 @@ pub(crate) fn parakeet_model_dir(paths: &AppPaths) -> PathBuf {
     paths
         .data_dir
         .join("models")
-        .join("parakeet")
+        .join(PARAKEET_MODEL_SUBDIR)
         .join(PARAKEET_MODEL_ID)
 }
 
 pub(crate) fn parakeet_model_files(model_dir: &Path) -> [PathBuf; 4] {
-    [
-        model_dir.join(PARAKEET_ENCODER),
-        model_dir.join(PARAKEET_DECODER),
-        model_dir.join(PARAKEET_JOINER),
-        model_dir.join(PARAKEET_TOKENS),
-    ]
+    PARAKEET_MODEL_FILENAMES.map(|name| model_dir.join(name))
 }
 
 fn select_model(

@@ -32,7 +32,7 @@ pub(super) fn install_model(
 ) -> Result<(), DownloadError> {
     let archive_path = artifact.partial_archive_path(paths);
     let extracting_dir = artifact.extracting_dir(paths);
-    fs::create_dir_all(artifact.download_dir(paths))
+    fs::create_dir_all(ModelArtifact::download_dir(paths))
         .map_err(format_io("create download folder"))?;
     cleanup_path(&archive_path)?;
     cleanup_path(&extracting_dir)?;
@@ -151,7 +151,7 @@ fn install_extracted_model(
     };
     for final_path in artifact.expected_files(paths) {
         let Some(filename) = final_path.file_name() else {
-            return Err("Invalid Parakeet model filename".to_string().into());
+            return Err(format!("Invalid {} model filename", artifact.display_name).into());
         };
         let source_path = source_dir.join(filename);
         if !source_path.is_file() {
@@ -162,18 +162,17 @@ fn install_extracted_model(
     let final_dir = artifact.final_model_dir(paths);
     let parent = final_dir
         .parent()
-        .ok_or_else(|| "Invalid Parakeet model folder".to_string())?;
+        .ok_or_else(|| format!("Invalid {} model folder", artifact.display_name))?;
     fs::create_dir_all(parent).map_err(format_io("create model folder"))?;
-    let staging_dir = artifact
-        .download_dir(paths)
-        .join(format!("{}.installing", artifact.model_id));
+    let staging_dir =
+        ModelArtifact::download_dir(paths).join(format!("{}.installing", artifact.model_id));
     cleanup_path(&staging_dir)?;
     fs::create_dir_all(&staging_dir).map_err(format_io("create model install folder"))?;
 
     for final_path in artifact.expected_files(paths) {
         let filename = final_path
             .file_name()
-            .ok_or_else(|| "Invalid Parakeet model filename".to_string())?;
+            .ok_or_else(|| format!("Invalid {} model filename", artifact.display_name))?;
         fs::copy(source_dir.join(filename), staging_dir.join(filename))
             .map_err(format_io("copy model file"))?;
     }
