@@ -1,8 +1,8 @@
 use crate::app::AppPaths;
 
 use super::{
-    finalization_transcription_catalog, ModelDownloadState, TranscriptionModelDownloadState,
-    TranscriptionProvider, TranscriptionStatusPayload,
+    finalization_transcription_catalog, models::TranscriptionModelStatus, ModelDownloadState,
+    TranscriptionModelDownloadState, TranscriptionProvider, TranscriptionStatusPayload,
 };
 
 pub(crate) fn transcription_status(
@@ -47,49 +47,48 @@ pub(crate) fn transcription_status_with_downloads(
 ) -> TranscriptionStatusPayload {
     let mut status = transcription_status(paths, provider);
     for model in &mut status.available_models {
-        if !model.downloadable {
-            continue;
+        if model.downloadable {
+            apply_download_state(model, downloads);
         }
-        let snapshot = downloads.snapshot_for(model.provider, model.total_bytes);
-        model.download_state = snapshot.state;
-        model.progress_bytes = snapshot.progress_bytes;
-        model.total_bytes = snapshot.total_bytes;
-        model.can_cancel = matches!(
-            snapshot.state,
-            TranscriptionModelDownloadState::Downloading
-                | TranscriptionModelDownloadState::Installing
-        );
-        let download_active = downloads.download_running(model.provider)
-            || matches!(
-                snapshot.state,
-                TranscriptionModelDownloadState::Downloading
-                    | TranscriptionModelDownloadState::Installing
-            );
-        model.can_download = !model.installed && !download_active;
-        model.error_message = snapshot.error_message;
-        if model.selected && !model.installed {
-            status.message = selected_model_message(
-                model.provider,
-                model.installed,
-                model.download_state,
-                model.progress_bytes,
-                model.total_bytes,
-            );
-        }
+    }
+    if let Some(message) = selected_download_message(&status.available_models) {
+        status.message = message;
     }
     status
 }
 
+fn apply_download_state(model: &mut TranscriptionModelStatus, downloads: &ModelDownloadState) {
+    let snapshot = downloads.snapshot_for(model.provider, model.total_bytes);
+    let active = matches!(
+        snapshot.state,
+        TranscriptionModelDownloadState::Downloading | TranscriptionModelDownloadState::Installing
+    );
+    model.download_state = snapshot.state;
+    model.progress_bytes = snapshot.progress_bytes;
+    model.total_bytes = snapshot.total_bytes;
+    model.can_cancel = active;
+    model.can_download = !model.installed && !active && !downloads.download_running(model.provider);
+    model.error_message = snapshot.error_message;
+}
+
+fn selected_download_message(models: &[TranscriptionModelStatus]) -> Option<String> {
+    let model = models
+        .iter()
+        .find(|model| model.selected && !model.installed)?;
+    Some(selected_model_message(
+        model.provider,
+        model.download_state,
+        model.progress_bytes,
+        model.total_bytes,
+    ))
+}
+
 fn selected_model_message(
     provider: TranscriptionProvider,
-    installed: bool,
     download_state: TranscriptionModelDownloadState,
     progress_bytes: u64,
     total_bytes: u64,
 ) -> String {
-    if installed {
-        return format!("{} transcription is ready", provider.display_name());
-    }
     match download_state {
         TranscriptionModelDownloadState::Downloading => {
             let percent = if total_bytes == 0 {
