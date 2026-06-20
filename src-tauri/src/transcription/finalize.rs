@@ -19,8 +19,7 @@ use super::{
 use crate::{
     ipc::FinalizationStatusPayload,
     threads::{
-        repository::{render_thread_markdown, set_thread_status, touch_thread},
-        transcript_store::write_transcript_jsonl,
+        repository::{commit_transcript, set_thread_status},
         ThreadStatus,
     },
 };
@@ -217,11 +216,7 @@ fn run_finalization(
         return Ok(FinalizationOutcome::Empty);
     }
 
-    write_transcript_jsonl(&config.thread_dir.join("transcript.jsonl"), &segments)?;
-    touch_thread(&config.thread_dir)?;
-    if config.markdown_copy {
-        render_thread_markdown(&config.thread_dir)?;
-    }
+    commit_transcript(&config.thread_dir, &segments, config.markdown_copy)?;
     Ok(FinalizationOutcome::Completed)
 }
 
