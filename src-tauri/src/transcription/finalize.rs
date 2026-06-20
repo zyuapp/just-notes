@@ -19,8 +19,8 @@ use super::{
 use crate::{
     ipc::FinalizationStatusPayload,
     threads::{
-        repository::{render_thread_markdown, set_thread_status, touch_thread},
-        transcript_store::write_transcript_jsonl,
+        commit::{commit_transcript, CommitMode},
+        repository::set_thread_status,
         ThreadStatus,
     },
 };
@@ -78,6 +78,7 @@ pub(crate) struct FinalizationConfig {
     pub(crate) thread_dir: PathBuf,
     pub(crate) audio_artifacts: FinalizationAudioArtifacts,
     pub(crate) model_selection: TranscriptionModelSelection,
+    pub(crate) commit_mode: CommitMode,
     pub(crate) markdown_copy: bool,
 }
 
@@ -217,11 +218,12 @@ fn run_finalization(
         return Ok(FinalizationOutcome::Empty);
     }
 
-    write_transcript_jsonl(&config.thread_dir.join("transcript.jsonl"), &segments)?;
-    touch_thread(&config.thread_dir)?;
-    if config.markdown_copy {
-        render_thread_markdown(&config.thread_dir)?;
-    }
+    commit_transcript(
+        &config.thread_dir,
+        &segments,
+        config.commit_mode,
+        config.markdown_copy,
+    )?;
     Ok(FinalizationOutcome::Completed)
 }
 
