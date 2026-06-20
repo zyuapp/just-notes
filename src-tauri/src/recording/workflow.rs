@@ -5,7 +5,8 @@ use tauri::AppHandle;
 use super::{
     audio_sink::spawn_audio_sink,
     meter::spawn_meter_thread,
-    state::{classify_selected_thread, RecorderSession, RecorderState, ThreadSelection},
+    selection::{select_recording_thread, SelectedThread},
+    state::{RecorderSession, RecorderState},
 };
 use crate::{
     app::AppPaths,
@@ -14,11 +15,8 @@ use crate::{
     ipc::RecordingPayload,
     settings::AppSettings,
     threads::{
-        repository::{
-            create_thread as create_thread_record, load_thread_by_id, prepare_work_dir,
-            set_thread_status,
-        },
-        RecordingAudioPaths, ThreadDetail, ThreadStatus,
+        repository::{load_thread_by_id, prepare_work_dir, set_thread_status},
+        RecordingAudioPaths, ThreadStatus,
     },
     transcription::{transcription_status, FinalizationAudioArtifacts},
     tray,
@@ -32,11 +30,6 @@ struct RecordingSessionConfig {
     input: PreparedAudioInput,
     paths: AppPaths,
     settings: AppSettings,
-    resume_offset_ms: Option<u64>,
-}
-
-struct SelectedThread {
-    thread: ThreadDetail,
     resume_offset_ms: Option<u64>,
 }
 
@@ -218,29 +211,5 @@ fn build_recording_session(
         audio_sink,
         audio_artifacts,
         resume_offset_ms: config.resume_offset_ms,
-    }
-}
-
-fn select_recording_thread(
-    paths: &AppPaths,
-    requested_thread_id: Option<String>,
-) -> Result<SelectedThread, String> {
-    let Some(thread_id) = requested_thread_id else {
-        return Ok(SelectedThread {
-            thread: create_thread_record(paths)?,
-            resume_offset_ms: None,
-        });
-    };
-
-    let thread = load_thread_by_id(paths, &thread_id)?;
-    match classify_selected_thread(thread)? {
-        ThreadSelection::Reuse(thread) => Ok(SelectedThread {
-            thread: *thread,
-            resume_offset_ms: None,
-        }),
-        ThreadSelection::Resume(thread) => Ok(SelectedThread {
-            resume_offset_ms: Some(thread.summary.duration_ms),
-            thread: *thread,
-        }),
     }
 }

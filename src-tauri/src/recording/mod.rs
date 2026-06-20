@@ -1,5 +1,6 @@
 mod audio_sink;
 mod meter;
+mod selection;
 mod state;
 mod stop;
 mod workflow;
