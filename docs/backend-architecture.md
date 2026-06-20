@@ -42,7 +42,7 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Recording
 
-`recording` owns recording-session orchestration. It starts and stops capture, streams raw audio to disk, starts live transcription, emits meter updates, selects or creates a thread, persists duration, kicks off finalization, and updates the tray. It coordinates contexts, but it should avoid owning low-level capture, transcription, or thread persistence details.
+`recording` owns recording-session orchestration. It starts and stops capture, streams raw audio to disk, emits meter updates, selects or creates a thread, persists duration, kicks off post-recording finalization, and updates the tray. It coordinates contexts, but it should avoid owning low-level capture, transcription, or thread persistence details.
 
 ## Dependency Direction
 

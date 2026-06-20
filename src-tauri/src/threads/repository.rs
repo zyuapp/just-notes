@@ -164,6 +164,15 @@ pub(crate) fn render_thread_markdown(thread_dir: &Path) -> Result<(), String> {
     write_text_atomic(&thread_dir.join("transcript.md"), &markdown)
 }
 
+pub(crate) fn export_thread_markdown(paths: &AppPaths, thread_id: &str) -> Result<String, String> {
+    let thread_dir = paths.thread_dir(thread_id);
+    if !thread_dir.is_dir() {
+        return Err(format!("Thread does not exist: {thread_id}"));
+    }
+    render_thread_markdown(&thread_dir)?;
+    Ok(thread_dir.join("transcript.md").display().to_string())
+}
+
 pub(crate) fn load_thread_detail(thread_dir: &Path) -> Result<ThreadDetail, String> {
     let summary = load_thread_summary(thread_dir)?;
     let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;

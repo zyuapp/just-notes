@@ -3,8 +3,7 @@ use tauri::State;
 use crate::{
     app::AppPaths,
     transcription::{
-        delete_parakeet_model, transcription_status_with_downloads, ModelDownloadState,
-        TranscriptionStatusPayload,
+        transcription_status_with_downloads, ModelDownloadState, TranscriptionStatusPayload,
     },
 };
 
@@ -39,10 +38,6 @@ pub(crate) fn delete_transcription_model(
     paths: State<'_, AppPaths>,
     downloads: State<'_, ModelDownloadState>,
 ) -> Result<TranscriptionStatusPayload, String> {
-    if downloads.download_running() {
-        return Err("Finish or cancel the download before deleting the model".to_string());
-    }
-    delete_parakeet_model(&paths)?;
-    downloads.reset_to_idle();
+    downloads.delete_model(&paths)?;
     Ok(transcription_status_with_downloads(&paths, &downloads))
 }
