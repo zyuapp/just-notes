@@ -15,7 +15,8 @@ use crate::{
     },
     transcription::{
         emit_finalization_failure, finalization_transcription_selection, spawn_finalization,
-        FinalizationAudioArtifacts, FinalizationConfig, FinalizationStart, FinalizeState,
+        wav_duration_ms, FinalizationAudioArtifacts, FinalizationConfig, FinalizationStart,
+        FinalizeState,
     },
     tray,
 };
@@ -56,7 +57,8 @@ pub(crate) fn stop_recording(
     indicator::set_indicator_recording(&app, false);
 
     let audio_artifacts_for_failure = audio_artifacts.clone();
-    let duration_ms = started.elapsed().as_millis() as u64;
+    let duration_ms = session_audio_duration_ms(&audio_artifacts)
+        .unwrap_or_else(|| started.elapsed().as_millis() as u64);
     if let Err(err) = persist_stopped_thread(&thread_dir, duration_ms, settings.markdown_copy) {
         let mut message = format!("Failed to finish recording metadata: {err}");
         append_transient_audio_cleanup_error(&mut message, &audio_artifacts_for_failure);
@@ -137,6 +139,16 @@ fn emit_transcription_failure(
 ) {
     append_transient_audio_cleanup_error(&mut message, audio_artifacts);
     emit_finalization_failure(app, thread_id, &message);
+}
+
+// Duration from the recorded audio rather than wall-clock, which over-counts by
+// the capture startup latency. None when the WAVs cannot be measured, so the
+// caller can fall back to elapsed time.
+fn session_audio_duration_ms(audio_artifacts: &FinalizationAudioArtifacts) -> Option<u64> {
+    let paths = audio_artifacts.paths();
+    let mic = wav_duration_ms(paths.mic_path()).ok()?;
+    let system = wav_duration_ms(paths.system_path()).ok()?;
+    Some(mic.max(system))
 }
 
 fn persist_stopped_thread(

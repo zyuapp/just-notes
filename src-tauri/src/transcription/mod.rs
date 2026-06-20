@@ -10,7 +10,7 @@ mod status;
 mod text;
 
 pub(crate) use artifacts::{parakeet_artifact, ModelArtifact};
-pub(crate) use audio::{resample_to_rate, rms, samples_to_ms};
+pub(crate) use audio::{resample_to_rate, rms, samples_to_ms, wav_duration_ms};
 pub(crate) use download::ModelDownloadState;
 pub(crate) use finalize::{
     emit_finalization_failure, spawn_finalization, FinalizationConfig, FinalizationStart,

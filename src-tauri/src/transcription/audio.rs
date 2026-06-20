@@ -1,5 +1,22 @@
+use std::path::Path;
+
+use hound::WavReader;
+
 pub(crate) fn samples_to_ms(samples: u64, sample_rate: u32) -> u64 {
     ((samples as f64 * 1000.0) / sample_rate as f64).floor() as u64
+}
+
+/// Length of a recorded WAV in milliseconds from its frame count. Returns 0 for
+/// a missing file so a never-captured channel contributes no duration.
+pub(crate) fn wav_duration_ms(path: &Path) -> Result<u64, String> {
+    if !path.is_file() {
+        return Ok(0);
+    }
+    let reader =
+        WavReader::open(path).map_err(|err| format!("Failed to read {}: {err}", path.display()))?;
+    let spec = reader.spec();
+    let frames = reader.len() as u64 / u64::from(spec.channels.max(1));
+    Ok(samples_to_ms(frames, spec.sample_rate))
 }
 
 pub(crate) fn rms(samples: &[f32]) -> f32 {

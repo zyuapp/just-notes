@@ -153,9 +153,7 @@ pub(crate) fn commit_transcript(
 pub(crate) fn render_thread_markdown(thread_dir: &Path) -> Result<(), String> {
     let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
     let segments = read_transcript_jsonl(&thread_dir.join("transcript.jsonl"))?;
-    let duration_ms = metadata
-        .duration_ms
-        .max(segments.last().map(|segment| segment.end_ms).unwrap_or(0));
+    let duration_ms = metadata.duration_ms;
     let mut markdown = String::new();
     markdown.push_str(&format!("# {}\n\n", metadata.title));
     markdown.push_str(&format!("Thread: `{}`\n\n", metadata.id));
