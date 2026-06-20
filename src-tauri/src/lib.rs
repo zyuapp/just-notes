@@ -3,7 +3,6 @@ use tauri::{AppHandle, Builder, Manager, Wry};
 mod app;
 mod capture;
 mod commands;
-mod indicator;
 mod ipc;
 mod platform;
 mod recording;
@@ -51,33 +50,20 @@ pub fn run() {
 // before the process is allowed to exit, whether the exit comes from closing
 // the window, the tray Quit item, or Cmd+Q.
 fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
-    match event {
-        tauri::RunEvent::WindowEvent { label, event, .. } if label == "main" => match event {
-            // Closing the main window must keep its existing meaning (stop
-            // and exit); the indicator window closes first so it cannot keep
-            // the process alive on its own.
-            tauri::WindowEvent::CloseRequested { .. } => indicator::close_indicator(app),
-            tauri::WindowEvent::Focused(focused) => {
-                indicator::set_main_window_focused(app, focused);
-            }
-            _ => {}
-        },
-        tauri::RunEvent::ExitRequested { api, .. } => {
-            let recorder = app.state::<RecorderState>().inner().clone();
-            let finalize = app.state::<FinalizeState>().inner().clone();
-            if recorder.is_active() || finalize.is_active() {
-                api.prevent_exit();
-                let app = app.clone();
-                tauri::async_runtime::spawn_blocking(move || {
-                    if recorder.is_active() {
-                        stop_active_recording(&app);
-                    }
-                    finalize.wait_for_idle();
-                    app.exit(0);
-                });
-            }
+    if let tauri::RunEvent::ExitRequested { api, .. } = event {
+        let recorder = app.state::<RecorderState>().inner().clone();
+        let finalize = app.state::<FinalizeState>().inner().clone();
+        if recorder.is_active() || finalize.is_active() {
+            api.prevent_exit();
+            let app = app.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                if recorder.is_active() {
+                    stop_active_recording(&app);
+                }
+                finalize.wait_for_idle();
+                app.exit(0);
+            });
         }
-        _ => {}
     }
 }
 
@@ -111,10 +97,7 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::recording::start_recording,
         commands::recording::start_fixture_recording,
         commands::recording::stop_recording,
-        commands::recording::cancel_finalization,
-        commands::indicator::set_indicator_width,
-        commands::indicator::get_indicator_state,
-        commands::indicator::open_main_window
+        commands::recording::cancel_finalization
     ])
 }
 
@@ -147,10 +130,7 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::settings::pick_folder,
         commands::recording::start_recording,
         commands::recording::stop_recording,
-        commands::recording::cancel_finalization,
-        commands::indicator::set_indicator_width,
-        commands::indicator::get_indicator_state,
-        commands::indicator::open_main_window
+        commands::recording::cancel_finalization
     ])
 }
 

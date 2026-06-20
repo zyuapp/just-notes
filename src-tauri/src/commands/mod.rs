@@ -1,4 +1,3 @@
-pub(crate) mod indicator;
 pub(crate) mod recording;
 pub(crate) mod settings;
 pub(crate) mod system;
