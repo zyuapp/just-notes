@@ -19,7 +19,8 @@ use super::{
 use crate::{
     ipc::FinalizationStatusPayload,
     threads::{
-        repository::{commit_transcript, set_thread_status},
+        commit::{commit_transcript, CommitMode},
+        repository::set_thread_status,
         ThreadStatus,
     },
 };
@@ -77,6 +78,7 @@ pub(crate) struct FinalizationConfig {
     pub(crate) thread_dir: PathBuf,
     pub(crate) audio_artifacts: FinalizationAudioArtifacts,
     pub(crate) model_selection: TranscriptionModelSelection,
+    pub(crate) commit_mode: CommitMode,
     pub(crate) markdown_copy: bool,
 }
 
@@ -216,7 +218,12 @@ fn run_finalization(
         return Ok(FinalizationOutcome::Empty);
     }
 
-    commit_transcript(&config.thread_dir, &segments, config.markdown_copy)?;
+    commit_transcript(
+        &config.thread_dir,
+        &segments,
+        config.commit_mode,
+        config.markdown_copy,
+    )?;
     Ok(FinalizationOutcome::Completed)
 }
 

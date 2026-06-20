@@ -32,6 +32,12 @@ struct RecordingSessionConfig {
     input: PreparedAudioInput,
     paths: AppPaths,
     settings: AppSettings,
+    resume_offset_ms: Option<u64>,
+}
+
+struct SelectedThread {
+    thread: ThreadDetail,
+    resume_offset_ms: Option<u64>,
 }
 
 struct RecordingStart {
@@ -112,7 +118,10 @@ fn prepare_recording_session(
         return Err("Parakeet model is required before recording".to_string());
     }
 
-    let thread = select_recording_thread(&paths, requested_thread_id)?;
+    let SelectedThread {
+        thread,
+        resume_offset_ms,
+    } = select_recording_thread(&paths, requested_thread_id)?;
     let thread_id = thread.summary.id.clone();
     let thread_dir = paths.thread_dir(&thread_id);
     prepare_work_dir(&thread_dir)?;
@@ -129,6 +138,7 @@ fn prepare_recording_session(
         input,
         paths: paths.clone(),
         settings,
+        resume_offset_ms,
     };
     if let Err(err) = activate_session(&recorder, config) {
         let _ = set_thread_status(&thread_dir, ThreadStatus::Idle);
@@ -207,20 +217,30 @@ fn build_recording_session(
         audio_capture: input.audio_capture,
         audio_sink,
         audio_artifacts,
+        resume_offset_ms: config.resume_offset_ms,
     }
 }
 
 fn select_recording_thread(
     paths: &AppPaths,
     requested_thread_id: Option<String>,
-) -> Result<ThreadDetail, String> {
+) -> Result<SelectedThread, String> {
     let Some(thread_id) = requested_thread_id else {
-        return create_thread_record(paths);
+        return Ok(SelectedThread {
+            thread: create_thread_record(paths)?,
+            resume_offset_ms: None,
+        });
     };
 
     let thread = load_thread_by_id(paths, &thread_id)?;
     match classify_selected_thread(thread)? {
-        ThreadSelection::Reuse(thread) => Ok(*thread),
-        ThreadSelection::Fresh => create_thread_record(paths),
+        ThreadSelection::Reuse(thread) => Ok(SelectedThread {
+            thread: *thread,
+            resume_offset_ms: None,
+        }),
+        ThreadSelection::Resume(thread) => Ok(SelectedThread {
+            resume_offset_ms: Some(thread.summary.duration_ms),
+            thread: *thread,
+        }),
     }
 }

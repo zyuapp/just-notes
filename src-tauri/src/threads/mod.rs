@@ -1,4 +1,5 @@
 pub(crate) mod artifacts;
+pub(crate) mod commit;
 pub(crate) mod edits;
 pub(crate) mod model;
 pub(crate) mod repository;

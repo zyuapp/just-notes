@@ -37,6 +37,9 @@ pub(super) struct RecorderSession {
     pub(super) audio_capture: ActiveAudioCapture,
     pub(super) audio_sink: AudioSink,
     pub(super) audio_artifacts: FinalizationAudioArtifacts,
+    // Prior recording length when resuming an existing thread; the new session's
+    // transcript and duration are offset by it. None for a fresh recording.
+    pub(super) resume_offset_ms: Option<u64>,
 }
 
 impl RecorderState {
@@ -106,8 +109,10 @@ impl Drop for StartingGuard<'_> {
 }
 
 pub(super) enum ThreadSelection {
-    Fresh,
+    /// Empty existing thread: record into it as if new.
     Reuse(Box<ThreadDetail>),
+    /// Existing thread with content: append a new session to it.
+    Resume(Box<ThreadDetail>),
 }
 
 pub(super) fn classify_selected_thread(thread: ThreadDetail) -> Result<ThreadSelection, String> {
@@ -117,5 +122,5 @@ pub(super) fn classify_selected_thread(thread: ThreadDetail) -> Result<ThreadSel
     if thread.summary.segment_count == 0 {
         return Ok(ThreadSelection::Reuse(Box::new(thread)));
     }
-    Ok(ThreadSelection::Fresh)
+    Ok(ThreadSelection::Resume(Box::new(thread)))
 }

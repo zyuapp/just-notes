@@ -5,9 +5,8 @@ use crate::app::{now_ms, AppPaths};
 use super::{
     transcript_store::{
         count_jsonl_lines, read_first_segment_text, read_transcript_jsonl, write_text_atomic,
-        write_transcript_jsonl,
     },
-    ThreadDetail, ThreadMetadata, ThreadStatus, ThreadSummary, TranscriptSegment,
+    ThreadDetail, ThreadMetadata, ThreadStatus, ThreadSummary,
 };
 
 pub(crate) fn list_threads(paths: &AppPaths) -> Result<Vec<ThreadSummary>, String> {
@@ -133,21 +132,6 @@ pub(crate) fn prepare_work_dir(thread_dir: &Path) -> Result<(), String> {
             work_dir.display()
         )
     })
-}
-
-/// Persists a finalized transcript for a thread: writes the JSONL, bumps the
-/// thread's updated-at, and re-renders markdown when copies are enabled.
-pub(crate) fn commit_transcript(
-    thread_dir: &Path,
-    segments: &[TranscriptSegment],
-    markdown_copy: bool,
-) -> Result<(), String> {
-    write_transcript_jsonl(&thread_dir.join("transcript.jsonl"), segments)?;
-    touch_thread(thread_dir)?;
-    if markdown_copy {
-        render_thread_markdown(thread_dir)?;
-    }
-    Ok(())
 }
 
 pub(crate) fn render_thread_markdown(thread_dir: &Path) -> Result<(), String> {
