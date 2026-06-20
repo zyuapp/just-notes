@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Builder, Manager, Wry};
+use tauri::{AppHandle, Builder, Emitter, Manager, Wry};
 
 mod app;
 mod capture;
@@ -31,7 +31,7 @@ pub fn run() {
             let paths = app.state::<AppPaths>();
             let settings = app.state::<SettingsState>().snapshot();
             reset_stale_recording_threads(&settings::effective_paths(&paths, &settings))?;
-            tray::init_tray(app, stop_recording_from_tray)?;
+            tray::init_tray(app, start_recording_from_tray, stop_recording_from_tray)?;
             // The minWidth/minHeight from tauri.conf.json is not enforced on
             // macOS; the layout needs at least this much room.
             if let Some(window) = app.get_webview_window("main") {
@@ -132,6 +132,24 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::recording::stop_recording,
         commands::recording::cancel_finalization
     ])
+}
+
+// The tray starts a fresh thread: it has no window selection to record into.
+// The frontend learns about it through the emitted `recording-started` event.
+fn start_recording_from_tray(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = app.state::<AppPaths>();
+        let settings = app.state::<SettingsState>().snapshot();
+        let effective = settings::effective_paths(&paths, &settings);
+        let recorder = app.state::<RecorderState>().inner().clone();
+        match recording::start_recording(app.clone(), effective, recorder, settings, None) {
+            Ok(payload) => {
+                let _ = app.emit("recording-started", &payload);
+            }
+            Err(err) => eprintln!("recording start failed: {err}"),
+        }
+    });
 }
 
 fn stop_recording_from_tray(app: &AppHandle) {

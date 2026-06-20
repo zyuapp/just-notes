@@ -1,6 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
+import type { RecordingPayload } from "../bindings/RecordingPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
 import { toApiError } from "./errors";
 
@@ -21,6 +22,10 @@ async function listenToEvent<T>(eventName: string, handler: EventHandler<T>): Pr
 export const eventsApi = {
   onMeter(handler: EventHandler<MeterPayload>): Promise<UnlistenFn> {
     return listenToEvent("meter-update", handler);
+  },
+
+  onRecordingStarted(handler: EventHandler<RecordingPayload>): Promise<UnlistenFn> {
+    return listenToEvent("recording-started", handler);
   },
 
   onRecordingStopped(handler: EventHandler<ThreadDetail>): Promise<UnlistenFn> {
