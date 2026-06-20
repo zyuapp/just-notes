@@ -9,7 +9,9 @@ mod snapshot;
 
 use crate::app::AppPaths;
 
-use super::{parakeet_artifact, ModelArtifact, TranscriptionModelDownloadState};
+use super::{
+    delete_parakeet_model, parakeet_artifact, ModelArtifact, TranscriptionModelDownloadState,
+};
 pub(crate) use snapshot::DownloadSnapshot;
 
 type DownloadSnapshots = Arc<Mutex<Option<DownloadSnapshot>>>;
@@ -177,6 +179,16 @@ impl ModelDownloadState {
 
     pub(crate) fn reset_to_idle(&self) {
         self.set_snapshot(DownloadSnapshot::idle(parakeet_artifact().archive_bytes));
+    }
+
+    pub(crate) fn delete_model(&self, paths: &AppPaths) -> Result<(), String> {
+        // Refuse mid-download: removing model files would race the installer thread.
+        if self.download_running() {
+            return Err("Finish or cancel the download before deleting the model".to_string());
+        }
+        delete_parakeet_model(paths)?;
+        self.reset_to_idle();
+        Ok(())
     }
 }
 

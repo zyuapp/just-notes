@@ -9,16 +9,17 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 ## `src-tauri/src/commands`
 
 - `mod.rs`: shared effective-path resolution from base paths plus settings.
-- `threads.rs`: thread library commands (list, create, get, rename, delete, speaker rename, segment edit, search, markdown export).
+- `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, speaker rename, segment edit, search, markdown export).
 - `recording.rs`: start/stop/fixture recording commands and finalization cancel.
+- `transcription.rs`: model status plus model download start/cancel and local-model deletion.
 - `settings.rs`: settings read/update and the native folder picker.
-- `system.rs`: app info, transcription status, permission status, Finder reveal, clipboard, and privacy-settings deep links.
+- `system.rs`: app info, permission status, Finder reveal, clipboard, and privacy-settings deep links.
 
 Commands here stay thin: they resolve state handles and delegate to the owning domain. This module exists so `lib.rs` stays a small adapter.
 
 ## `src-tauri/src/app`
 
-- `paths.rs`: discovers and stores app filesystem paths.
+- `paths.rs`: discovers and stores app filesystem paths, including the active and archived thread directories.
 - `time.rs`: shared wall-clock helpers.
 - `mod.rs`: exports the app context API.
 
@@ -52,9 +53,11 @@ Use this when frontend/backend payload shape changes are needed.
 
 ## `src-tauri/src/threads`
 
-- `model.rs`: thread metadata (including duration and speaker labels), thread summaries/details, transcript segment model, and thread status (idle/recording/transcribing).
-- `repository.rs`: thread creation, listing, loading, status/duration updates, work directory setup, markdown rendering with speaker labels, and stale-status cleanup.
-- `edits.rs`: user-initiated mutations — rename thread, delete thread, rename speakers, edit segment text, and search across titles and transcript text.
+- `model.rs`: thread metadata (including duration and speaker labels), thread summaries/details (including the `has_audio` flag), transcript segment model, and thread status (idle/recording/transcribing).
+- `repository.rs`: thread creation, active/archived listing, loading, status/duration updates, work directory setup, markdown rendering and `transcript.md` export, and stale-status cleanup.
+- `edits.rs`: user-initiated mutations — rename, archive, restore, delete, rename speakers, edit segment text, and search across titles and transcript text.
+- `edits/fs_move.rs`: filesystem move of a thread directory between the active and archive locations.
+- `artifacts.rs`: `RecordingAudioPaths` — on-disk locations of a thread's raw `mic.wav`/`system.wav`, plus existence checks and removal.
 - `transcript_store.rs`: transcript JSONL append/read/count/replace behavior, snippet extraction, and atomic text writes.
 - `mod.rs`: exports the thread domain API.
 
@@ -76,30 +79,27 @@ Use this when changing how audio is acquired, buffered, leveled, or fixture-driv
 
 ## `src-tauri/src/transcription`
 
-- `models.rs`: transcription status payloads, model path selection, and available model discovery.
-- `status.rs`: current transcription readiness/status assembly.
-- `runtime.rs`: transcriber loading and the `Transcriber` trait; `runtime/parakeet.rs` holds the sherpa-onnx Parakeet model loading and segment transcription.
+- `models.rs`: transcription status payloads, Parakeet model path/catalog/selection, and local-model deletion.
+- `status.rs`: current transcription readiness/status assembly, including live download state.
+- `artifacts.rs`: `ModelArtifact` descriptor — Parakeet archive URL, checksum, byte size, and model directory layout.
+- `download.rs`: model download lifecycle and `ModelDownloadState` (progress snapshots, cancellation, guarded local-model delete); `download/install.rs` fetches, verifies, extracts, and atomically installs; `download/snapshot.rs` holds the progress snapshot.
+- `runtime.rs`: transcriber loading and the `Transcriber` trait; `runtime/parakeet.rs` holds the sherpa-onnx Parakeet model loading and segment transcription; `runtime/parakeet/segments.rs` converts model output into transcript segments.
 - `audio.rs`: sample/time conversion, RMS, audible-start detection, and resampling.
 - `finalize.rs`: post-recording finalization — chunked re-transcription of saved WAVs, transcript replacement, cancellation registry, and status events.
-- `live/worker.rs`: live transcription thread lifecycle and status/error event emission.
-- `live/channel.rs`: per-source live channel state, hypothesis agreement, segment emission, and transcript append.
-- `live/sink.rs`: committed live segment persistence, cross-channel bleed gating, and frontend event emission.
-- `live/window.rs`: decode-window selection and silence gating.
+- `finalize_audio.rs`: saved-WAV decoding and the raw-audio retention policy a finalization pass consumes.
+- `source_bleed.rs`: finalization-time, audio-level suppression of mic segments dominated by overlapping system audio; `source_bleed/profile.rs` builds per-channel RMS/envelope profiles from the WAVs.
 - `text/cleanup.rs`: transcript cleanup, partial sentence handling, prefix agreement, and end-time estimation.
-- `text/dedupe.rs`: duplicate suppression policy across recent transcript text, including cross-channel duplicate checks.
-- `text/bleed.rs`: mic-channel suppression of speech that duplicates overlapping system audio.
-- `text/dedupe/spans.rs`: repeated word span matching.
-- `text/dedupe/trimming.rs`: duplicate prefix, suffix, and middle-span trimming.
+- `text/bleed.rs`: text-level suppression of mic speech that duplicates overlapping system audio.
 - `text/words.rs`: shared word normalization, n-gram, and sentence splitting helpers.
 - `mod.rs`: transcription facade used by recording and tests.
 
-Use this when changing model status, Parakeet behavior, model download, finalization, cleanup, dedupe, or audio math.
+Use this when changing model status, Parakeet behavior, model download/install, finalization, cleanup, cross-channel bleed, or audio math. Transcription is finalization-only — it re-transcribes saved WAVs and has no live-recording path.
 
 ## `src-tauri/src/recording`
 
 - `mod.rs`: recording facade and public API exports.
 - `state.rs`: recorder state, active session storage, startup guard, and selected-thread reuse predicate.
-- `workflow.rs`: start orchestration — thread selection, capture startup, audio sink startup, live transcription startup, and tray updates.
+- `workflow.rs`: start orchestration — model-readiness gate, thread selection, capture startup, audio sink startup, and tray updates.
 - `stop.rs`: stop orchestration — worker shutdown, duration persistence, markdown rendering, finalization kickoff, and the stopped event.
 - `audio_sink.rs`: streams captured samples to `mic.wav`/`system.wav` during recording via a cursor over the rolling buffers.
 - `meter.rs`: live meter event worker and tray elapsed-time updates.
@@ -112,7 +112,8 @@ Use this when changing the lifecycle of a recording session or how capture/trans
 - Add a frontend-visible field: update `ipc/dto.rs` or the relevant exported domain model, then run binding checks.
 - Add a user preference: start in `settings`, then thread it through the commands that need it.
 - Change audio capture: start in `capture`.
-- Change transcript quality: start in `transcription/text` or `transcription/live`.
+- Change transcript quality: start in `transcription/text` or `transcription/source_bleed`.
+- Change model download/install: start in `transcription/download`.
 - Change the post-recording polish pass: start in `transcription/finalize.rs`.
 - Change thread files or markdown: start in `threads`.
 - Change recording start/stop behavior: start in `recording`.

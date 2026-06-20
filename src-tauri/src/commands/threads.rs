@@ -124,11 +124,5 @@ pub(crate) fn export_thread_markdown(
     settings: State<'_, SettingsState>,
     thread_id: String,
 ) -> Result<String, String> {
-    let paths = effective_paths(&paths, &settings);
-    let thread_dir = paths.thread_dir(&thread_id);
-    if !thread_dir.is_dir() {
-        return Err(format!("Thread does not exist: {thread_id}"));
-    }
-    repository::render_thread_markdown(&thread_dir)?;
-    Ok(thread_dir.join("transcript.md").display().to_string())
+    repository::export_thread_markdown(&effective_paths(&paths, &settings), &thread_id)
 }
