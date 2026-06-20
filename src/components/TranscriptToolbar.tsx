@@ -1,4 +1,4 @@
-import { Archive, Copy, FileDown, FolderOpen, Search, Users } from "lucide-react";
+import { Archive, Copy, Search, Users } from "lucide-react";
 import { useState } from "react";
 
 type TranscriptToolbarProps = {
@@ -8,8 +8,6 @@ type TranscriptToolbarProps = {
   canModify: boolean;
   onQueryChange: (query: string) => void;
   onCopy: () => void;
-  onExport: () => void;
-  onReveal: () => void;
   onArchive: () => void;
   onRenameSpeaker: (speaker: string, label: string) => void;
 };
@@ -21,8 +19,6 @@ export function TranscriptToolbar({
   canModify,
   onQueryChange,
   onCopy,
-  onExport,
-  onReveal,
   onArchive,
   onRenameSpeaker,
 }: TranscriptToolbarProps) {
@@ -43,12 +39,6 @@ export function TranscriptToolbar({
       <div className="toolbar-actions">
         <button type="button" className="icon-button" onClick={onCopy} title="Copy transcript" aria-label="Copy transcript">
           <Copy size={15} aria-hidden="true" />
-        </button>
-        <button type="button" className="icon-button" onClick={onExport} title="Export Markdown and reveal in Finder" aria-label="Export Markdown">
-          <FileDown size={15} aria-hidden="true" />
-        </button>
-        <button type="button" className="icon-button" onClick={onReveal} title="Reveal files in Finder" aria-label="Reveal files in Finder">
-          <FolderOpen size={15} aria-hidden="true" />
         </button>
         <button
           type="button"
