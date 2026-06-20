@@ -11,8 +11,6 @@ type TranscriptSurfaceProps = {
   selectedThread: ThreadDetail | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
   query: string;
-  onStartModelDownload: () => void;
-  onStartRecording: () => void;
   onSaveSegmentText: (index: number, text: string) => void;
 };
 
@@ -21,8 +19,6 @@ export function TranscriptSurface({
   selectedThread,
   transcriptionStatus,
   query,
-  onStartModelDownload,
-  onStartRecording,
   onSaveSegmentText,
 }: TranscriptSurfaceProps) {
   const surfaceRef = useRef<HTMLElement | null>(null);
@@ -41,10 +37,8 @@ export function TranscriptSurface({
       <section className="transcript-surface" ref={surfaceRef}>
         <TranscriptEmptyState
           hasThread={selectedThread !== null}
-          canStart={recorderState === "idle"}
+          recorderState={recorderState}
           transcriptionStatus={transcriptionStatus}
-          onStartModelDownload={onStartModelDownload}
-          onStartRecording={onStartRecording}
         />
       </section>
     );

@@ -111,8 +111,6 @@ export function TranscriptPanel({
         selectedThread={selectedThread}
         transcriptionStatus={transcriptionStatus}
         query={query}
-        onStartModelDownload={onStartModelDownload}
-        onStartRecording={onStartRecording}
         onSaveSegmentText={(index, text) => void threadActions.updateSegmentText(index, text)}
       />
 
