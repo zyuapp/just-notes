@@ -105,6 +105,17 @@ impl Drop for StartingGuard<'_> {
     }
 }
 
-pub(super) fn selected_thread_is_reusable(thread: &ThreadDetail) -> bool {
-    !thread.summary.status.is_busy() && thread.summary.segment_count == 0
+pub(super) enum ThreadSelection {
+    Fresh,
+    Reuse(Box<ThreadDetail>),
+}
+
+pub(super) fn classify_selected_thread(thread: ThreadDetail) -> Result<ThreadSelection, String> {
+    if thread.summary.status.is_busy() {
+        return Err("The selected thread is busy recording or transcribing".to_string());
+    }
+    if thread.summary.segment_count == 0 {
+        return Ok(ThreadSelection::Reuse(Box::new(thread)));
+    }
+    Ok(ThreadSelection::Fresh)
 }

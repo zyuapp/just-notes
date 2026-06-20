@@ -5,7 +5,7 @@ use tauri::AppHandle;
 use super::{
     audio_sink::spawn_audio_sink,
     meter::spawn_meter_thread,
-    state::{selected_thread_is_reusable, RecorderSession, RecorderState},
+    state::{classify_selected_thread, RecorderSession, RecorderState, ThreadSelection},
 };
 use crate::{
     app::AppPaths,
@@ -219,12 +219,8 @@ fn select_recording_thread(
     };
 
     let thread = load_thread_by_id(paths, &thread_id)?;
-    if selected_thread_is_reusable(&thread) {
-        return Ok(thread);
+    match classify_selected_thread(thread)? {
+        ThreadSelection::Reuse(thread) => Ok(*thread),
+        ThreadSelection::Fresh => create_thread_record(paths),
     }
-    if thread.summary.status.is_busy() {
-        return Err("The selected thread is busy recording or transcribing".to_string());
-    }
-
-    create_thread_record(paths)
 }
