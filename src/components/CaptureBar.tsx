@@ -46,11 +46,15 @@ export function CaptureBar({
   const capturing = isRecording || recorderState === "stopping";
   const finalizationForThread =
     finalization && finalization.threadId === selectedThreadId ? finalization : null;
+  const idleStatus =
+    transcriptionStatus == null
+      ? "Checking local transcription…"
+      : transcriptionStatus.ready
+        ? null
+        : transcriptionStatus.message;
   const status =
     finalizationForThread?.message ??
-    (capturing
-      ? "Recording — transcript ready when you stop"
-      : (transcriptionStatus?.message ?? "Checking local transcription…"));
+    (capturing ? "Recording — transcript ready when you stop" : idleStatus);
   const selectedModel = transcriptionStatus?.availableModels.find((model) => model.selected);
   const missingSelectedModel =
     recorderState === "idle" && Boolean(transcriptionStatus && !transcriptionStatus.ready);
@@ -87,7 +91,7 @@ export function CaptureBar({
           <CaptureMeter label="Sys" level={meters.systemLevel} />
         </div>
       )}
-      <span className="capture-status">{status}</span>
+      {status && <span className="capture-status">{status}</span>}
       {fixtureMode && (
         <button
           type="button"
