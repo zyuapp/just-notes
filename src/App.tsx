@@ -24,7 +24,11 @@ export default function App() {
     () => void actions.refreshThreads(),
     [actions.refreshThreads],
   );
-  useAppEvents(dispatch, onFinalizationSettled);
+  const onRecordingStarted = useCallback(
+    (threadId: string) => void actions.refreshThreads(threadId),
+    [actions.refreshThreads],
+  );
+  useAppEvents(dispatch, onFinalizationSettled, onRecordingStarted);
 
   const activeThreadId = getActiveThreadId(state);
   const statusLabel = useMemo(() => getStatusLabel(state), [state]);

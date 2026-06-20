@@ -1,5 +1,10 @@
 mod icon;
 
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
@@ -8,38 +13,39 @@ use tauri::{
 
 const TRAY_ID: &str = "just-notes-tray";
 
-struct TrayMenuItems {
-    status: MenuItem<Wry>,
-    stop: MenuItem<Wry>,
+struct TrayState {
+    record: MenuItem<Wry>,
+    recording: Arc<AtomicBool>,
 }
 
 pub(crate) fn init_tray(
     app: &tauri::App,
+    on_start: impl Fn(&AppHandle) + Send + Sync + 'static,
     on_stop: impl Fn(&AppHandle) + Send + Sync + 'static,
 ) -> tauri::Result<()> {
-    let status = MenuItem::with_id(app, "tray-status", "Not recording", false, None::<&str>)?;
-    let stop = MenuItem::with_id(app, "tray-stop", "Stop recording", false, None::<&str>)?;
+    let record = MenuItem::with_id(app, "tray-record", "Start recording", true, None::<&str>)?;
     let open = MenuItem::with_id(app, "tray-open", "Open Just Notes", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "tray-quit", "Quit Just Notes", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
-        &[
-            &status,
-            &PredefinedMenuItem::separator(app)?,
-            &stop,
-            &open,
-            &PredefinedMenuItem::separator(app)?,
-            &quit,
-        ],
+        &[&record, &PredefinedMenuItem::separator(app)?, &open, &quit],
     )?;
 
+    let recording = Arc::new(AtomicBool::new(false));
+    let recording_for_event = Arc::clone(&recording);
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon::template_icon())
         .icon_as_template(true)
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(move |app, event| match event.id().as_ref() {
-            "tray-stop" => on_stop(app),
+            "tray-record" => {
+                if recording_for_event.load(Ordering::SeqCst) {
+                    on_stop(app);
+                } else {
+                    on_start(app);
+                }
+            }
             "tray-open" => {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
@@ -51,18 +57,18 @@ pub(crate) fn init_tray(
         })
         .build(app)?;
 
-    app.manage(TrayMenuItems { status, stop });
+    app.manage(TrayState { record, recording });
     Ok(())
 }
 
 pub(crate) fn set_tray_recording(app: &AppHandle, recording: bool) {
-    if let Some(items) = app.try_state::<TrayMenuItems>() {
-        let _ = items.status.set_text(if recording {
-            "Recording…"
+    if let Some(state) = app.try_state::<TrayState>() {
+        state.recording.store(recording, Ordering::SeqCst);
+        let _ = state.record.set_text(if recording {
+            "Stop recording"
         } else {
-            "Not recording"
+            "Start recording"
         });
-        let _ = items.stop.set_enabled(recording);
     }
     if !recording {
         if let Some(tray) = app.tray_by_id(TRAY_ID) {
