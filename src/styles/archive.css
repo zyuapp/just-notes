@@ -19,6 +19,25 @@
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
 }
 
+.archive-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.archive-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.archive-panel::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-color: var(--line-strong);
+  background-clip: padding-box;
+}
+
+.archive-panel::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-3);
+}
+
 .archive-panel header {
   display: flex;
   align-items: center;
