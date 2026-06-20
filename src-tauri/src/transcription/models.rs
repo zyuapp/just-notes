@@ -136,5 +136,14 @@ pub(crate) fn parakeet_model_files(model_dir: &Path) -> [PathBuf; 4] {
     PARAKEET_MODEL_FILENAMES.map(|name| model_dir.join(name))
 }
 
+pub(crate) fn delete_parakeet_model(paths: &AppPaths) -> Result<(), String> {
+    let model_dir = parakeet_model_dir(paths);
+    if !model_dir.exists() {
+        return Ok(());
+    }
+    std::fs::remove_dir_all(&model_dir)
+        .map_err(|err| format!("Failed to delete the local model: {err}"))
+}
+
 #[cfg(test)]
 mod tests;

@@ -13,4 +13,8 @@ export const transcriptionApi = {
   cancelModelDownload(): Promise<TranscriptionStatusPayload> {
     return invokeCommand("cancel_transcription_model_download");
   },
+
+  deleteModel(): Promise<TranscriptionStatusPayload> {
+    return invokeCommand("delete_transcription_model");
+  },
 };

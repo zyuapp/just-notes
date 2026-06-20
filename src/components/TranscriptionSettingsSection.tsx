@@ -2,72 +2,88 @@ import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelSta
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { downloadPercent } from "../lib/transcriptionModel";
 import { DownloadingLabel } from "./DownloadingLabel";
+import { useConfirmAction } from "./useConfirmAction";
 
 type TranscriptionSettingsSectionProps = {
   transcriptionStatus: TranscriptionStatusPayload | null;
   onStartModelDownload: () => void;
   onCancelModelDownload: () => void;
+  onDeleteModel: () => void;
 };
 
 export function TranscriptionSettingsSection({
   transcriptionStatus,
   onStartModelDownload,
   onCancelModelDownload,
+  onDeleteModel,
 }: TranscriptionSettingsSectionProps) {
-  const parakeet = transcriptionStatus?.availableModels[0];
+  const model = transcriptionStatus?.availableModels[0];
   return (
     <section>
       <h3>Local transcription</h3>
-      <p className="settings-hint">{transcriptionStatus?.message ?? "Checking model status..."}</p>
-      <ul className="settings-models">
-        {transcriptionStatus?.availableModels.map((model) => (
-          <li key={model.filename} className={model.selected ? "selected" : ""}>
-            <i aria-hidden="true" />
-            <span className="model-name">{model.name}</span>
-            <code>{model.filename}</code>
+      <div className="settings-row">
+        <div>
+          <strong>{model?.name ?? "Local model"}</strong>
+          <p className="settings-hint">
             <ModelStatusText model={model} />
-            <ModelAction
-              model={model}
-              onStartModelDownload={onStartModelDownload}
-              onCancelModelDownload={onCancelModelDownload}
-            />
-          </li>
-        ))}
-      </ul>
+          </p>
+        </div>
+        <div className="settings-row-actions">
+          <ModelAction
+            model={model}
+            onStartModelDownload={onStartModelDownload}
+            onCancelModelDownload={onCancelModelDownload}
+            onDeleteModel={onDeleteModel}
+          />
+        </div>
+      </div>
       <p className="settings-hint">
-        Models live in the local models folder{parakeet ? ` at ${parakeet.path}` : ""}. Audio never
-        leaves this Mac: transcription runs locally, there is no account, and no meeting bots join
-        your calls.
+        Audio never leaves this Mac: transcription runs locally, there is no account, and no meeting
+        bots join your calls.
       </p>
     </section>
   );
 }
 
-function ModelStatusText({ model }: { model: TranscriptionModelStatus }) {
+function ModelStatusText({ model }: { model: TranscriptionModelStatus | undefined }) {
+  if (!model) return <>Checking model status…</>;
   if (model.downloadState === "downloading") {
-    return (
-      <em>
-        <DownloadingLabel percent={downloadPercent(model)} />
-      </em>
-    );
+    return <DownloadingLabel percent={downloadPercent(model)} />;
   }
-  if (model.downloadState === "installing") return <em>Installing</em>;
-  if (model.downloadState === "failed") return <em>{model.errorMessage ?? "Download failed"}</em>;
-  if (model.downloadState === "cancelled") return <em>Cancelled</em>;
-  if (model.installed) return <em>{model.selected ? "Installed - selected" : "Installed"}</em>;
-  return <em>{model.displaySize ? `Not installed · ${model.displaySize}` : "Not installed"}</em>;
+  if (model.downloadState === "installing") return <>Installing…</>;
+  if (model.downloadState === "failed") return <>{model.errorMessage ?? "Download failed"}</>;
+  if (model.downloadState === "cancelled") return <>Download cancelled</>;
+  if (model.installed) return <>Installed</>;
+  return <>{model.displaySize ? `Not installed · ${model.displaySize}` : "Not installed"}</>;
 }
+
+type ModelActionProps = {
+  model: TranscriptionModelStatus | undefined;
+  onStartModelDownload: () => void;
+  onCancelModelDownload: () => void;
+  onDeleteModel: () => void;
+};
 
 function ModelAction({
   model,
   onStartModelDownload,
   onCancelModelDownload,
-}: {
-  model: TranscriptionModelStatus;
-  onStartModelDownload: () => void;
-  onCancelModelDownload: () => void;
-}) {
-  if (!model.downloadable || model.installed) return null;
+  onDeleteModel,
+}: ModelActionProps) {
+  const confirmDelete = useConfirmAction(onDeleteModel);
+  if (!model) return null;
+  if (model.installed) {
+    return (
+      <button
+        type="button"
+        className={confirmDelete.armed ? "settings-danger armed" : "settings-danger"}
+        onClick={confirmDelete.trigger}
+        onBlur={confirmDelete.reset}
+      >
+        {confirmDelete.armed ? "Confirm delete" : "Delete"}
+      </button>
+    );
+  }
   if (model.canCancel) {
     return (
       <button type="button" onClick={onCancelModelDownload}>
@@ -78,7 +94,9 @@ function ModelAction({
   if (model.canDownload) {
     return (
       <button type="button" onClick={onStartModelDownload}>
-        {model.downloadState === "failed" || model.downloadState === "cancelled" ? "Retry" : "Download"}
+        {model.downloadState === "failed" || model.downloadState === "cancelled"
+          ? "Retry"
+          : "Download"}
       </button>
     );
   }

@@ -18,8 +18,9 @@ pub(crate) use finalize::{
 };
 pub(crate) use finalize_audio::FinalizationAudioArtifacts;
 pub(crate) use models::{
-    finalization_transcription_catalog, finalization_transcription_selection, parakeet_model_files,
-    TranscriptionModelDownloadState, TranscriptionModelSelection, TranscriptionStatusPayload,
+    delete_parakeet_model, finalization_transcription_catalog,
+    finalization_transcription_selection, parakeet_model_files, TranscriptionModelDownloadState,
+    TranscriptionModelSelection, TranscriptionStatusPayload,
 };
 pub(crate) use runtime::{load_transcriber, Transcriber};
 pub(crate) use source_bleed::suppress_system_dominated_mic_segments;
