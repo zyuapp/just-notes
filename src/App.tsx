@@ -76,7 +76,6 @@ export default function App() {
         statusLabel={statusLabel}
         transcriptionStatus={state.transcriptionStatus}
         threadActions={threadActions}
-        onCreateThread={actions.createThread}
         onCancelModelDownload={actions.cancelModelDownload}
         onStartModelDownload={actions.startModelDownload}
         onStartFixtureRecording={actions.startFixtureRecording}
