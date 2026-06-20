@@ -9,8 +9,4 @@ export const settingsApi = {
   update(settings: AppSettings): Promise<AppSettings> {
     return invokeCommand("update_settings", { settings });
   },
-
-  pickFolder(): Promise<string | null> {
-    return invokeCommand("pick_folder");
-  },
 };
