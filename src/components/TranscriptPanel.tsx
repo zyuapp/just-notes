@@ -53,6 +53,7 @@ export function TranscriptPanel({
   const summary = selectedThread?.summary ?? null;
   const hasSegments = (selectedThread?.segments.length ?? 0) > 0;
   const canModify = recorderState === "idle" && summary?.status === "idle";
+  const canResume = canModify && hasSegments;
   const speakers = Array.from(
     new Set(selectedThread?.segments.map((segment) => segment.speaker) ?? []),
   );
@@ -120,6 +121,7 @@ export function TranscriptPanel({
         finalization={finalization}
         transcriptionStatus={transcriptionStatus}
         selectedThreadId={summary?.id ?? null}
+        resumeSelected={canResume}
         statusLabel={statusLabel}
         fixtureMode={fixtureMode}
         onCancelModelDownload={onCancelModelDownload}

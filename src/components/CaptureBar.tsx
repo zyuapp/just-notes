@@ -18,6 +18,7 @@ type CaptureBarProps = {
   finalization: FinalizationStatusPayload | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
   selectedThreadId: string | null;
+  resumeSelected: boolean;
   statusLabel: string;
   fixtureMode: boolean;
   onCancelModelDownload: () => void;
@@ -33,6 +34,7 @@ export function CaptureBar({
   finalization,
   transcriptionStatus,
   selectedThreadId,
+  resumeSelected,
   statusLabel,
   fixtureMode,
   onCancelModelDownload,
@@ -59,7 +61,13 @@ export function CaptureBar({
   const missingSelectedModel =
     recorderState === "idle" && Boolean(transcriptionStatus && !transcriptionStatus.ready);
   const activeDownload = Boolean(selectedModel && isModelDownloadActive(selectedModel));
-  const recordButtonLabel = buttonLabel(isRecording, busy, statusLabel, selectedModel);
+  const recordButtonLabel = buttonLabel(
+    isRecording,
+    busy,
+    statusLabel,
+    selectedModel,
+    resumeSelected,
+  );
   const recordButtonAction =
     missingSelectedModel && selectedModel?.canDownload
       ? onStartModelDownload
@@ -111,6 +119,7 @@ function buttonLabel(
   busy: boolean,
   statusLabel: string,
   selectedModel: TranscriptionModelStatus | undefined,
+  resumeSelected: boolean,
 ) {
   if (isRecording) return "Stop";
   if (busy) return `${statusLabel}…`;
@@ -121,5 +130,5 @@ function buttonLabel(
     if (selectedModel.downloadState === "installing") return "Installing";
     return downloadActionLabel();
   }
-  return "Record";
+  return resumeSelected ? "Resume" : "Record";
 }
