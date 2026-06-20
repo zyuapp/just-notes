@@ -12,7 +12,6 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 - `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, speaker rename, segment edit, search, markdown export).
 - `recording.rs`: start/stop/fixture recording commands and finalization cancel.
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
-- `indicator.rs`: indicator-window width sync, indicator mode query, and the open-main-window action used by the pill.
 - `settings.rs`: settings read/update and the native folder picker.
 - `system.rs`: app info, permission status, Finder reveal, clipboard, and privacy-settings deep links.
 
@@ -44,12 +43,6 @@ Keep this free of domain knowledge; it only shells out to the OS.
 - `mod.rs`: menu bar tray icon with recording status, elapsed-time title, stop-recording action, open window, and quit.
 
 The tray is a thin adapter: `lib.rs` injects the stop handler, and `recording` updates the status/title.
-
-## `src-tauri/src/indicator`
-
-- `mod.rs`: floating recording pill — an always-on-top window pinned to the right screen edge. Visible while recording (timer mode) and while the main window is open but unfocused (idle mode, used to start a recording). The window is created wider than the pill and slid so only the pill stays on screen; hover reveals (`set_indicator_visible_width`) move the window instead of resizing it.
-
-The indicator is a thin adapter like the tray: `recording` pushes recording state, `lib.rs` pushes main-window focus, and the pill webview (`indicator.html` + `src/indicator/main.ts`) follows the `indicator-state` event and syncs its width through the indicator commands. Hover expansion is driven by a native cursor-position watcher that emits `indicator-hover`, because macOS does not deliver webview hover events while the app is inactive — exactly when the pill is on screen.
 
 ## `src-tauri/src/ipc`
 
@@ -106,7 +99,7 @@ Use this when changing model status, Parakeet behavior, model download/install, 
 
 - `mod.rs`: recording facade and public API exports.
 - `state.rs`: recorder state, active session storage, startup guard, and selected-thread reuse predicate.
-- `workflow.rs`: start orchestration — model-readiness gate, thread selection, capture startup, audio sink startup, and tray/indicator updates.
+- `workflow.rs`: start orchestration — model-readiness gate, thread selection, capture startup, audio sink startup, and tray updates.
 - `stop.rs`: stop orchestration — worker shutdown, duration persistence, markdown rendering, finalization kickoff, and the stopped event.
 - `audio_sink.rs`: streams captured samples to `mic.wav`/`system.wav` during recording via a cursor over the rolling buffers.
 - `meter.rs`: live meter event worker and tray elapsed-time updates.

@@ -10,7 +10,6 @@ use super::{
 use crate::{
     app::AppPaths,
     capture::{prepare_audio_input, start_audio_capture, PreparedAudioInput, RecordingInputMode},
-    indicator,
     ipc::RecordingPayload,
     settings::AppSettings,
     threads::{
@@ -135,7 +134,6 @@ fn prepare_recording_session(
         return Err(err);
     }
     tray::set_tray_recording(&app, true);
-    indicator::set_indicator_recording(&app, true);
 
     Ok(RecordingPayload {
         thread: load_thread_by_id(&paths, &thread_id)?,

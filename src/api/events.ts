@@ -23,14 +23,6 @@ export const eventsApi = {
     return listenToEvent("meter-update", handler);
   },
 
-  onIndicatorState(handler: EventHandler<boolean>): Promise<UnlistenFn> {
-    return listenToEvent("indicator-state", handler);
-  },
-
-  onIndicatorHover(handler: EventHandler<boolean>): Promise<UnlistenFn> {
-    return listenToEvent("indicator-hover", handler);
-  },
-
   onRecordingStopped(handler: EventHandler<ThreadDetail>): Promise<UnlistenFn> {
     return listenToEvent("recording-stopped", handler);
   },
