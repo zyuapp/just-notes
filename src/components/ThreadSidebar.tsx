@@ -1,9 +1,8 @@
 import { Archive, Plus, Search, Settings } from "lucide-react";
-import { useState } from "react";
+import { type RefObject, useState } from "react";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
 import { ThreadContextMenu } from "./ThreadContextMenu";
 import { ThreadList } from "./ThreadList";
-import { useArchiveFlight } from "./useArchiveFlight";
 
 type ThreadSidebarProps = {
   activeThreadId: string | null;
@@ -11,6 +10,9 @@ type ThreadSidebarProps = {
   threads: ThreadSummary[];
   searchQuery: string;
   searching: boolean;
+  // Owned by App so the transcript toolbar's archive triggers the same flight.
+  iconRef: RefObject<HTMLButtonElement>;
+  scopeRef: RefObject<HTMLElement>;
   onSearchChange: (query: string) => void;
   onCreateThread: () => void;
   onSelectThread: (threadId: string) => void;
@@ -29,6 +31,8 @@ export function ThreadSidebar({
   threads,
   searchQuery,
   searching,
+  iconRef,
+  scopeRef,
   onSearchChange,
   onCreateThread,
   onSelectThread,
@@ -39,12 +43,6 @@ export function ThreadSidebar({
   onOpenSettings,
 }: ThreadSidebarProps) {
   const [menu, setMenu] = useState<ThreadMenuState | null>(null);
-  const { iconRef, scopeRef, flyToArchive } = useArchiveFlight();
-
-  const handleArchive = (threadId: string) => {
-    flyToArchive(threadId);
-    onArchiveThread(threadId);
-  };
 
   return (
     <aside className="thread-sidebar" aria-label="Threads" ref={scopeRef}>
@@ -113,7 +111,7 @@ export function ThreadSidebar({
           onClose={() => setMenu(null)}
           onExport={onExportThread}
           onReveal={onRevealThread}
-          onArchive={handleArchive}
+          onArchive={onArchiveThread}
         />
       )}
     </aside>

@@ -3,6 +3,7 @@ import { ArchivedView } from "./components/ArchivedView";
 import { SettingsView } from "./components/SettingsView";
 import { ThreadSidebar } from "./components/ThreadSidebar";
 import { TranscriptPanel } from "./components/TranscriptPanel";
+import { useArchiveFlight } from "./components/useArchiveFlight";
 import { buildNotice } from "./features/app/buildNotice";
 import { appReducer, getActiveThreadId, getStatusLabel, initialAppState } from "./features/app/state";
 import { useAppEvents } from "./features/app/useAppEvents";
@@ -19,6 +20,15 @@ export default function App() {
   const settingsActions = useSettingsController(state, dispatch, actions.bootstrap);
   const search = useThreadSearch(dispatch, state.threads);
   const archived = useArchivedThreads(state.archiveOpen);
+  const { iconRef, scopeRef, flyToArchive } = useArchiveFlight();
+
+  const archiveThread = useCallback(
+    (threadId: string) => {
+      flyToArchive(threadId);
+      void threadActions.archiveThread(threadId);
+    },
+    [flyToArchive, threadActions],
+  );
 
   const onFinalizationSettled = useCallback(
     () => void actions.refreshThreads(),
@@ -56,12 +66,14 @@ export default function App() {
         threads={search.results ?? state.threads}
         searchQuery={search.query}
         searching={search.results !== null}
+        iconRef={iconRef}
+        scopeRef={scopeRef}
         onSearchChange={search.setQuery}
         onCreateThread={actions.createThread}
         onSelectThread={(threadId) => void actions.selectThread(threadId)}
         onExportThread={(threadId) => void threadActions.exportMarkdown(threadId)}
         onRevealThread={(path) => void threadActions.revealPath(path)}
-        onArchiveThread={(threadId) => void threadActions.archiveThread(threadId)}
+        onArchiveThread={archiveThread}
         onOpenArchive={() => dispatch({ type: "archiveOpenChanged", open: true })}
         onOpenSettings={settingsActions.openSettings}
       />
@@ -76,6 +88,7 @@ export default function App() {
         statusLabel={statusLabel}
         transcriptionStatus={state.transcriptionStatus}
         threadActions={threadActions}
+        onArchiveThread={archiveThread}
         onCancelModelDownload={actions.cancelModelDownload}
         onStartModelDownload={actions.startModelDownload}
         onStartFixtureRecording={actions.startFixtureRecording}
