@@ -14,10 +14,7 @@ pub(crate) fn transcription_status(paths: &AppPaths) -> TranscriptionStatusPaylo
         .iter()
         .any(|model| model.selected && model.installed);
     let message = match model_exists {
-        true => format!(
-            "{PARAKEET_DISPLAY_NAME} transcription is ready ({})",
-            selection.model_name
-        ),
+        true => "Ready".to_string(),
         false => format!("{PARAKEET_DISPLAY_NAME} transcription model is missing"),
     };
 
