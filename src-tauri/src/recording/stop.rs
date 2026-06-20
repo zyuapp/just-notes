@@ -6,7 +6,6 @@ use super::state::{RecorderSession, RecorderState};
 use crate::{
     app::AppPaths,
     capture::stop_audio_capture,
-    indicator,
     threads::{
         repository::{
             load_thread_by_id, render_thread_markdown, set_thread_duration, set_thread_status,
@@ -50,10 +49,9 @@ pub(crate) fn stop_recording(
     let audio_sink_result = audio_sink.stop();
     drop(buffers);
 
-    // Capture is finished at this point, so the tray and indicator must leave
-    // the recording state even if persisting the thread below fails.
+    // Capture is finished at this point, so the tray must leave the recording
+    // state even if persisting the thread below fails.
     tray::set_tray_recording(&app, false);
-    indicator::set_indicator_recording(&app, false);
 
     let audio_artifacts_for_failure = audio_artifacts.clone();
     let duration_ms = started.elapsed().as_millis() as u64;
