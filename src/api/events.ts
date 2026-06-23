@@ -1,5 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
+import type { LiveTranscriptPayload } from "../bindings/LiveTranscriptPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { RecordingPayload } from "../bindings/RecordingPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
@@ -30,6 +31,10 @@ export const eventsApi = {
 
   onRecordingStopped(handler: EventHandler<ThreadDetail>): Promise<UnlistenFn> {
     return listenToEvent("recording-stopped", handler);
+  },
+
+  onTranscriptUpdate(handler: EventHandler<LiveTranscriptPayload>): Promise<UnlistenFn> {
+    return listenToEvent("transcript-update", handler);
   },
 
   onFinalizationStatus(handler: EventHandler<FinalizationStatusPayload>): Promise<UnlistenFn> {

@@ -25,6 +25,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         selectedThreadId: action.detail.summary.id,
         selectedThread: action.detail,
         threads: replaceThreadSummary(state, action.detail),
+        // The finalized transcript has landed in this detail, so the live preview
+        // is now redundant. Clearing it here keeps the swap free of a blank flash.
+        liveSegments: state.finalization?.state === "done" ? [] : state.liveSegments,
+        liveThreadId: state.finalization?.state === "done" ? null : state.liveThreadId,
       };
     case "threadArchived": {
       const threadId = action.summary.id;
@@ -51,7 +55,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "finalizationReceived":
       return { ...state, finalization: action.payload };
     case "recordingStarting":
-      return { ...state, error: null, recorderState: "starting", meters: emptyMeters };
+      return {
+        ...state,
+        error: null,
+        recorderState: "starting",
+        meters: emptyMeters,
+        liveSegments: [],
+        liveThreadId: null,
+        finalization: null,
+      };
     case "recordingStarted":
       return {
         ...state,
@@ -79,6 +91,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, error: action.message, recorderState: "recording" };
     case "meterReceived":
       return { ...state, meters: action.payload };
+    case "liveSegmentReceived":
+      if (state.selectedThreadId !== action.payload.threadId) {
+        return state;
+      }
+      return {
+        ...state,
+        liveSegments: [...state.liveSegments, action.payload.segment],
+        liveThreadId: action.payload.threadId,
+      };
   }
 }
 

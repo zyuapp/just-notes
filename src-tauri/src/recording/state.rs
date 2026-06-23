@@ -9,6 +9,7 @@ use std::{
 };
 
 use super::audio_sink::AudioSink;
+use super::live_transcribe::LiveTranscription;
 use crate::{
     app::AppPaths,
     capture::{ActiveAudioCapture, SharedBuffers},
@@ -36,6 +37,7 @@ pub(super) struct RecorderSession {
     pub(super) meter_thread: Option<JoinHandle<()>>,
     pub(super) audio_capture: ActiveAudioCapture,
     pub(super) audio_sink: AudioSink,
+    pub(super) live_transcription: LiveTranscription,
     pub(super) audio_artifacts: FinalizationAudioArtifacts,
     // Prior recording length when resuming an existing thread; the new session's
     // transcript and duration are offset by it. None for a fresh recording.

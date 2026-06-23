@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
+import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
 import type { ThreadActions } from "../features/app/useThreadActions";
@@ -21,6 +22,7 @@ type TranscriptPanelProps = {
   notice: Notice | null;
   recorderState: RecorderState;
   selectedThread: ThreadDetail | null;
+  liveSegments: TranscriptSegment[];
   statusLabel: string;
   transcriptionStatus: TranscriptionStatusPayload | null;
   threadActions: ThreadActions;
@@ -40,6 +42,7 @@ export function TranscriptPanel({
   notice,
   recorderState,
   selectedThread,
+  liveSegments,
   statusLabel,
   transcriptionStatus,
   threadActions,
@@ -110,6 +113,7 @@ export function TranscriptPanel({
       <TranscriptSurface
         recorderState={recorderState}
         selectedThread={selectedThread}
+        liveSegments={liveSegments}
         transcriptionStatus={transcriptionStatus}
         query={query}
         onSaveSegmentText={(index, text) => void threadActions.updateSegmentText(index, text)}

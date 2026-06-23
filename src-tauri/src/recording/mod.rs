@@ -1,4 +1,5 @@
 mod audio_sink;
+mod live_transcribe;
 mod meter;
 mod selection;
 mod state;

@@ -1,11 +1,13 @@
 import type { AppInfo } from "../../bindings/AppInfo";
 import type { AppSettings } from "../../bindings/AppSettings";
 import type { FinalizationStatusPayload } from "../../bindings/FinalizationStatusPayload";
+import type { LiveTranscriptPayload } from "../../bindings/LiveTranscriptPayload";
 import type { MeterPayload } from "../../bindings/MeterPayload";
 import type { PermissionsPayload } from "../../bindings/PermissionsPayload";
 import type { RecordingPayload } from "../../bindings/RecordingPayload";
 import type { ThreadDetail } from "../../bindings/ThreadDetail";
 import type { ThreadSummary } from "../../bindings/ThreadSummary";
+import type { TranscriptSegment } from "../../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../../bindings/TranscriptionStatusPayload";
 
 export { appReducer } from "./reducer";
@@ -20,6 +22,11 @@ export type AppState = {
   selectedThread: ThreadDetail | null;
   recorderState: RecorderState;
   meters: MeterPayload;
+  // Preview segments streamed during recording; replaced by the authoritative
+  // transcript once finalization completes. liveThreadId scopes them to the
+  // thread they belong to so they never render on another thread.
+  liveSegments: TranscriptSegment[];
+  liveThreadId: string | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
   settings: AppSettings | null;
   permissions: PermissionsPayload | null;
@@ -44,6 +51,8 @@ export const initialAppState: AppState = {
   selectedThread: null,
   recorderState: "idle",
   meters: emptyMeters,
+  liveSegments: [],
+  liveThreadId: null,
   transcriptionStatus: null,
   settings: null,
   permissions: null,
@@ -80,7 +89,8 @@ export type AppAction =
   | { type: "recordingStopping" }
   | { type: "recordingStopped"; detail: ThreadDetail }
   | { type: "recordingStopFailed"; message: string }
-  | { type: "meterReceived"; payload: MeterPayload };
+  | { type: "meterReceived"; payload: MeterPayload }
+  | { type: "liveSegmentReceived"; payload: LiveTranscriptPayload };
 
 export function getActiveThreadId(state: AppState) {
   return state.recorderState === "recording" || state.recorderState === "stopping"

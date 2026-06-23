@@ -1,4 +1,7 @@
-use crate::{threads::ThreadDetail, transcription::TranscriptionStatusPayload};
+use crate::{
+    threads::{ThreadDetail, TranscriptSegment},
+    transcription::TranscriptionStatusPayload,
+};
 
 #[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +28,14 @@ pub(crate) struct MeterPayload {
 pub(crate) struct RecordingPayload {
     pub(crate) thread: ThreadDetail,
     pub(crate) transcription: TranscriptionStatusPayload,
+}
+
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) struct LiveTranscriptPayload {
+    pub(crate) thread_id: String,
+    pub(crate) segment: TranscriptSegment,
 }
 
 #[derive(serde::Serialize, ts_rs::TS, Clone)]

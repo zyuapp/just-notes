@@ -40,6 +40,7 @@ pub(crate) fn stop_recording(
         mut meter_thread,
         audio_capture,
         audio_sink,
+        live_transcription,
         audio_artifacts,
         resume_offset_ms,
     } = session;
@@ -49,6 +50,9 @@ pub(crate) fn stop_recording(
         let _ = thread.join();
     }
     stop_audio_capture(audio_capture);
+    // Stop live transcription before the finalization pass below so its model is
+    // released first; the final open utterance is left for finalization.
+    live_transcription.stop();
     let audio_sink_result = audio_sink.stop();
     drop(buffers);
 

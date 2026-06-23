@@ -85,6 +85,7 @@ export default function App() {
         notice={notice}
         recorderState={state.recorderState}
         selectedThread={state.selectedThread}
+        liveSegments={state.selectedThreadId === state.liveThreadId ? state.liveSegments : []}
         statusLabel={statusLabel}
         transcriptionStatus={state.transcriptionStatus}
         threadActions={threadActions}

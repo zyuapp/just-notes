@@ -4,6 +4,7 @@ use tauri::AppHandle;
 
 use super::{
     audio_sink::spawn_audio_sink,
+    live_transcribe::{spawn_live_transcription, LiveTranscriptionConfig},
     meter::spawn_meter_thread,
     selection::{select_recording_thread, SelectedThread},
     state::{RecorderSession, RecorderState},
@@ -17,7 +18,9 @@ use crate::{
         repository::{load_thread_by_id, prepare_work_dir, set_thread_status},
         RecordingAudioPaths, ThreadStatus,
     },
-    transcription::{transcription_status, FinalizationAudioArtifacts},
+    transcription::{
+        finalization_transcription_selection, transcription_status, FinalizationAudioArtifacts,
+    },
     tray,
 };
 
@@ -195,6 +198,15 @@ fn build_recording_session(
         Arc::clone(&should_stop_meter),
         config.started,
     );
+    let live_transcription = spawn_live_transcription(LiveTranscriptionConfig {
+        app: config.app.clone(),
+        thread_id: config.thread_id.clone(),
+        buffers: Arc::clone(&input.buffers),
+        model_selection: finalization_transcription_selection(&config.paths),
+        mic_sample_rate: input.mic_sample_rate,
+        system_sample_rate: input.system_sample_rate,
+        offset_ms: config.resume_offset_ms.unwrap_or(0),
+    });
 
     RecorderSession {
         thread_id: config.thread_id,
@@ -207,6 +219,7 @@ fn build_recording_session(
         meter_thread: Some(meter_thread),
         audio_capture: input.audio_capture,
         audio_sink,
+        live_transcription,
         audio_artifacts,
         resume_offset_ms: config.resume_offset_ms,
     }
