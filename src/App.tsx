@@ -90,6 +90,7 @@ export default function App() {
         transcriptionStatus={state.transcriptionStatus}
         threadActions={threadActions}
         onArchiveThread={archiveThread}
+        onReprocess={(threadId) => void actions.reprocessThread(threadId)}
         onCancelModelDownload={actions.cancelModelDownload}
         onStartModelDownload={actions.startModelDownload}
         onStartFixtureRecording={actions.startFixtureRecording}

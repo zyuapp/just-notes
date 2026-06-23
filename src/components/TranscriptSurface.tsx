@@ -3,7 +3,12 @@ import type { ThreadDetail } from "../bindings/ThreadDetail";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
-import { displaySpeaker, showsSpeakerHeader, visibleSegments } from "../lib/transcript";
+import {
+  displaySpeaker,
+  mergeLiveSegments,
+  showsSpeakerHeader,
+  visibleSegments,
+} from "../lib/transcript";
 import { SegmentBlock } from "./SegmentBlock";
 import { TranscriptEmptyState } from "./TranscriptEmptyState";
 
@@ -27,8 +32,7 @@ export function TranscriptSurface({
   const surfaceRef = useRef<HTMLElement | null>(null);
   const isRecording = recorderState === "recording";
   const baseSegments = selectedThread?.segments ?? [];
-  const segments =
-    liveSegments.length > 0 ? [...baseSegments, ...liveSegments] : baseSegments;
+  const segments = mergeLiveSegments(baseSegments, liveSegments);
   const segmentCount = segments.length;
 
   useEffect(() => {

@@ -201,6 +201,7 @@ fn build_recording_session(
     let live_transcription = spawn_live_transcription(LiveTranscriptionConfig {
         app: config.app.clone(),
         thread_id: config.thread_id.clone(),
+        thread_dir: config.thread_dir.clone(),
         buffers: Arc::clone(&input.buffers),
         model_selection: finalization_transcription_selection(&config.paths),
         mic_sample_rate: input.mic_sample_rate,
