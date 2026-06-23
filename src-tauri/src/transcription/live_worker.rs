@@ -10,36 +10,36 @@ use std::{
 
 use tauri::{AppHandle, Emitter};
 
+use super::{
+    load_transcriber, transcribe_live_utterance, LiveSegmenter, SegmenterConfig, Transcriber,
+    TranscriptionModelSelection, Utterance,
+};
 use crate::{
     capture::SharedBuffers,
     ipc::LiveTranscriptPayload,
     threads::{commit::append_thread_segments, TranscriptSegment},
-    transcription::{
-        load_transcriber, transcribe_live_utterance, LiveSegmenter, SegmenterConfig, Transcriber,
-        TranscriptionModelSelection, Utterance,
-    },
 };
 
 const LIVE_POLL_MS: u64 = 300;
 
-pub(super) struct LiveTranscriptionConfig {
-    pub(super) app: AppHandle,
-    pub(super) thread_id: String,
-    pub(super) thread_dir: PathBuf,
-    pub(super) buffers: Arc<Mutex<SharedBuffers>>,
-    pub(super) model_selection: TranscriptionModelSelection,
-    pub(super) mic_sample_rate: u32,
-    pub(super) system_sample_rate: u32,
-    pub(super) offset_ms: u64,
+pub(crate) struct LiveTranscriptionConfig {
+    pub(crate) app: AppHandle,
+    pub(crate) thread_id: String,
+    pub(crate) thread_dir: PathBuf,
+    pub(crate) buffers: Arc<Mutex<SharedBuffers>>,
+    pub(crate) model_selection: TranscriptionModelSelection,
+    pub(crate) mic_sample_rate: u32,
+    pub(crate) system_sample_rate: u32,
+    pub(crate) offset_ms: u64,
 }
 
-pub(super) struct LiveTranscription {
+pub(crate) struct LiveTranscription {
     should_stop: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
 }
 
 impl LiveTranscription {
-    pub(super) fn stop(mut self) {
+    pub(crate) fn stop(mut self) {
         self.should_stop.store(true, Ordering::Relaxed);
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
@@ -47,7 +47,7 @@ impl LiveTranscription {
     }
 }
 
-pub(super) fn spawn_live_transcription(config: LiveTranscriptionConfig) -> LiveTranscription {
+pub(crate) fn spawn_live_transcription(config: LiveTranscriptionConfig) -> LiveTranscription {
     let should_stop = Arc::new(AtomicBool::new(false));
     let stop_flag = Arc::clone(&should_stop);
     let worker = thread::spawn(move || run_live_transcription(config, stop_flag));

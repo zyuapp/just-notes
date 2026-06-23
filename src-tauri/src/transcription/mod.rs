@@ -4,6 +4,7 @@ mod download;
 mod finalize;
 mod finalize_audio;
 mod live;
+mod live_worker;
 pub(crate) mod models;
 mod runtime;
 mod source_bleed;
@@ -18,6 +19,9 @@ pub(crate) use finalize::{
 };
 pub(crate) use finalize_audio::FinalizationAudioArtifacts;
 pub(crate) use live::{transcribe_live_utterance, LiveSegmenter, SegmenterConfig, Utterance};
+pub(crate) use live_worker::{
+    spawn_live_transcription, LiveTranscription, LiveTranscriptionConfig,
+};
 pub(crate) use models::{
     delete_parakeet_model, finalization_transcription_catalog,
     finalization_transcription_selection, parakeet_model_files, TranscriptionModelDownloadState,

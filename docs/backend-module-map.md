@@ -85,22 +85,25 @@ Use this when changing how audio is acquired, buffered, leveled, or fixture-driv
 - `download.rs`: model download lifecycle and `ModelDownloadState` (progress snapshots, cancellation, guarded local-model delete); `download/install.rs` fetches, verifies, extracts, and atomically installs; `download/snapshot.rs` holds the progress snapshot.
 - `runtime.rs`: transcriber loading and the `Transcriber` trait; `runtime/parakeet.rs` holds the sherpa-onnx Parakeet model loading and segment transcription; `runtime/parakeet/segments.rs` converts model output into transcript segments.
 - `audio.rs`: sample/time conversion, RMS, audible-start detection, and resampling.
-- `finalize.rs`: post-recording finalization — chunked re-transcription of saved WAVs, transcript replacement, cancellation registry, and status events.
-- `finalize_audio.rs`: saved-WAV decoding and the raw-audio retention policy a finalization pass consumes.
+- `live.rs`: the shared segmenter used by both the live and finalize paths — splits a mono stream into bounded speech utterances (energy VAD, redemption, duration cap) plus `transcribe_live_utterance`; `live/tests.rs` covers it.
+- `live_worker.rs`: the live transcription worker — tails capture buffers per channel during recording, transcribes each closed utterance, emits the `transcript-update` event, and appends segments to the thread transcript.
+- `finalize.rs`: on-demand re-transcription of saved WAVs through the shared segmenter — transcript replacement, cancellation registry, and status events.
+- `finalize_audio.rs`: saved-WAV decoding, measured-duration, and the raw-audio retention policy a finalization pass consumes.
 - `source_bleed.rs`: finalization-time, audio-level suppression of mic segments dominated by overlapping system audio; `source_bleed/profile.rs` builds per-channel RMS/envelope profiles from the WAVs.
 - `text/cleanup.rs`: transcript cleanup, partial sentence handling, prefix agreement, and end-time estimation.
 - `text/bleed.rs`: text-level suppression of mic speech that duplicates overlapping system audio.
 - `text/words.rs`: shared word normalization, n-gram, and sentence splitting helpers.
 - `mod.rs`: transcription facade used by recording and tests.
 
-Use this when changing model status, Parakeet behavior, model download/install, finalization, cleanup, cross-channel bleed, or audio math. Transcription is finalization-only — it re-transcribes saved WAVs and has no live-recording path.
+Use this when changing model status, Parakeet behavior, model download/install, the segmenter, live transcription, finalization, cleanup, cross-channel bleed, or audio math. Transcription owns both the live path (`live_worker.rs` streams segments during recording, the authoritative transcript) and the on-demand finalization pass that re-transcribes saved WAVs for cross-channel cleanup; `recording` only starts and stops them.
 
 ## `src-tauri/src/recording`
 
 - `mod.rs`: recording facade and public API exports.
 - `state.rs`: recorder state, active session storage, startup guard, and selected-thread reuse predicate.
-- `workflow.rs`: start orchestration — model-readiness gate, thread selection, capture startup, audio sink startup, and tray updates.
-- `stop.rs`: stop orchestration — worker shutdown, duration persistence, markdown rendering, finalization kickoff, and the stopped event.
+- `workflow.rs`: start orchestration — model-readiness gate, thread selection, capture startup, audio sink startup, live transcription startup, and tray updates.
+- `stop.rs`: stop orchestration — worker shutdown (including live transcription), duration persistence, markdown rendering, raw-audio retention, and the stopped event. The transcript is already on disk, so stop does not re-transcribe.
+- `reprocess.rs`: on-demand re-transcription entry point — checks eligibility (idle, has saved audio, not resumed) then kicks off the transcription finalization pass.
 - `audio_sink.rs`: streams captured samples to `mic.wav`/`system.wav` during recording via a cursor over the rolling buffers.
 - `meter.rs`: live meter event worker and tray elapsed-time updates.
 
@@ -114,6 +117,7 @@ Use this when changing the lifecycle of a recording session or how capture/trans
 - Change audio capture: start in `capture`.
 - Change transcript quality: start in `transcription/text` or `transcription/source_bleed`.
 - Change model download/install: start in `transcription/download`.
-- Change the post-recording polish pass: start in `transcription/finalize.rs`.
+- Change live transcription during recording: start in `transcription/live.rs` (segmenter) or `transcription/live_worker.rs` (worker).
+- Change the on-demand re-transcription / polish pass: start in `transcription/finalize.rs` (kicked off by `recording/reprocess.rs`).
 - Change thread files or markdown: start in `threads`.
 - Change recording start/stop behavior: start in `recording`.

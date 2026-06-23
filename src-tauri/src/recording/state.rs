@@ -9,13 +9,12 @@ use std::{
 };
 
 use super::audio_sink::AudioSink;
-use super::live_transcribe::LiveTranscription;
 use crate::{
     app::AppPaths,
     capture::{ActiveAudioCapture, SharedBuffers},
     settings::AppSettings,
     threads::ThreadDetail,
-    transcription::FinalizationAudioArtifacts,
+    transcription::{FinalizationAudioArtifacts, LiveTranscription},
 };
 
 #[derive(Clone, Default)]

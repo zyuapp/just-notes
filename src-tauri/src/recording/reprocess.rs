@@ -5,8 +5,8 @@ use crate::{
     settings::AppSettings,
     threads::repository::load_thread_by_id,
     transcription::{
-        finalization_transcription_selection, spawn_finalization, wav_duration_ms,
-        FinalizationAudioArtifacts, FinalizationConfig, FinalizationStart, FinalizeState,
+        finalization_transcription_selection, spawn_finalization, FinalizationAudioArtifacts,
+        FinalizationConfig, FinalizationStart, FinalizeState,
     },
 };
 
@@ -39,7 +39,10 @@ pub(crate) fn reprocess_thread(
         return Err("This thread has no saved audio to re-transcribe".to_string());
     }
     if thread.summary.duration_ms
-        > audio_duration_ms(&audio_artifacts).saturating_add(RESUME_AUDIO_TOLERANCE_MS)
+        > audio_artifacts
+            .measured_duration_ms()
+            .unwrap_or(0)
+            .saturating_add(RESUME_AUDIO_TOLERANCE_MS)
     {
         return Err("Re-transcribing isn't available for resumed recordings.".to_string());
     }
@@ -59,11 +62,4 @@ pub(crate) fn reprocess_thread(
             Err("This thread is already being processed".to_string())
         }
     }
-}
-
-fn audio_duration_ms(audio_artifacts: &FinalizationAudioArtifacts) -> u64 {
-    let paths = audio_artifacts.paths();
-    wav_duration_ms(paths.mic_path())
-        .unwrap_or(0)
-        .max(wav_duration_ms(paths.system_path()).unwrap_or(0))
 }

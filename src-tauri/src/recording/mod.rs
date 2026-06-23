@@ -1,5 +1,4 @@
 mod audio_sink;
-mod live_transcribe;
 mod meter;
 mod reprocess;
 mod selection;

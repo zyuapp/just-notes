@@ -57,7 +57,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         recorderState: "starting",
         meters: emptyMeters,
         liveSegments: [],
-        liveThreadId: null,
         finalization: null,
       };
     case "recordingStarted":
@@ -83,7 +82,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         threads: replaceThreadSummary(state, action.detail),
         meters: emptyMeters,
         liveSegments: [],
-        liveThreadId: null,
         recordingThreadId: null,
         recorderState: "idle",
       };
@@ -92,19 +90,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "meterReceived":
       return { ...state, meters: action.payload };
     case "liveSegmentReceived":
-      // Ignore a late event delivered after stop, and any for a thread that is
-      // not the one on screen.
+      // Ignore a late event delivered after stop, and any not for the thread
+      // currently being recorded.
       if (state.recorderState !== "recording" && state.recorderState !== "stopping") {
         return state;
       }
-      if (state.selectedThreadId !== action.payload.threadId) {
+      if (state.recordingThreadId !== action.payload.threadId) {
         return state;
       }
-      return {
-        ...state,
-        liveSegments: [...state.liveSegments, action.payload.segment],
-        liveThreadId: action.payload.threadId,
-      };
+      return { ...state, liveSegments: [...state.liveSegments, action.payload.segment] };
   }
 }
 

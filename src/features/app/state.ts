@@ -22,11 +22,9 @@ export type AppState = {
   selectedThread: ThreadDetail | null;
   recorderState: RecorderState;
   meters: MeterPayload;
-  // Preview segments streamed during recording; replaced by the authoritative
-  // transcript once finalization completes. liveThreadId scopes them to the
-  // thread they belong to so they never render on another thread.
+  // Preview segments streamed during recording for the thread in
+  // recordingThreadId; replaced by the persisted transcript on stop.
   liveSegments: TranscriptSegment[];
-  liveThreadId: string | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
   settings: AppSettings | null;
   permissions: PermissionsPayload | null;
@@ -52,7 +50,6 @@ export const initialAppState: AppState = {
   recorderState: "idle",
   meters: emptyMeters,
   liveSegments: [],
-  liveThreadId: null,
   transcriptionStatus: null,
   settings: null,
   permissions: null,

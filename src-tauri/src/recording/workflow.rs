@@ -4,7 +4,6 @@ use tauri::AppHandle;
 
 use super::{
     audio_sink::spawn_audio_sink,
-    live_transcribe::{spawn_live_transcription, LiveTranscriptionConfig},
     meter::spawn_meter_thread,
     selection::{select_recording_thread, SelectedThread},
     state::{RecorderSession, RecorderState},
@@ -16,10 +15,11 @@ use crate::{
     settings::AppSettings,
     threads::{
         repository::{load_thread_by_id, prepare_work_dir, set_thread_status},
-        RecordingAudioPaths, ThreadStatus,
+        ThreadStatus,
     },
     transcription::{
-        finalization_transcription_selection, transcription_status, FinalizationAudioArtifacts,
+        finalization_transcription_selection, spawn_live_transcription, transcription_status,
+        FinalizationAudioArtifacts, LiveTranscriptionConfig,
     },
     tray,
 };
@@ -155,9 +155,9 @@ fn activate_session(
         &config.thread_dir,
         config.settings.save_raw_audio,
     );
-    let audio_sink = spawn_recording_audio_sink(
+    let audio_sink = spawn_audio_sink(
         audio_artifacts.paths(),
-        &config.input.buffers,
+        Arc::clone(&config.input.buffers),
         config.input.mic_sample_rate,
         config.input.system_sample_rate,
     )?;
@@ -168,20 +168,6 @@ fn activate_session(
     }
     let session = build_recording_session(config, audio_sink, audio_artifacts);
     recorder.store_session(session)
-}
-
-fn spawn_recording_audio_sink(
-    audio_paths: &RecordingAudioPaths,
-    buffers: &Arc<std::sync::Mutex<crate::capture::SharedBuffers>>,
-    mic_sample_rate: u32,
-    system_sample_rate: u32,
-) -> Result<super::audio_sink::AudioSink, String> {
-    spawn_audio_sink(
-        audio_paths,
-        Arc::clone(buffers),
-        mic_sample_rate,
-        system_sample_rate,
-    )
 }
 
 fn build_recording_session(

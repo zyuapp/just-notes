@@ -11,7 +11,6 @@ use crate::{
         },
         ThreadDetail, ThreadStatus,
     },
-    transcription::{wav_duration_ms, FinalizationAudioArtifacts},
     tray,
 };
 
@@ -54,7 +53,11 @@ pub(crate) fn stop_recording(
     // persisting below fails.
     tray::set_tray_recording(&app, false);
 
-    let session_ms = session_audio_duration_ms(&audio_artifacts)
+    // Duration from the recorded audio rather than wall-clock, which over-counts
+    // by the capture startup latency; fall back to elapsed time only when the
+    // WAVs cannot be measured.
+    let session_ms = audio_artifacts
+        .measured_duration_ms()
         .unwrap_or_else(|| started.elapsed().as_millis() as u64);
     let duration_ms = resume_offset_ms.unwrap_or(0).saturating_add(session_ms);
     let persist_result = persist_stopped_thread(&thread_dir, duration_ms, settings.markdown_copy);
@@ -71,16 +74,6 @@ pub(crate) fn stop_recording(
     let detail = load_thread_by_id(&paths, &thread_id)?;
     let _ = app.emit("recording-stopped", &detail);
     Ok(detail)
-}
-
-// Duration from the recorded audio rather than wall-clock, which over-counts by
-// the capture startup latency. None when the WAVs cannot be measured, so the
-// caller can fall back to elapsed time.
-fn session_audio_duration_ms(audio_artifacts: &FinalizationAudioArtifacts) -> Option<u64> {
-    let paths = audio_artifacts.paths();
-    let mic = wav_duration_ms(paths.mic_path()).ok()?;
-    let system = wav_duration_ms(paths.system_path()).ok()?;
-    Some(mic.max(system))
 }
 
 fn persist_stopped_thread(

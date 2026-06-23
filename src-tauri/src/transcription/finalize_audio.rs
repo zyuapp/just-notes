@@ -7,7 +7,10 @@ use std::{
 
 use hound::{SampleFormat, WavReader, WavSpec};
 
-use super::{transcribe_live_utterance, LiveSegmenter, SegmenterConfig, Transcriber, Utterance};
+use super::{
+    transcribe_live_utterance, wav_duration_ms, LiveSegmenter, SegmenterConfig, Transcriber,
+    Utterance,
+};
 use crate::threads::{RecordingAudioPaths, TranscriptSegment};
 
 // Audio is read in bounded blocks and fed through the shared segmenter so the
@@ -48,6 +51,15 @@ impl FinalizationAudioArtifacts {
             FinalizationAudioRetention::Keep => Ok(()),
             FinalizationAudioRetention::DeleteWhenDone => self.paths.remove_files(),
         }
+    }
+
+    /// Longest measured duration across the saved channels, or None if neither
+    /// can be read. A missing channel counts as zero; a corrupt one is skipped.
+    pub(crate) fn measured_duration_ms(&self) -> Option<u64> {
+        [self.paths.mic_path(), self.paths.system_path()]
+            .into_iter()
+            .filter_map(|path| wav_duration_ms(path).ok())
+            .max()
     }
 }
 
