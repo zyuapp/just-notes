@@ -19,13 +19,15 @@ pub(crate) fn read_transcript_jsonl(path: &Path) -> Result<Vec<TranscriptSegment
     for line in reader.lines() {
         let line =
             line.map_err(|err| format!("Failed to read transcript {}: {err}", path.display()))?;
-        if line.trim().is_empty() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
             continue;
         }
-        segments.push(
-            serde_json::from_str::<TranscriptSegment>(&line)
-                .map_err(|err| format!("Invalid transcript line in {}: {err}", path.display()))?,
-        );
+        // A crash mid-append can leave a torn last line; skip unparseable lines
+        // instead of failing the whole load.
+        if let Ok(segment) = serde_json::from_str::<TranscriptSegment>(trimmed) {
+            segments.push(segment);
+        }
     }
 
     segments.sort_by(|left, right| {
@@ -127,6 +129,27 @@ pub(crate) fn write_transcript_jsonl(
         content.push('\n');
     }
     write_text_atomic(path, &content)
+}
+
+/// Appends segments as JSONL lines, creating the file if needed. O(1) per call,
+/// used by live transcription; a crash can leave a torn final line, which
+/// [`read_transcript_jsonl`] tolerates.
+pub(crate) fn append_transcript_jsonl(
+    path: &Path,
+    segments: &[TranscriptSegment],
+) -> Result<(), String> {
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|err| format!("Failed to open transcript {}: {err}", path.display()))?;
+    for segment in segments {
+        let line = serde_json::to_string(segment)
+            .map_err(|err| format!("Failed to encode transcript segment: {err}"))?;
+        writeln!(file, "{line}")
+            .map_err(|err| format!("Failed to append transcript {}: {err}", path.display()))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

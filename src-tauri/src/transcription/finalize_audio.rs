@@ -7,11 +7,16 @@ use std::{
 
 use hound::{SampleFormat, WavReader, WavSpec};
 
-use super::{resample_to_rate, rms, samples_to_ms, Transcriber};
+use super::{
+    transcribe_live_utterance, wav_duration_ms, LiveSegmenter, SegmenterConfig, Transcriber,
+    Utterance,
+};
 use crate::threads::{RecordingAudioPaths, TranscriptSegment};
 
-const FINALIZE_CHUNK_SECONDS: u64 = 600;
-const FINALIZE_SILENT_CHUNK_RMS: f32 = 0.0005;
+// Audio is read in bounded blocks and fed through the shared segmenter so the
+// recognizer only ever decodes one short speech utterance at a time, never the
+// whole channel at once.
+const FINALIZE_READ_SECONDS: usize = 30;
 
 #[derive(Clone)]
 pub(crate) struct FinalizationAudioArtifacts {
@@ -47,6 +52,15 @@ impl FinalizationAudioArtifacts {
             FinalizationAudioRetention::DeleteWhenDone => self.paths.remove_files(),
         }
     }
+
+    /// Longest measured duration across the saved channels, or None if neither
+    /// can be read. A missing channel counts as zero; a corrupt one is skipped.
+    pub(crate) fn measured_duration_ms(&self) -> Option<u64> {
+        [self.paths.mic_path(), self.paths.system_path()]
+            .into_iter()
+            .filter_map(|path| wav_duration_ms(path).ok())
+            .max()
+    }
 }
 
 pub(super) fn transcribe_wav_channel(
@@ -62,30 +76,46 @@ pub(super) fn transcribe_wav_channel(
     let mut reader =
         WavReader::open(path).map_err(|err| format!("Failed to read {}: {err}", path.display()))?;
     let spec = reader.spec();
-    let chunk_frames = (spec.sample_rate as u64 * FINALIZE_CHUNK_SECONDS) as usize;
-    let mut offset_ms = 0u64;
+    let block_frames = spec.sample_rate as usize * FINALIZE_READ_SECONDS;
+    let mut segmenter = LiveSegmenter::new(spec.sample_rate, SegmenterConfig::finalize());
+    let mut utterances = Vec::new();
     let mut segments = Vec::new();
+    let mut next_index = 0u64;
 
     loop {
         if cancel.load(Ordering::Relaxed) {
             return Ok(segments);
         }
-        let chunk = read_mono_chunk(&mut reader, spec, chunk_frames)?;
-        if chunk.is_empty() {
+        let block = read_mono_chunk(&mut reader, spec, block_frames)?;
+        if block.is_empty() {
             break;
         }
-        let chunk_ms = samples_to_ms(chunk.len() as u64, spec.sample_rate);
-        if rms(&chunk) >= FINALIZE_SILENT_CHUNK_RMS {
-            let samples_16k = resample_to_rate(&chunk, spec.sample_rate, 16_000);
-            for mut segment in transcriber.transcribe_segments(&samples_16k, "", source, speaker)? {
-                segment.start_ms += offset_ms;
-                segment.end_ms += offset_ms;
-                segments.push(segment);
-            }
-        }
-        offset_ms += chunk_ms;
+        segmenter.push(next_index, &block, &mut utterances);
+        next_index += block.len() as u64;
+        drain_utterances(transcriber, source, speaker, &mut utterances, &mut segments)?;
     }
+    segmenter.flush(&mut utterances);
+    drain_utterances(transcriber, source, speaker, &mut utterances, &mut segments)?;
     Ok(segments)
+}
+
+fn drain_utterances(
+    transcriber: &dyn Transcriber,
+    source: &str,
+    speaker: &str,
+    utterances: &mut Vec<Utterance>,
+    segments: &mut Vec<TranscriptSegment>,
+) -> Result<(), String> {
+    for utterance in utterances.drain(..) {
+        segments.extend(transcribe_live_utterance(
+            transcriber,
+            &utterance,
+            source,
+            speaker,
+            0,
+        )?);
+    }
+    Ok(())
 }
 
 fn read_mono_chunk(

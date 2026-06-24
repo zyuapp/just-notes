@@ -37,3 +37,20 @@ export function sortTranscriptSegments(segments: TranscriptSegment[]) {
     return left.source.localeCompare(right.source);
   });
 }
+
+const liveKey = (segment: TranscriptSegment) =>
+  `${segment.source}:${segment.startMs}:${segment.endMs}`;
+
+// Merges live preview segments onto the persisted base. Live segments are now
+// persisted, so a mid-recording reload puts the same segment in both base and
+// live; drop those duplicates and sort the result by time.
+export function mergeLiveSegments(
+  base: TranscriptSegment[],
+  live: TranscriptSegment[],
+): TranscriptSegment[] {
+  if (live.length === 0) return base;
+  const seen = new Set(base.map(liveKey));
+  const fresh = live.filter((segment) => !seen.has(liveKey(segment)));
+  if (fresh.length === 0) return base;
+  return sortTranscriptSegments([...base, ...fresh]);
+}

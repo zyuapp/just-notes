@@ -98,6 +98,18 @@ export function useJustNotesController(state: AppState, dispatch: AppDispatch) {
     }
   }, [dispatch, refreshThreads]);
 
+  const reprocessThread = useCallback(
+    async (threadId: string) => {
+      dispatch({ type: "errorCleared" });
+      try {
+        await api.recording.reprocess(threadId);
+      } catch (error) {
+        dispatch({ type: "failed", message: getApiErrorMessage(error) });
+      }
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
@@ -106,6 +118,7 @@ export function useJustNotesController(state: AppState, dispatch: AppDispatch) {
     bootstrap,
     createThread,
     refreshThreads,
+    reprocessThread,
     selectThread,
     startFixtureRecording,
     startRecording,

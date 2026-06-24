@@ -51,7 +51,14 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "finalizationReceived":
       return { ...state, finalization: action.payload };
     case "recordingStarting":
-      return { ...state, error: null, recorderState: "starting", meters: emptyMeters };
+      return {
+        ...state,
+        error: null,
+        recorderState: "starting",
+        meters: emptyMeters,
+        liveSegments: [],
+        finalization: null,
+      };
     case "recordingStarted":
       return {
         ...state,
@@ -66,12 +73,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "recordingStopping":
       return { ...state, error: null, recorderState: "stopping" };
     case "recordingStopped":
+      // The detail already carries the live-persisted transcript, so the preview
+      // is now redundant — swap to the authoritative thread and drop it.
       return {
         ...state,
         selectedThreadId: action.detail.summary.id,
         selectedThread: action.detail,
         threads: replaceThreadSummary(state, action.detail),
         meters: emptyMeters,
+        liveSegments: [],
         recordingThreadId: null,
         recorderState: "idle",
       };
@@ -79,6 +89,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, error: action.message, recorderState: "recording" };
     case "meterReceived":
       return { ...state, meters: action.payload };
+    case "liveSegmentReceived":
+      // Ignore a late event delivered after stop, and any not for the thread
+      // currently being recorded.
+      if (state.recorderState !== "recording" && state.recorderState !== "stopping") {
+        return state;
+      }
+      if (state.recordingThreadId !== action.payload.threadId) {
+        return state;
+      }
+      return { ...state, liveSegments: [...state.liveSegments, action.payload.segment] };
   }
 }
 

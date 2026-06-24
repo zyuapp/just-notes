@@ -1,4 +1,4 @@
-import { Archive, Copy, Search, Users } from "lucide-react";
+import { Archive, Copy, RefreshCw, Search, Users } from "lucide-react";
 import { useState } from "react";
 
 type TranscriptToolbarProps = {
@@ -10,6 +10,8 @@ type TranscriptToolbarProps = {
   onCopy: () => void;
   onArchive: () => void;
   onRenameSpeaker: (speaker: string, label: string) => void;
+  // Present only when the thread has saved audio to re-transcribe.
+  onReprocess?: () => void;
 };
 
 export function TranscriptToolbar({
@@ -21,6 +23,7 @@ export function TranscriptToolbar({
   onCopy,
   onArchive,
   onRenameSpeaker,
+  onReprocess,
 }: TranscriptToolbarProps) {
   const [showSpeakers, setShowSpeakers] = useState(false);
 
@@ -40,6 +43,18 @@ export function TranscriptToolbar({
         <button type="button" className="icon-button" onClick={onCopy} title="Copy transcript" aria-label="Copy transcript">
           <Copy size={15} aria-hidden="true" />
         </button>
+        {onReprocess && (
+          <button
+            type="button"
+            className="icon-button"
+            onClick={onReprocess}
+            title="Re-transcribe from saved audio"
+            aria-label="Re-transcribe from saved audio"
+            disabled={!canModify}
+          >
+            <RefreshCw size={15} aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           className={showSpeakers ? "icon-button active" : "icon-button"}

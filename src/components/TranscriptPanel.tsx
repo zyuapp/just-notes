@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
+import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
 import type { ThreadActions } from "../features/app/useThreadActions";
@@ -21,10 +22,12 @@ type TranscriptPanelProps = {
   notice: Notice | null;
   recorderState: RecorderState;
   selectedThread: ThreadDetail | null;
+  liveSegments: TranscriptSegment[];
   statusLabel: string;
   transcriptionStatus: TranscriptionStatusPayload | null;
   threadActions: ThreadActions;
   onArchiveThread: (threadId: string) => void;
+  onReprocess: (threadId: string) => void;
   onCancelModelDownload: () => void;
   onStartModelDownload: () => void;
   onStartFixtureRecording: () => void;
@@ -40,10 +43,12 @@ export function TranscriptPanel({
   notice,
   recorderState,
   selectedThread,
+  liveSegments,
   statusLabel,
   transcriptionStatus,
   threadActions,
   onArchiveThread,
+  onReprocess,
   onCancelModelDownload,
   onStartModelDownload,
   onStartFixtureRecording,
@@ -92,7 +97,7 @@ export function TranscriptPanel({
         />
       </header>
 
-      {selectedThread && hasSegments && (
+      {selectedThread && (hasSegments || selectedThread.summary.hasAudio) && (
         <TranscriptToolbar
           query={query}
           speakers={speakers}
@@ -102,6 +107,11 @@ export function TranscriptPanel({
           onCopy={() => void threadActions.copyTranscript()}
           onArchive={() => onArchiveThread(selectedThread.summary.id)}
           onRenameSpeaker={(speaker, label) => void threadActions.renameSpeaker(speaker, label)}
+          onReprocess={
+            selectedThread.summary.hasAudio
+              ? () => onReprocess(selectedThread.summary.id)
+              : undefined
+          }
         />
       )}
 
@@ -110,6 +120,7 @@ export function TranscriptPanel({
       <TranscriptSurface
         recorderState={recorderState}
         selectedThread={selectedThread}
+        liveSegments={liveSegments}
         transcriptionStatus={transcriptionStatus}
         query={query}
         onSaveSegmentText={(index, text) => void threadActions.updateSegmentText(index, text)}

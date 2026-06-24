@@ -97,6 +97,7 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::recording::start_recording,
         commands::recording::start_fixture_recording,
         commands::recording::stop_recording,
+        commands::recording::reprocess_thread,
         commands::recording::cancel_finalization
     ])
 }
@@ -130,6 +131,7 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::settings::pick_folder,
         commands::recording::start_recording,
         commands::recording::stop_recording,
+        commands::recording::reprocess_thread,
         commands::recording::cancel_finalization
     ])
 }
@@ -159,8 +161,7 @@ fn stop_recording_from_tray(app: &AppHandle) {
 
 fn stop_active_recording(app: &AppHandle) {
     let recorder = app.state::<RecorderState>().inner().clone();
-    let finalize = app.state::<FinalizeState>().inner().clone();
-    if let Err(err) = recording::stop_recording(app.clone(), recorder, finalize) {
+    if let Err(err) = recording::stop_recording(app.clone(), recorder) {
         eprintln!("recording stop failed: {err}");
     }
 }

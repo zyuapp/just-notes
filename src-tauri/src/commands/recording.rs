@@ -51,13 +51,29 @@ pub(crate) async fn start_fixture_recording(
 pub(crate) async fn stop_recording(
     app: AppHandle,
     recorder: State<'_, RecorderState>,
-    finalize: State<'_, FinalizeState>,
 ) -> Result<ThreadDetail, String> {
     let recorder = recorder.inner().clone();
-    let finalize = finalize.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || recording::stop_recording(app, recorder, finalize))
+    tauri::async_runtime::spawn_blocking(move || recording::stop_recording(app, recorder))
         .await
         .map_err(|err| format!("Audio stop task failed: {err}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn reprocess_thread(
+    app: AppHandle,
+    paths: State<'_, AppPaths>,
+    settings: State<'_, SettingsState>,
+    finalize: State<'_, FinalizeState>,
+    thread_id: String,
+) -> Result<(), String> {
+    let resolved_paths = effective_paths(&paths, &settings);
+    let app_settings = settings.snapshot();
+    let finalize = finalize.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        recording::reprocess_thread(app, resolved_paths, app_settings, finalize, thread_id)
+    })
+    .await
+    .map_err(|err| format!("Reprocess task failed: {err}"))?
 }
 
 #[tauri::command]

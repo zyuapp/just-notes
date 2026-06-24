@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import {
   displaySpeaker,
+  mergeLiveSegments,
   showsSpeakerHeader,
   sortTranscriptSegments,
   visibleSegments,
@@ -65,5 +66,34 @@ describe("displaySpeaker", () => {
   test("prefers the configured label", () => {
     expect(displaySpeaker("You", { You: "Zhuocheng" })).toBe("Zhuocheng");
     expect(displaySpeaker("Others", {})).toBe("Others");
+  });
+});
+
+describe("mergeLiveSegments", () => {
+  test("drops live segments already present in base and sorts the result", () => {
+    const base = [segment("mic", 1_000, 2_000), segment("system", 3_000, 4_000)];
+    const live = [segment("mic", 1_000, 2_000), segment("mic", 5_000, 6_000)];
+
+    const merged = mergeLiveSegments(base, live);
+
+    expect(merged.map((item) => `${item.startMs}:${item.source}`)).toEqual([
+      "1000:mic",
+      "3000:system",
+      "5000:mic",
+    ]);
+  });
+
+  test("keeps a live segment that differs only by endMs or source", () => {
+    const merged = mergeLiveSegments(
+      [segment("mic", 1_000, 2_000)],
+      [segment("mic", 1_000, 2_500), segment("system", 1_000, 2_000)],
+    );
+
+    expect(merged).toHaveLength(3);
+  });
+
+  test("returns base unchanged when live is empty", () => {
+    const base = [segment("mic", 1_000, 2_000)];
+    expect(mergeLiveSegments(base, [])).toBe(base);
   });
 });

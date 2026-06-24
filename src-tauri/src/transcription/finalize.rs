@@ -18,11 +18,7 @@ use super::{
 };
 use crate::{
     ipc::FinalizationStatusPayload,
-    threads::{
-        commit::{commit_transcript, CommitMode},
-        repository::set_thread_status,
-        ThreadStatus,
-    },
+    threads::{commit::commit_transcript, repository::set_thread_status, ThreadStatus},
 };
 
 type FinalizeJobs = Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>;
@@ -78,7 +74,6 @@ pub(crate) struct FinalizationConfig {
     pub(crate) thread_dir: PathBuf,
     pub(crate) audio_artifacts: FinalizationAudioArtifacts,
     pub(crate) model_selection: TranscriptionModelSelection,
-    pub(crate) commit_mode: CommitMode,
     pub(crate) markdown_copy: bool,
 }
 
@@ -218,12 +213,7 @@ fn run_finalization(
         return Ok(FinalizationOutcome::Empty);
     }
 
-    commit_transcript(
-        &config.thread_dir,
-        &segments,
-        config.commit_mode,
-        config.markdown_copy,
-    )?;
+    commit_transcript(&config.thread_dir, &segments, config.markdown_copy)?;
     Ok(FinalizationOutcome::Completed)
 }
 
@@ -236,8 +226,4 @@ fn emit_finalization_status(app: &AppHandle, thread_id: &str, state: &str, messa
             message: message.to_string(),
         },
     );
-}
-
-pub(crate) fn emit_finalization_failure(app: &AppHandle, thread_id: &str, message: &str) {
-    emit_finalization_status(app, thread_id, "failed", message);
 }

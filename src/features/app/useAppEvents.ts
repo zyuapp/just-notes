@@ -23,6 +23,9 @@ export function useAppEvents(
       api.events.onRecordingStopped((detail) => {
         dispatch({ type: "recordingStopped", detail });
       }),
+      api.events.onTranscriptUpdate((payload) => {
+        dispatch({ type: "liveSegmentReceived", payload });
+      }),
       api.events.onFinalizationStatus((payload) => {
         dispatch({ type: "finalizationReceived", payload });
         if (FINALIZATION_TERMINAL_STATES.has(payload.state)) {

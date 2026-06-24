@@ -15,9 +15,12 @@ use crate::{
     settings::AppSettings,
     threads::{
         repository::{load_thread_by_id, prepare_work_dir, set_thread_status},
-        RecordingAudioPaths, ThreadStatus,
+        ThreadStatus,
     },
-    transcription::{transcription_status, FinalizationAudioArtifacts},
+    transcription::{
+        finalization_transcription_selection, spawn_live_transcription, transcription_status,
+        FinalizationAudioArtifacts, LiveTranscriptionConfig,
+    },
     tray,
 };
 
@@ -152,9 +155,9 @@ fn activate_session(
         &config.thread_dir,
         config.settings.save_raw_audio,
     );
-    let audio_sink = spawn_recording_audio_sink(
+    let audio_sink = spawn_audio_sink(
         audio_artifacts.paths(),
-        &config.input.buffers,
+        Arc::clone(&config.input.buffers),
         config.input.mic_sample_rate,
         config.input.system_sample_rate,
     )?;
@@ -165,20 +168,6 @@ fn activate_session(
     }
     let session = build_recording_session(config, audio_sink, audio_artifacts);
     recorder.store_session(session)
-}
-
-fn spawn_recording_audio_sink(
-    audio_paths: &RecordingAudioPaths,
-    buffers: &Arc<std::sync::Mutex<crate::capture::SharedBuffers>>,
-    mic_sample_rate: u32,
-    system_sample_rate: u32,
-) -> Result<super::audio_sink::AudioSink, String> {
-    spawn_audio_sink(
-        audio_paths,
-        Arc::clone(buffers),
-        mic_sample_rate,
-        system_sample_rate,
-    )
 }
 
 fn build_recording_session(
@@ -195,6 +184,16 @@ fn build_recording_session(
         Arc::clone(&should_stop_meter),
         config.started,
     );
+    let live_transcription = spawn_live_transcription(LiveTranscriptionConfig {
+        app: config.app.clone(),
+        thread_id: config.thread_id.clone(),
+        thread_dir: config.thread_dir.clone(),
+        buffers: Arc::clone(&input.buffers),
+        model_selection: finalization_transcription_selection(&config.paths),
+        mic_sample_rate: input.mic_sample_rate,
+        system_sample_rate: input.system_sample_rate,
+        offset_ms: config.resume_offset_ms.unwrap_or(0),
+    });
 
     RecorderSession {
         thread_id: config.thread_id,
@@ -207,6 +206,7 @@ fn build_recording_session(
         meter_thread: Some(meter_thread),
         audio_capture: input.audio_capture,
         audio_sink,
+        live_transcription,
         audio_artifacts,
         resume_offset_ms: config.resume_offset_ms,
     }

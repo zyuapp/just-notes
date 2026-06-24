@@ -85,10 +85,12 @@ export default function App() {
         notice={notice}
         recorderState={state.recorderState}
         selectedThread={state.selectedThread}
+        liveSegments={state.selectedThreadId === state.recordingThreadId ? state.liveSegments : []}
         statusLabel={statusLabel}
         transcriptionStatus={state.transcriptionStatus}
         threadActions={threadActions}
         onArchiveThread={archiveThread}
+        onReprocess={(threadId) => void actions.reprocessThread(threadId)}
         onCancelModelDownload={actions.cancelModelDownload}
         onStartModelDownload={actions.startModelDownload}
         onStartFixtureRecording={actions.startFixtureRecording}

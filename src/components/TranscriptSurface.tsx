@@ -1,14 +1,21 @@
 import { useEffect, useRef } from "react";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
+import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
-import { displaySpeaker, showsSpeakerHeader, visibleSegments } from "../lib/transcript";
+import {
+  displaySpeaker,
+  mergeLiveSegments,
+  showsSpeakerHeader,
+  visibleSegments,
+} from "../lib/transcript";
 import { SegmentBlock } from "./SegmentBlock";
 import { TranscriptEmptyState } from "./TranscriptEmptyState";
 
 type TranscriptSurfaceProps = {
   recorderState: RecorderState;
   selectedThread: ThreadDetail | null;
+  liveSegments: TranscriptSegment[];
   transcriptionStatus: TranscriptionStatusPayload | null;
   query: string;
   onSaveSegmentText: (index: number, text: string) => void;
@@ -17,13 +24,16 @@ type TranscriptSurfaceProps = {
 export function TranscriptSurface({
   recorderState,
   selectedThread,
+  liveSegments,
   transcriptionStatus,
   query,
   onSaveSegmentText,
 }: TranscriptSurfaceProps) {
   const surfaceRef = useRef<HTMLElement | null>(null);
   const isRecording = recorderState === "recording";
-  const segmentCount = selectedThread?.segments.length ?? 0;
+  const baseSegments = selectedThread?.segments ?? [];
+  const segments = mergeLiveSegments(baseSegments, liveSegments);
+  const segmentCount = segments.length;
 
   useEffect(() => {
     const surface = surfaceRef.current;
@@ -44,8 +54,13 @@ export function TranscriptSurface({
     );
   }
 
-  const items = visibleSegments(selectedThread.segments, query);
-  const editable = recorderState === "idle" && selectedThread.summary.status === "idle";
+  const items = visibleSegments(segments, query);
+  // Live preview segments are not yet persisted, so an index here would not map
+  // to a stored segment; editing stays off until the finalized transcript lands.
+  const editable =
+    recorderState === "idle" &&
+    selectedThread.summary.status === "idle" &&
+    liveSegments.length === 0;
 
   return (
     <section className="transcript-surface" ref={surfaceRef}>
