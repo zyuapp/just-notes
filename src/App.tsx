@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useReducer } from "react";
+import { type CSSProperties, useCallback, useMemo, useReducer } from "react";
 import { ArchivedView } from "./components/ArchivedView";
 import { SettingsView } from "./components/SettingsView";
 import { ThreadSidebar } from "./components/ThreadSidebar";
@@ -10,8 +10,10 @@ import { useAppEvents } from "./features/app/useAppEvents";
 import { useArchivedThreads } from "./features/app/useArchivedThreads";
 import { useJustNotesController } from "./features/app/useJustNotesController";
 import { useSettingsController } from "./features/app/useSettingsController";
+import { useSidebarWidth } from "./features/app/useSidebarWidth";
 import { useThreadActions } from "./features/app/useThreadActions";
 import { useThreadSearch } from "./features/app/useThreadSearch";
+import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./lib/sidebarWidth";
 
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
@@ -21,6 +23,7 @@ export default function App() {
   const search = useThreadSearch(dispatch, state.threads);
   const archived = useArchivedThreads(state.archiveOpen);
   const { iconRef, scopeRef, flyToArchive } = useArchiveFlight();
+  const { width: sidebarWidth, onResizeStart, onResizeKeyDown, resetWidth } = useSidebarWidth();
 
   const archiveThread = useCallback(
     (threadId: string) => {
@@ -59,7 +62,10 @@ export default function App() {
   );
 
   return (
-    <main className="app-shell">
+    <main
+      className="app-shell"
+      style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
+    >
       <ThreadSidebar
         activeThreadId={activeThreadId}
         selectedThreadId={state.selectedThreadId}
@@ -76,6 +82,19 @@ export default function App() {
         onArchiveThread={archiveThread}
         onOpenArchive={() => dispatch({ type: "archiveOpenChanged", open: true })}
         onOpenSettings={settingsActions.openSettings}
+      />
+      <div
+        className="sidebar-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+        aria-valuenow={sidebarWidth}
+        aria-valuemin={MIN_SIDEBAR_WIDTH}
+        aria-valuemax={MAX_SIDEBAR_WIDTH}
+        tabIndex={0}
+        onPointerDown={onResizeStart}
+        onKeyDown={onResizeKeyDown}
+        onDoubleClick={resetWidth}
       />
       <TranscriptPanel
         error={state.error}

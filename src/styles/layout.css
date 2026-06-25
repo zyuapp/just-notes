@@ -1,9 +1,42 @@
 .app-shell {
+  position: relative;
   display: grid;
-  grid-template-columns: 272px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width, 272px) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   background: var(--panel);
+}
+
+/* Drag handle straddling the sidebar/transcript divider. Absolutely positioned
+   so it stays out of the grid track flow and tracks the live --sidebar-width. */
+.sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--sidebar-width, 272px);
+  z-index: 5;
+  width: 10px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--blue);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.sidebar-resizer:hover::after,
+.sidebar-resizer:focus-visible::after {
+  opacity: 1;
 }
