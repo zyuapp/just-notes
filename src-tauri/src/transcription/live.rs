@@ -16,10 +16,12 @@ pub(crate) struct SegmenterConfig {
 }
 
 impl SegmenterConfig {
-    /// Live preview: a higher gate keeps idle silence from spawning work.
+    /// Live: a gate well above the noise floor so faint room tone does not
+    /// reach the recognizer, which would otherwise hallucinate filler words
+    /// ("okay", "mm-hmm") on non-speech audio.
     pub(crate) fn live() -> Self {
         Self {
-            speech_rms: 0.006,
+            speech_rms: 0.02,
             min_utterance_ms: 250,
         }
     }
