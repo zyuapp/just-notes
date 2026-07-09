@@ -1,6 +1,9 @@
 use std::{env, fs, time::UNIX_EPOCH};
 
-use super::{archive_thread, delete_thread, restore_thread};
+use super::{
+    archive_thread, delete_thread, rename_speaker, rename_thread, restore_thread,
+    update_segment_text,
+};
 use crate::app::AppPaths;
 use crate::threads::repository::{list_archived_threads, list_threads};
 
@@ -61,6 +64,58 @@ fn permanent_delete_is_scoped_to_the_archive() {
     assert!(!paths.archived_thread_dir("thread-1").exists());
     assert!(list_threads(&paths).unwrap().is_empty());
     assert!(list_archived_threads(&paths).unwrap().is_empty());
+
+    let _ = fs::remove_dir_all(&paths.data_dir);
+}
+
+#[test]
+fn title_rename_preserves_activity_timestamp() {
+    let paths = temp_paths("rename-title-timestamp");
+    seed_thread(&paths, "thread-1");
+
+    let detail = rename_thread(&paths, "thread-1", "Renamed thread").unwrap();
+
+    assert_eq!(detail.summary.title, "Renamed thread");
+    assert_eq!(detail.summary.updated_at_ms, 1);
+    assert!(
+        fs::read_to_string(paths.thread_dir("thread-1").join("transcript.md"))
+            .unwrap()
+            .starts_with("# Renamed thread\n")
+    );
+
+    let _ = fs::remove_dir_all(&paths.data_dir);
+}
+
+#[test]
+fn speaker_rename_preserves_activity_timestamp() {
+    let paths = temp_paths("rename-speaker-timestamp");
+    seed_thread(&paths, "thread-1");
+
+    let detail = rename_speaker(&paths, "thread-1", "Speaker 0", "Alex").unwrap();
+
+    assert_eq!(detail.summary.updated_at_ms, 1);
+    assert_eq!(
+        detail.speaker_labels.get("Speaker 0").map(String::as_str),
+        Some("Alex")
+    );
+
+    let _ = fs::remove_dir_all(&paths.data_dir);
+}
+
+#[test]
+fn segment_edit_advances_activity_timestamp() {
+    let paths = temp_paths("segment-edit-timestamp");
+    seed_thread(&paths, "thread-1");
+    fs::write(
+        paths.thread_dir("thread-1").join("transcript.jsonl"),
+        r#"{"speaker":"Speaker 0","source":"microphone","startMs":0,"endMs":1000,"text":"Original"}"#,
+    )
+    .unwrap();
+
+    let detail = update_segment_text(&paths, "thread-1", 0, "Updated").unwrap();
+
+    assert!(detail.summary.updated_at_ms > 1);
+    assert_eq!(detail.segments[0].text, "Updated");
 
     let _ = fs::remove_dir_all(&paths.data_dir);
 }
