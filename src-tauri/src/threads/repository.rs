@@ -91,10 +91,26 @@ pub(crate) fn update_thread_metadata(
     thread_dir: &Path,
     apply: impl FnOnce(&mut ThreadMetadata),
 ) -> Result<(), String> {
-    let mut metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
-    apply(&mut metadata);
+    let mut metadata = metadata_with_change(thread_dir, apply)?;
     metadata.updated_at_ms = now_ms()?;
     save_thread_metadata(thread_dir, &metadata)
+}
+
+pub(crate) fn update_thread_metadata_preserving_activity(
+    thread_dir: &Path,
+    apply: impl FnOnce(&mut ThreadMetadata),
+) -> Result<(), String> {
+    let metadata = metadata_with_change(thread_dir, apply)?;
+    save_thread_metadata(thread_dir, &metadata)
+}
+
+fn metadata_with_change(
+    thread_dir: &Path,
+    apply: impl FnOnce(&mut ThreadMetadata),
+) -> Result<ThreadMetadata, String> {
+    let mut metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
+    apply(&mut metadata);
+    Ok(metadata)
 }
 
 pub(crate) fn reset_stale_recording_threads(paths: &AppPaths) -> Result<(), String> {

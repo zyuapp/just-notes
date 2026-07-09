@@ -6,7 +6,7 @@ use self::fs_move::move_thread_dir;
 use super::{
     repository::{
         list_threads, load_thread_by_id, load_thread_detail, read_thread_metadata,
-        render_thread_markdown, update_thread_metadata,
+        render_thread_markdown, update_thread_metadata, update_thread_metadata_preserving_activity,
     },
     transcript_store::{read_transcript_jsonl, write_transcript_jsonl},
     ThreadDetail, ThreadSummary,
@@ -29,7 +29,9 @@ pub(crate) fn rename_thread(
 
     let thread_dir = existing_thread_dir(paths, thread_id)?;
     ensure_thread_not_busy(&thread_dir)?;
-    update_thread_metadata(&thread_dir, |metadata| metadata.title = title.to_string())?;
+    update_thread_metadata_preserving_activity(&thread_dir, |metadata| {
+        metadata.title = title.to_string();
+    })?;
     rerender_markdown_if_present(&thread_dir)?;
     load_thread_detail(&thread_dir)
 }
@@ -80,7 +82,7 @@ pub(crate) fn rename_speaker(
         return Err("Speaker labels must stay under 60 characters".to_string());
     }
 
-    update_thread_metadata(&thread_dir, |metadata| {
+    update_thread_metadata_preserving_activity(&thread_dir, |metadata| {
         if label.is_empty() || label == speaker {
             metadata.speaker_labels.remove(&speaker);
         } else {
