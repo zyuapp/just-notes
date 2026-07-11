@@ -21,7 +21,9 @@ pub(crate) use finalize::{
     spawn_finalization, FinalizationConfig, FinalizationStart, FinalizeState,
 };
 pub(crate) use finalize_audio::FinalizationAudioArtifacts;
-pub(crate) use live::{transcribe_live_utterance, LiveSegmenter, SegmenterConfig, Utterance};
+pub(crate) use live::{
+    transcribe_live_utterance, ChannelRole, LiveSegmenter, SegmenterConfig, Utterance,
+};
 pub(crate) use live_worker::{
     spawn_live_transcription, LiveTranscription, LiveTranscriptionConfig,
 };

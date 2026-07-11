@@ -1,5 +1,6 @@
-//! Transcript-quality harness: runs the finalize transcription pipeline on
-//! local fixture recordings with known reference transcripts and holds WER,
+//! Transcript-quality harness: runs both transcription pipelines — the live
+//! path (authoritative transcript) and the finalize/reprocess path — on local
+//! fixture recordings with known reference transcripts and holds WER,
 //! missed-segment, and hallucination metrics to a committed baseline.
 //!
 //! Fixtures live in `~/.just-notes/quality-fixtures` (see
@@ -15,7 +16,7 @@ use crate::threads::TranscriptSegment;
 use super::{
     finalize_audio::transcribe_wav_channel, load_transcriber,
     models::finalization_transcription_selection, suppress_cross_channel_bleed,
-    suppress_system_dominated_mic_segments, Transcriber,
+    suppress_system_dominated_mic_segments, ChannelRole, SegmenterConfig, Transcriber,
 };
 
 mod fixtures;
@@ -26,9 +27,19 @@ use metrics::{evaluate, FixtureMetrics};
 
 const WER_TOLERANCE: f32 = 0.01;
 
+/// Both pipelines share the recognizer and suppressors; they differ in the
+/// segmenter gate. "live" mirrors the live-to-stop flow that produces the
+/// transcript users keep; "finalize" mirrors manual reprocessing.
+fn modes() -> [(&'static str, SegmenterConfig); 2] {
+    [
+        ("live", SegmenterConfig::live()),
+        ("finalize", SegmenterConfig::finalize()),
+    ]
+}
+
 #[test]
 #[ignore = "needs the installed Parakeet model and local fixtures; run via `bun run test:quality`"]
-fn quality_finalize_pipeline_meets_baseline() {
+fn quality_pipelines_meet_baseline() {
     let fixtures = discover_fixtures();
     assert!(
         !fixtures.is_empty(),
@@ -38,12 +49,14 @@ fn quality_finalize_pipeline_meets_baseline() {
 
     let mut results = Vec::new();
     for fixture in &fixtures {
-        let segments = transcribe_fixture(&*transcriber, fixture)
-            .unwrap_or_else(|err| panic!("fixture {}: {err}", fixture.name));
-        results.push((
-            fixture.name.clone(),
-            evaluate(&fixture.reference, &segments),
-        ));
+        for (mode, config) in modes() {
+            let segments = transcribe_fixture(&*transcriber, fixture, config)
+                .unwrap_or_else(|err| panic!("fixture {} ({mode}): {err}", fixture.name));
+            results.push((
+                format!("{}@{mode}", fixture.name),
+                evaluate(&fixture.reference, &segments),
+            ));
+        }
     }
     print_table(&results);
 
@@ -74,21 +87,34 @@ fn load_quality_transcriber() -> Box<dyn Transcriber> {
     load_transcriber(&selection).expect("load Parakeet transcriber")
 }
 
-/// Mirrors `finalize::run_finalization`: both channels through the segmenter
-/// and recognizer, sorted, then both bleed suppressors.
+/// Both channels through the segmenter and recognizer, sorted, then both
+/// bleed suppressors — the shape of `finalize::run_finalization` and of the
+/// live worker followed by the stop-time polish.
 fn transcribe_fixture(
     transcriber: &dyn Transcriber,
     fixture: &Fixture,
+    config: SegmenterConfig,
 ) -> Result<Vec<TranscriptSegment>, String> {
     let cancel = AtomicBool::new(false);
-    let mut segments =
-        transcribe_wav_channel(transcriber, &fixture.mic_path, "mic", "You", &cancel)?;
+    let mut segments = transcribe_wav_channel(
+        transcriber,
+        &fixture.mic_path,
+        ChannelRole {
+            source: "mic",
+            speaker: "You",
+        },
+        &cancel,
+        config,
+    )?;
     segments.extend(transcribe_wav_channel(
         transcriber,
         &fixture.system_path,
-        "system",
-        "Others",
+        ChannelRole {
+            source: "system",
+            speaker: "Others",
+        },
         &cancel,
+        config,
     )?);
     segments.sort_by(|left, right| {
         left.start_ms
@@ -102,12 +128,12 @@ fn transcribe_fixture(
 
 fn print_table(results: &[(String, FixtureMetrics)]) {
     println!(
-        "\n{:<24} {:>7} {:>10} {:>12} {:>12}",
+        "\n{:<32} {:>7} {:>10} {:>12} {:>12}",
         "fixture", "WER", "ref words", "missed segs", "hallucinated"
     );
     for (name, metrics) in results {
         println!(
-            "{:<24} {:>6.1}% {:>10} {:>9}/{:<2} {:>12}",
+            "{:<32} {:>6.1}% {:>10} {:>9}/{:<2} {:>12}",
             name,
             metrics.wer * 100.0,
             metrics.reference_words,

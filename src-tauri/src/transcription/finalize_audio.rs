@@ -8,8 +8,8 @@ use std::{
 use hound::{SampleFormat, WavReader, WavSpec};
 
 use super::{
-    transcribe_live_utterance, wav_duration_ms, LiveSegmenter, SegmenterConfig, Transcriber,
-    Utterance,
+    transcribe_live_utterance, wav_duration_ms, ChannelRole, LiveSegmenter, SegmenterConfig,
+    Transcriber, Utterance,
 };
 use crate::threads::{RecordingAudioPaths, TranscriptSegment};
 
@@ -66,9 +66,9 @@ impl FinalizationAudioArtifacts {
 pub(super) fn transcribe_wav_channel(
     transcriber: &dyn Transcriber,
     path: &Path,
-    source: &str,
-    speaker: &str,
+    role: ChannelRole,
     cancel: &AtomicBool,
+    config: SegmenterConfig,
 ) -> Result<Vec<TranscriptSegment>, String> {
     if !path.is_file() {
         return Ok(Vec::new());
@@ -77,10 +77,11 @@ pub(super) fn transcribe_wav_channel(
         WavReader::open(path).map_err(|err| format!("Failed to read {}: {err}", path.display()))?;
     let spec = reader.spec();
     let block_frames = spec.sample_rate as usize * FINALIZE_READ_SECONDS;
-    let mut segmenter = LiveSegmenter::new(spec.sample_rate, SegmenterConfig::finalize());
+    let mut segmenter = LiveSegmenter::new(spec.sample_rate, config);
     let mut utterances = Vec::new();
     let mut segments = Vec::new();
     let mut next_index = 0u64;
+    let mut last_speech_end = None;
 
     loop {
         if cancel.load(Ordering::Relaxed) {
@@ -92,28 +93,38 @@ pub(super) fn transcribe_wav_channel(
         }
         segmenter.push(next_index, &block, &mut utterances);
         next_index += block.len() as u64;
-        drain_utterances(transcriber, source, speaker, &mut utterances, &mut segments)?;
+        drain_utterances(
+            transcriber,
+            role,
+            &mut utterances,
+            &mut segments,
+            &mut last_speech_end,
+        )?;
     }
     segmenter.flush(&mut utterances);
-    drain_utterances(transcriber, source, speaker, &mut utterances, &mut segments)?;
+    drain_utterances(
+        transcriber,
+        role,
+        &mut utterances,
+        &mut segments,
+        &mut last_speech_end,
+    )?;
     Ok(segments)
 }
 
 fn drain_utterances(
     transcriber: &dyn Transcriber,
-    source: &str,
-    speaker: &str,
+    role: ChannelRole,
     utterances: &mut Vec<Utterance>,
     segments: &mut Vec<TranscriptSegment>,
+    last_speech_end: &mut Option<u64>,
 ) -> Result<(), String> {
     for utterance in utterances.drain(..) {
-        segments.extend(transcribe_live_utterance(
-            transcriber,
-            &utterance,
-            source,
-            speaker,
-            0,
-        )?);
+        let produced =
+            transcribe_live_utterance(transcriber, &utterance, role, 0, *last_speech_end)?;
+        let latest_end = produced.iter().map(|segment| segment.end_ms).max();
+        *last_speech_end = (*last_speech_end).max(latest_end);
+        segments.extend(produced);
     }
     Ok(())
 }

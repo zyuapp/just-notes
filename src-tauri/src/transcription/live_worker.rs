@@ -11,8 +11,8 @@ use std::{
 use tauri::{AppHandle, Emitter};
 
 use super::{
-    load_transcriber, transcribe_live_utterance, LiveSegmenter, SegmenterConfig, Transcriber,
-    TranscriptionModelSelection, Utterance,
+    load_transcriber, transcribe_live_utterance, ChannelRole, LiveSegmenter, SegmenterConfig,
+    Transcriber, TranscriptionModelSelection, Utterance,
 };
 use crate::{
     capture::SharedBuffers,
@@ -66,18 +66,33 @@ fn run_live_transcription(config: LiveTranscriptionConfig, should_stop: Arc<Atom
     };
     let mut mic = LiveChannel::new("mic", "You", true, config.mic_sample_rate);
     let mut system = LiveChannel::new("system", "Others", false, config.system_sample_rate);
+    // End of the most recent segment on either channel; faint filler decodes
+    // far from any prior speech are rejected as hallucinations.
+    let mut last_speech_end = None;
 
     while !should_stop.load(Ordering::Relaxed) {
-        publish(&config, mic.drain(&config, &*transcriber));
-        publish(&config, system.drain(&config, &*transcriber));
+        publish(
+            &config,
+            mic.drain(&config, &*transcriber, &mut last_speech_end),
+        );
+        publish(
+            &config,
+            system.drain(&config, &*transcriber, &mut last_speech_end),
+        );
         thread::sleep(Duration::from_millis(LIVE_POLL_MS));
     }
 
     // No finalization pass runs on stop, so flush the audio since the last poll
     // plus each channel's open utterance here; otherwise the last thing said
     // before stop would be missing from the transcript.
-    publish(&config, mic.drain_and_flush(&config, &*transcriber));
-    publish(&config, system.drain_and_flush(&config, &*transcriber));
+    publish(
+        &config,
+        mic.drain_and_flush(&config, &*transcriber, &mut last_speech_end),
+    );
+    publish(
+        &config,
+        system.drain_and_flush(&config, &*transcriber, &mut last_speech_end),
+    );
 }
 
 // Emits each new segment to the UI and appends it to the thread's transcript
@@ -122,6 +137,7 @@ impl LiveChannel {
         &mut self,
         config: &LiveTranscriptionConfig,
         transcriber: &dyn Transcriber,
+        last_speech_end: &mut Option<u64>,
     ) -> Vec<TranscriptSegment> {
         let (start_index, samples) = read_new(&config.buffers, self.is_mic, &mut self.cursor);
         if samples.is_empty() {
@@ -129,7 +145,7 @@ impl LiveChannel {
         }
         let mut utterances = Vec::new();
         self.segmenter.push(start_index, &samples, &mut utterances);
-        self.transcribe(utterances, transcriber, config.offset_ms)
+        self.transcribe(utterances, transcriber, config.offset_ms, last_speech_end)
     }
 
     // Drains, then closes the open utterance so the channel's tail is captured.
@@ -137,11 +153,17 @@ impl LiveChannel {
         &mut self,
         config: &LiveTranscriptionConfig,
         transcriber: &dyn Transcriber,
+        last_speech_end: &mut Option<u64>,
     ) -> Vec<TranscriptSegment> {
-        let mut segments = self.drain(config, transcriber);
+        let mut segments = self.drain(config, transcriber, last_speech_end);
         let mut utterances = Vec::new();
         self.segmenter.flush(&mut utterances);
-        segments.extend(self.transcribe(utterances, transcriber, config.offset_ms));
+        segments.extend(self.transcribe(
+            utterances,
+            transcriber,
+            config.offset_ms,
+            last_speech_end,
+        ));
         segments
     }
 
@@ -150,16 +172,23 @@ impl LiveChannel {
         utterances: Vec<Utterance>,
         transcriber: &dyn Transcriber,
         offset_ms: u64,
+        last_speech_end: &mut Option<u64>,
     ) -> Vec<TranscriptSegment> {
         let mut segments = Vec::new();
+        let role = ChannelRole {
+            source: self.source,
+            speaker: self.speaker,
+        };
         for utterance in utterances {
             if let Ok(mut produced) = transcribe_live_utterance(
                 transcriber,
                 &utterance,
-                self.source,
-                self.speaker,
+                role,
                 offset_ms,
+                *last_speech_end,
             ) {
+                let latest_end = produced.iter().map(|segment| segment.end_ms).max();
+                *last_speech_end = (*last_speech_end).max(latest_end);
                 segments.append(&mut produced);
             }
         }

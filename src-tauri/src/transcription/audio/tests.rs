@@ -53,3 +53,20 @@ fn resampling_suppresses_tones_above_target_nyquist() {
         );
     }
 }
+
+// The 101-tap filter runs on every utterance; a maximum-length one must
+// resample orders of magnitude faster than realtime.
+#[test]
+#[ignore = "throughput benchmark; run manually via cargo test --release -- --ignored"]
+fn resampling_a_maximum_length_utterance_is_far_faster_than_realtime() {
+    let audio = sine(1_000.0, 0.5, 48_000, 24_000);
+    let started = std::time::Instant::now();
+    let resampled = resample_to_rate(&audio, 48_000, 16_000);
+    let elapsed = started.elapsed();
+    println!("24 s @ 48 kHz resampled to 16 kHz in {elapsed:?}");
+    assert!(!resampled.is_empty());
+    assert!(
+        elapsed < std::time::Duration::from_secs(2),
+        "resampling took {elapsed:?}"
+    );
+}

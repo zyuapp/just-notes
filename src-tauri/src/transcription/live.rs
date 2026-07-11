@@ -241,7 +241,7 @@ fn samples_for_ms(sample_rate: u32, ms: u64) -> usize {
 }
 
 mod transcribe;
-pub(crate) use transcribe::transcribe_live_utterance;
+pub(crate) use transcribe::{transcribe_live_utterance, ChannelRole};
 
 #[cfg(test)]
 mod tests;

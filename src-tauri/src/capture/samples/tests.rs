@@ -1,13 +1,27 @@
 use std::sync::{Arc, Mutex};
 
-use super::{push_f32_samples, CaptureSource, SharedBuffers};
+use super::{push_f32_samples, CaptureSource, ChannelSelector, SharedBuffers};
 
-fn mic_mono_after(interleaved: &[f32], channels: u16) -> Vec<f32> {
+fn mic_mono_after_chunks(chunks: &[Vec<f32>], channels: u16) -> Vec<f32> {
     let buffers = Arc::new(Mutex::new(SharedBuffers::new(48_000, 48_000)));
-    push_f32_samples(interleaved, channels, &buffers, CaptureSource::Mic);
+    let mut selector = ChannelSelector::new();
+    for chunk in chunks {
+        push_f32_samples(chunk, channels, &buffers, CaptureSource::Mic, &mut selector);
+    }
     let shared = buffers.lock().expect("capture buffers lock");
     let end = shared.mic.available_end_index();
     shared.mic.window(0, end).unwrap_or_default()
+}
+
+fn mic_mono_after(interleaved: &[f32], channels: u16) -> Vec<f32> {
+    mic_mono_after_chunks(&[interleaved.to_vec()], channels)
+}
+
+fn stereo_chunk(left: f32, right: f32, frames: usize) -> Vec<f32> {
+    std::iter::repeat([left, right])
+        .take(frames)
+        .flatten()
+        .collect()
 }
 
 fn rms(samples: &[f32]) -> f32 {
@@ -25,11 +39,36 @@ fn stereo_downmix_preserves_identical_channels() {
 // stacks with the live speech gate and drops whole segments.
 #[test]
 fn stereo_downmix_keeps_single_live_channel_level() {
-    let interleaved: Vec<f32> = std::iter::repeat([0.5, 0.0]).take(100).flatten().collect();
-    let mono = mic_mono_after(&interleaved, 2);
+    let mono = mic_mono_after(&stereo_chunk(0.5, 0.0, 100), 2);
     let level = rms(&mono);
     assert!(
         level >= 0.45,
         "mono RMS is {level} for a 0.5-amplitude single live channel"
+    );
+}
+
+#[test]
+fn downmix_locks_onto_the_live_channel_regardless_of_position() {
+    let mono = mic_mono_after(&stereo_chunk(0.0, 0.5, 100), 2);
+    let level = rms(&mono);
+    assert!(
+        level >= 0.45,
+        "mono RMS is {level} for voice on the second channel"
+    );
+}
+
+// A single loud transient on the idle channel must not flip the selection
+// away from the channel carrying sustained speech.
+#[test]
+fn downmix_does_not_hop_channels_on_a_transient() {
+    let mut chunks = vec![stereo_chunk(0.5, 0.0, 100); 10];
+    chunks.push(stereo_chunk(0.0, 0.9, 100));
+    let mono = mic_mono_after_chunks(&chunks, 2);
+
+    let transient_span = &mono[mono.len() - 100..];
+    assert!(
+        rms(transient_span) < 0.05,
+        "selection hopped to the transient channel (span RMS {})",
+        rms(transient_span)
     );
 }
