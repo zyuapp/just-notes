@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import type { AppAction, AppState } from "./state";
 import type { SettingsUpdater } from "./useSettingsController";
@@ -58,15 +58,16 @@ export function useMeetingSettingsController(
         state.meetingAccess?.calendars.map((calendar) => calendar.id) ?? [],
       );
       await persist((settings) => {
-        const selected = new Set(settings.meetingCalendarIds.filter((id) => available.has(id)));
-        const hadValidSelection = selected.size > 0;
+        const selected = new Set(settings.meetingCalendarIds);
+        const hadValidSelection = settings.meetingCalendarIds.some((id) => available.has(id));
         if (selected.has(calendarId)) selected.delete(calendarId);
         else selected.add(calendarId);
+        const hasValidSelection = [...selected].some((id) => available.has(id));
         return {
           ...settings,
           meetingCalendarIds: [...selected],
           meetingRemindersEnabled:
-            selected.size > 0 && hadValidSelection && settings.meetingRemindersEnabled,
+            hasValidSelection && hadValidSelection && settings.meetingRemindersEnabled,
         };
       });
     },
@@ -96,22 +97,6 @@ export function useMeetingSettingsController(
       meetingEndReminders: !settings.meetingEndReminders,
     }));
   }, [persist]);
-
-  useEffect(() => {
-    if (!state.settings || state.meetingAccess?.calendarAuthorization !== "authorized") return;
-    const available = new Set(state.meetingAccess.calendars.map((calendar) => calendar.id));
-    const selected = state.settings.meetingCalendarIds.filter((id) => available.has(id));
-    if (selected.length === state.settings.meetingCalendarIds.length) return;
-    void updateSettings((settings) => {
-      const meetingCalendarIds = settings.meetingCalendarIds.filter((id) => available.has(id));
-      return {
-        ...settings,
-        meetingCalendarIds,
-        meetingRemindersEnabled:
-          meetingCalendarIds.length > 0 && settings.meetingRemindersEnabled,
-      };
-    });
-  }, [state.meetingAccess, state.settings, updateSettings]);
 
   return {
     busy,
