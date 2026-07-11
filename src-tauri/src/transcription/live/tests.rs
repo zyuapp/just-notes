@@ -23,8 +23,11 @@ fn emits_one_utterance_and_trims_trailing_silence() {
 
     assert_eq!(utterances.len(), 1);
     assert_eq!(utterances[0].start_index, 0);
-    // Trailing silence is trimmed back to the speech run (500 ms).
-    assert_eq!(utterances[0].samples.len(), samples_for_ms(RATE, 500));
+    // Trailing silence is trimmed back to the speech run plus the kept tail.
+    assert_eq!(
+        utterances[0].samples.len(),
+        samples_for_ms(RATE, 500 + TAIL_KEEP_MS)
+    );
 }
 
 #[test]
@@ -86,11 +89,9 @@ fn realigns_after_dropped_samples() {
     assert_eq!(out[0].start_index, gap_start);
 }
 
-// Speech at 0.01 RMS is well above typical room tone (the finalize gate is
-// 0.0008) but below the live gate of 0.02, so soft speakers vanish from the
-// authoritative live transcript.
+// Speech at 0.01 RMS is well above typical room tone; soft speakers must
+// reach the recognizer because the live transcript is authoritative.
 #[test]
-#[ignore = "live speech_rms 0.02 drops quiet real speech; quality-harness red test"]
 fn keeps_quiet_speech_above_the_noise_floor() {
     let mut stream = samples(500, 0.01);
     stream.extend(samples(700, 0.0));
@@ -101,9 +102,8 @@ fn keeps_quiet_speech_above_the_noise_floor() {
 // Unvoiced word onsets (/h/, /f/, /s/) sit below the gate; without pre-roll
 // the recognizer never hears the first phonemes of an utterance.
 #[test]
-#[ignore = "segmenter keeps no pre-roll before the gate opens; quality-harness red test"]
 fn utterance_includes_audio_shortly_before_the_gate_opens() {
-    let mut stream = samples(200, 0.012);
+    let mut stream = samples(200, 0.004);
     stream.extend(samples(500, 0.1));
     stream.extend(samples(700, 0.0));
 
@@ -121,7 +121,6 @@ fn utterance_includes_audio_shortly_before_the_gate_opens() {
 // The duration cap should cut where a word is least likely to straddle the
 // boundary, not at whatever sample the cap lands on.
 #[test]
-#[ignore = "the 24 s cap cuts at an arbitrary sample instead of a nearby low-energy dip; quality-harness red test"]
 fn force_cut_lands_in_a_low_energy_dip() {
     let mut stream = samples(23_000, 0.1);
     stream.extend(samples(200, 0.005));
@@ -141,7 +140,6 @@ fn force_cut_lands_in_a_low_energy_dip() {
 
 // Clipped one-word replies ("yes", "no") can run under 250 ms of gated audio.
 #[test]
-#[ignore = "min_utterance_ms 250 drops short single-word replies; quality-harness red test"]
 fn keeps_a_short_single_word_reply() {
     let mut stream = samples(180, 0.1);
     stream.extend(samples(700, 0.0));
@@ -158,8 +156,9 @@ fn start_index_tracks_silence_skipped_before_speech() {
     let utterances = segment(&stream);
 
     assert_eq!(utterances.len(), 1);
+    // Skipped silence is not counted as speech, minus the kept pre-roll.
     assert_eq!(
         utterances[0].start_index as usize,
-        samples_for_ms(RATE, 1000)
+        samples_for_ms(RATE, 1000 - PRE_ROLL_MS)
     );
 }

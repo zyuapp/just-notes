@@ -33,5 +33,6 @@ pub(crate) use runtime::{load_transcriber, Transcriber};
 pub(crate) use source_bleed::suppress_system_dominated_mic_segments;
 pub(crate) use status::{transcription_status, transcription_status_with_downloads};
 pub(crate) use text::{
-    clean_transcript_text, is_ignored_transcript_text, suppress_cross_channel_bleed,
+    clean_transcript_text, is_ignored_transcript_text, is_probable_filler_text,
+    suppress_cross_channel_bleed,
 };
