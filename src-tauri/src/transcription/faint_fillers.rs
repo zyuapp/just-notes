@@ -9,7 +9,7 @@ use std::path::Path;
 use crate::threads::TranscriptSegment;
 
 use super::live::QUIET_CONFIRMATION_RMS;
-use super::source_bleed::profile::ChannelProfile;
+use super::source_bleed::{mic_audio_is_system_dominated, profile::ChannelProfile};
 use super::text::is_probable_filler_text;
 
 /// Separation from the nearest other segment beyond which a faint filler
@@ -52,7 +52,11 @@ fn suppress_with_profiles(
     let dropped: Vec<bool> = segments
         .iter()
         .enumerate()
-        .map(|(index, _)| candidates[index] && is_isolated(index, &segments, &candidates))
+        .map(|(index, segment)| {
+            candidates[index]
+                && (is_isolated(index, &segments, &candidates)
+                    || is_shadowed_by_system_audio(segment, &segments, mic_profile, system_profile))
+        })
         .collect();
     segments
         .into_iter()
@@ -76,6 +80,36 @@ fn is_faint(
     profile.is_some_and(|profile| {
         profile.rms(segment.start_ms, segment.end_ms) < QUIET_CONFIRMATION_RMS
     })
+}
+
+/// A faint mic filler spoken while system audio dominates the mic is far
+/// more likely a decode of breath or bleed than a real backchannel: anything
+/// the user actually voices lands well above the confirmation level. Phantom
+/// words attributed to "You" cost more than a lost whisper-level "mm-hmm".
+fn is_shadowed_by_system_audio(
+    segment: &TranscriptSegment,
+    segments: &[TranscriptSegment],
+    mic_profile: Option<&ChannelProfile>,
+    system_profile: Option<&ChannelProfile>,
+) -> bool {
+    if segment.source != "mic" {
+        return false;
+    }
+    let overlaps_system = segments.iter().any(|other| {
+        other.source == "system"
+            && other.start_ms < segment.end_ms
+            && segment.start_ms < other.end_ms
+    });
+    if !overlaps_system {
+        return false;
+    }
+    let (Some(mic), Some(system)) = (mic_profile, system_profile) else {
+        return false;
+    };
+    mic_audio_is_system_dominated(
+        mic.rms(segment.start_ms, segment.end_ms),
+        system.rms(segment.start_ms, segment.end_ms),
+    )
 }
 
 /// Only substantive or confident speech counts as conversational context;
@@ -153,6 +187,28 @@ mod tests {
             segment("mic", 6_000, 6_400, "Mm-hmm."),
         ];
         assert!(suppress_with_profiles(segments, Some(&mic), None).is_empty());
+    }
+
+    // The live-test phantom: a 240 ms "Mm-hmm." right after the user's own
+    // speech, overlapping dominant system audio — a breath or bleed decode.
+    // Nearby real speech must not shield it.
+    #[test]
+    fn drops_faint_filler_shadowed_by_dominant_system_audio() {
+        let mic = profile(0.005, 800);
+        let system = profile(0.06, 800);
+        let segments = vec![
+            segment("mic", 1_000, 4_000, "What do the best engineers do?"),
+            segment(
+                "system",
+                3_500,
+                6_500,
+                "This is my favorite skill of all time.",
+            ),
+            segment("mic", 4_600, 4_840, "Mm-hmm."),
+        ];
+        let kept = suppress_with_profiles(segments, Some(&mic), Some(&system));
+        assert_eq!(kept.len(), 2);
+        assert!(kept.iter().all(|segment| segment.text != "Mm-hmm."));
     }
 
     #[test]
