@@ -28,6 +28,9 @@ pub(crate) fn rms(samples: &[f32]) -> f32 {
     (square_sum / samples.len() as f32).sqrt()
 }
 
+#[cfg(test)]
+mod tests;
+
 pub(crate) fn resample_to_rate(samples: &[f32], source_rate: u32, target_rate: u32) -> Vec<f32> {
     if samples.is_empty() || source_rate == target_rate {
         return samples.to_vec();

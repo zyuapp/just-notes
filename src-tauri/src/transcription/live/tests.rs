@@ -86,6 +86,69 @@ fn realigns_after_dropped_samples() {
     assert_eq!(out[0].start_index, gap_start);
 }
 
+// Speech at 0.01 RMS is well above typical room tone (the finalize gate is
+// 0.0008) but below the live gate of 0.02, so soft speakers vanish from the
+// authoritative live transcript.
+#[test]
+#[ignore = "live speech_rms 0.02 drops quiet real speech; quality-harness red test"]
+fn keeps_quiet_speech_above_the_noise_floor() {
+    let mut stream = samples(500, 0.01);
+    stream.extend(samples(700, 0.0));
+
+    assert_eq!(segment(&stream).len(), 1);
+}
+
+// Unvoiced word onsets (/h/, /f/, /s/) sit below the gate; without pre-roll
+// the recognizer never hears the first phonemes of an utterance.
+#[test]
+#[ignore = "segmenter keeps no pre-roll before the gate opens; quality-harness red test"]
+fn utterance_includes_audio_shortly_before_the_gate_opens() {
+    let mut stream = samples(200, 0.012);
+    stream.extend(samples(500, 0.1));
+    stream.extend(samples(700, 0.0));
+
+    let utterances = segment(&stream);
+
+    assert_eq!(utterances.len(), 1);
+    // The loud onset is at 200 ms; at least 100 ms of pre-roll should survive.
+    assert!(
+        utterances[0].start_index as usize <= samples_for_ms(RATE, 100),
+        "utterance starts at sample {}",
+        utterances[0].start_index
+    );
+}
+
+// The duration cap should cut where a word is least likely to straddle the
+// boundary, not at whatever sample the cap lands on.
+#[test]
+#[ignore = "the 24 s cap cuts at an arbitrary sample instead of a nearby low-energy dip; quality-harness red test"]
+fn force_cut_lands_in_a_low_energy_dip() {
+    let mut stream = samples(23_000, 0.1);
+    stream.extend(samples(200, 0.005));
+    stream.extend(samples(3_000, 0.1));
+    stream.extend(samples(700, 0.0));
+
+    let utterances = segment(&stream);
+
+    assert!(utterances.len() >= 2);
+    let boundary = utterances[0].start_index as usize + utterances[0].samples.len();
+    let dip = samples_for_ms(RATE, 23_000)..=samples_for_ms(RATE, 23_200);
+    assert!(
+        dip.contains(&boundary),
+        "cut at sample {boundary}, low-energy dip spans {dip:?}"
+    );
+}
+
+// Clipped one-word replies ("yes", "no") can run under 250 ms of gated audio.
+#[test]
+#[ignore = "min_utterance_ms 250 drops short single-word replies; quality-harness red test"]
+fn keeps_a_short_single_word_reply() {
+    let mut stream = samples(180, 0.1);
+    stream.extend(samples(700, 0.0));
+
+    assert_eq!(segment(&stream).len(), 1);
+}
+
 #[test]
 fn start_index_tracks_silence_skipped_before_speech() {
     let mut stream = samples(1000, 0.0);

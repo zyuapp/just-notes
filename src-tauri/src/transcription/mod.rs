@@ -6,6 +6,8 @@ mod finalize_audio;
 mod live;
 mod live_worker;
 pub(crate) mod models;
+#[cfg(test)]
+mod quality;
 mod runtime;
 mod source_bleed;
 mod status;

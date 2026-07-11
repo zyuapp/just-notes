@@ -122,6 +122,19 @@ mod tests {
         assert_eq!(suppress_cross_channel_bleed(segments).len(), 2);
     }
 
+    // A real spoken backchannel almost always re-uses words the other party
+    // said nearby; text overlap alone is not evidence of bleed for segments
+    // this short.
+    #[test]
+    #[ignore = "sub-trigram mic segments are dropped on text overlap alone; quality-harness red test"]
+    fn keeps_short_backchannel_during_system_speech() {
+        let segments = vec![
+            segment("system", 1_000, 6_000, "yeah we should ship it this week"),
+            segment("mic", 3_000, 3_400, "Yeah."),
+        ];
+        assert_eq!(suppress_cross_channel_bleed(segments).len(), 2);
+    }
+
     #[test]
     fn keeps_repeated_text_when_far_apart_in_time() {
         let segments = vec![

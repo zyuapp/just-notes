@@ -1,0 +1,27 @@
+{
+  "1-clean-single": {
+    "wer": 0.011764706,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "2-quiet-speaker": {
+    "wer": 0.011764706,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "3-call-two-party": {
+    "wer": 0.01459854,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "4-call-with-bleed": {
+    "wer": 0.01459854,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "5-long-monologue": {
+    "wer": 0.034782607,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  }
+}

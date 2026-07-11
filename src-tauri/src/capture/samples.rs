@@ -6,6 +6,9 @@ use cpal::{
 
 use super::model::{CaptureSource, SharedBuffers};
 
+#[cfg(test)]
+mod tests;
+
 pub(super) fn build_capture_stream(
     device: Device,
     supported_config: SupportedStreamConfig,
