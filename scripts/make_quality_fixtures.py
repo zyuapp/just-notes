@@ -133,6 +133,38 @@ def high_frequency_noise(duration_ms, rms, seed, carrier_hz=11_000):
     )
 
 
+def say_clip(text, tmp_dir, target_rms):
+    """Synthesizes `text` with the macOS Samantha voice at a target RMS.
+
+    LibriSpeech has no isolated interjections, so spoken "Okay"/"Right"
+    fixtures come from deterministic TTS instead."""
+    slug = "".join(ch for ch in text.lower() if ch.isalnum())[:24]
+    aiff = tmp_dir / f"say-{slug}.aiff"
+    wav = tmp_dir / f"say-{slug}.wav"
+    subprocess.run(["say", "-v", "Samantha", "-o", str(aiff), text], check=True)
+    subprocess.run(
+        ["afconvert", "-f", "WAVE", "-d", f"LEI16@{RATE}", "-c", "1", str(aiff), str(wav)],
+        check=True,
+    )
+    with wave.open(str(wav), "rb") as reader:
+        samples = array("h", reader.readframes(reader.getnframes()))
+    rms = (sum(value * value for value in samples) / len(samples)) ** 0.5 / 32767
+    return scaled(samples, target_rms / rms)
+
+
+def place_clip(track, samples, start_ms, text, source="mic"):
+    """Mixes `samples` into the track at `start_ms` and records the segment."""
+    end_ms = start_ms + len(samples) * 1000 // RATE
+    track.pad_to(end_ms + 1)
+    start = RATE * start_ms // 1000
+    for index, value in enumerate(samples):
+        mixed = track.samples[start + index] + value
+        track.samples[start + index] = max(-32768, min(32767, mixed))
+    track.segments.append(
+        {"source": source, "start_ms": start_ms, "end_ms": end_ms, "text": text}
+    )
+
+
 def mix_bleed(mic, system, gain, delay_ms):
     offset = RATE * delay_ms // 1000
     for index, sample in enumerate(system):
@@ -199,6 +231,16 @@ def main():
         tmp_dir = Path(tmp)
         a = [(decode_clip(flac, tmp_dir), text) for _, flac, text in speaker_a[:16]]
         b = [(decode_clip(flac, tmp_dir), text) for _, flac, text in speaker_b[:3]]
+        # Voiced-but-quiet interjections (above the 0.02 confirmation level).
+        backchannels = [
+            (say_clip(text, tmp_dir, 0.035), text)
+            for text in ("Okay", "Right", "Sure", "Okay. Right. Sure.")
+        ]
+        # Sub-confirmation substantive replies (faint, but not filler text).
+        quiet_replies = [
+            (say_clip(text, tmp_dir, 0.012), text)
+            for text in ("Not yet", "Let me check the logs")
+        ]
 
     print(f"Building fixtures in {out_dir}...")
     write_fixture(out_dir, "1-clean-single", monologue(a[:3], gap_ms=1000))
@@ -254,7 +296,41 @@ def main():
         shaped_noise(silent_mic.duration_ms(), NOISE_FLOOR_RMS, NOISE_SEED + 3),
     )
     write_fixture(out_dir, "9-bleed-only-mic", silent_mic, system)
+
+    # Genuine voiced-but-quiet backchannels spoken during system speech over
+    # bleed: the recall counterpart of fixture 9 — none may be deleted.
+    system = monologue(b, gap_ms=1000, source="system")
+    mic = Track()
+    mic.pad_to(system.duration_ms())
+    mix_bleed(mic.samples, system.samples, 0.15, BLEED_DELAY_MS)
+    for (clip, text), position in zip(backchannels, span_positions(system)):
+        place_clip(mic, clip, position, text)
+    write_fixture(out_dir, "10-quiet-backchannels", mic, system)
+
+    # Short substantive replies below the confirmation level, plus a quiet
+    # read sentence, during correlated bleed: measures whether the bleed
+    # suppressors ever delete genuine mic content.
+    system = monologue(b, gap_ms=1000, source="system")
+    mic = Track()
+    mic.pad_to(system.duration_ms())
+    mix_bleed(mic.samples, system.samples, 0.15, BLEED_DELAY_MS)
+    positions = span_positions(system)
+    for (clip, text), position in zip(quiet_replies, positions):
+        place_clip(mic, clip, position, text)
+    sentence, sentence_text = a[6]
+    place_clip(mic, scaled(sentence, QUIET_GAIN), positions[3], sentence_text)
+    write_fixture(out_dir, "11-quiet-replies-over-bleed", mic, system)
     print("Done.")
+
+
+def span_positions(system):
+    """Two placement points inside each system segment, in time order."""
+    positions = []
+    for segment in system.segments:
+        span = segment["end_ms"] - segment["start_ms"]
+        positions.append(segment["start_ms"] + span // 3)
+        positions.append(segment["start_ms"] + (2 * span) // 3)
+    return positions
 
 
 if __name__ == "__main__":

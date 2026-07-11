@@ -8,11 +8,21 @@
 //! `src-tauri/quality/baseline.json`. Run via `bun run test:quality`, and
 //! rerun with `UPDATE_QUALITY_BASELINE=1` to accept improved numbers.
 //!
-//! Accepted residual: `7-quiet-with-room-tone@live` sits near 50% WER. The
-//! fixture is whispering-level speech ~6 dB above a noise floor; the live
-//! gate cannot separate that reliably, and the finalize pass (5.9%) remains
-//! the recovery path via reprocess with retained audio. The baseline entry
-//! guards against regression, not as a statement that the number is good.
+//! The suppressor chain is guarded from both directions: fixtures 6 and 9
+//! measure phantom segments that must stay removed (precision), while
+//! fixtures 10 and 11 measure genuine quiet mic speech that must stay kept
+//! (recall). A change to gating or suppression has to improve one side
+//! without regressing the other.
+//!
+//! Accepted residuals, recorded as regression floors rather than endorsed
+//! numbers:
+//! - `7-quiet-with-room-tone@live` (~50% WER): whisper-level speech ~6 dB
+//!   over a noise floor; the finalize pass (5.9%) is the recovery path.
+//! - `10-quiet-backchannels` / `11-quiet-replies-over-bleed`: voiced-quiet
+//!   interjections and faint substantive replies spoken over correlated
+//!   bleed are partly lost — they ride inside bleed-dominated utterances
+//!   that the energy suppressor removes wholesale. Known recall gap;
+//!   improving it must not resurrect the phantom segments of fixture 9.
 
 use std::sync::atomic::AtomicBool;
 

@@ -9,6 +9,26 @@
     "missed_segments": 0,
     "hallucinated_segments": 0
   },
+  "10-quiet-backchannels@finalize": {
+    "wer": 0.22413793,
+    "missed_segments": 2,
+    "hallucinated_segments": 0
+  },
+  "10-quiet-backchannels@live": {
+    "wer": 0.10344828,
+    "missed_segments": 4,
+    "hallucinated_segments": 0
+  },
+  "11-quiet-replies-over-bleed@finalize": {
+    "wer": 0.30136988,
+    "missed_segments": 3,
+    "hallucinated_segments": 0
+  },
+  "11-quiet-replies-over-bleed@live": {
+    "wer": 0.28767124,
+    "missed_segments": 3,
+    "hallucinated_segments": 0
+  },
   "2-quiet-speaker@finalize": {
     "wer": 0.011764706,
     "missed_segments": 0,
