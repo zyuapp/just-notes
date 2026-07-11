@@ -3,7 +3,10 @@ use std::path::Path;
 use hound::{SampleFormat, WavReader};
 
 const ENVELOPE_FRAME_MS: u64 = 25;
-const MIN_CORRELATION_FRAMES: usize = 4;
+/// Half a second of envelope overlap. With 41 lag offsets searched, shorter
+/// windows make a >=0.6 correlation easy to hit by chance, deleting genuine
+/// short interjections during loud playback.
+const MIN_CORRELATION_FRAMES: usize = 20;
 
 #[derive(Debug, Clone, Copy)]
 struct EnvelopeBin {

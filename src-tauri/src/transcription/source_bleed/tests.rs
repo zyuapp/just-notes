@@ -90,7 +90,6 @@ fn keeps_mic_segment_without_nearby_system_transcript() {
 // short quiet interjections during loud playback need stronger evidence than
 // a correlation measured on so few frames.
 #[test]
-#[ignore = "chance envelope correlation on very short segments deletes real speech; quality-harness red test"]
 fn keeps_short_quiet_mic_segment_despite_chance_envelope_match() {
     let mic_env = [0.01, 0.02, 0.03, 0.03, 0.02, 0.01];
     let mic = ChannelProfile::from_envelope(&mic_env);

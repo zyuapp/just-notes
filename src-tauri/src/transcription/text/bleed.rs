@@ -1,4 +1,4 @@
-use super::words::{contains_word_sequence, normalized_words, word_ngrams};
+use super::words::{normalized_words, word_ngrams};
 use crate::threads::TranscriptSegment;
 
 const BLEED_NGRAM_SIZE: usize = 3;
@@ -42,13 +42,13 @@ fn is_bleed(mic: &TranscriptSegment, system_segments: &[SystemSpan]) -> bool {
     }
 
     let mic_words = normalized_words(&mic.text);
-    if mic_words.is_empty() {
+    // Short mic segments ("yeah", "okay") almost always re-use words the
+    // other party said nearby, so text overlap alone is not evidence of
+    // bleed; deleting them needs the audio-energy check in `source_bleed`.
+    if mic_words.len() < BLEED_NGRAM_SIZE {
         return false;
     }
     let system_words = normalized_words(&overlapping_text);
-    if mic_words.len() < BLEED_NGRAM_SIZE {
-        return contains_word_sequence(&system_words, &mic_words);
-    }
 
     let mic_ngrams = word_ngrams(&mic_words, BLEED_NGRAM_SIZE);
     let system_ngrams = word_ngrams(&system_words, BLEED_NGRAM_SIZE);
@@ -126,7 +126,6 @@ mod tests {
     // said nearby; text overlap alone is not evidence of bleed for segments
     // this short.
     #[test]
-    #[ignore = "sub-trigram mic segments are dropped on text overlap alone; quality-harness red test"]
     fn keeps_short_backchannel_during_system_speech() {
         let segments = vec![
             segment("system", 1_000, 6_000, "yeah we should ship it this week"),

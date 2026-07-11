@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 use super::{
@@ -62,10 +62,11 @@ struct ModelDirFixture {
 
 impl ModelDirFixture {
     fn new() -> Self {
-        let unique = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("system time before unix epoch")
-            .as_nanos();
+        // A counter rather than a timestamp: parallel tests can start within
+        // the clock's granularity, and a name collision lets one fixture's
+        // Drop delete another's live directory.
+        static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
+        let unique = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
         let root = std::env::temp_dir().join(format!(
             "just-notes-model-policy-test-{}-{unique}",
             std::process::id()

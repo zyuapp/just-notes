@@ -58,8 +58,12 @@ fn push_f32_samples(
     buffers: &Arc<Mutex<SharedBuffers>>,
     source: CaptureSource,
 ) {
+    let channels = channels.max(1) as usize;
+    let channel = loudest_channel(samples, channels);
     push_mono_frames(
-        samples.chunks(channels as usize).map(average_f32),
+        samples
+            .chunks(channels)
+            .map(move |frame| frame[channel.min(frame.len() - 1)]),
         buffers,
         source,
     );
@@ -71,17 +75,11 @@ fn push_i16_samples(
     buffers: &Arc<Mutex<SharedBuffers>>,
     source: CaptureSource,
 ) {
-    push_mono_frames(
-        samples.chunks(channels as usize).map(|frame| {
-            frame
-                .iter()
-                .map(|sample| *sample as f32 / i16::MAX as f32)
-                .sum::<f32>()
-                / frame.len() as f32
-        }),
-        buffers,
-        source,
-    );
+    let converted: Vec<f32> = samples
+        .iter()
+        .map(|sample| *sample as f32 / i16::MAX as f32)
+        .collect();
+    push_f32_samples(&converted, channels, buffers, source);
 }
 
 fn push_u16_samples(
@@ -90,17 +88,33 @@ fn push_u16_samples(
     buffers: &Arc<Mutex<SharedBuffers>>,
     source: CaptureSource,
 ) {
-    push_mono_frames(
-        samples.chunks(channels as usize).map(|frame| {
-            frame
-                .iter()
-                .map(|sample| (*sample as f32 - 32768.0) / 32768.0)
-                .sum::<f32>()
-                / frame.len() as f32
-        }),
-        buffers,
-        source,
-    );
+    let converted: Vec<f32> = samples
+        .iter()
+        .map(|sample| (*sample as f32 - 32768.0) / 32768.0)
+        .collect();
+    push_f32_samples(&converted, channels, buffers, source);
+}
+
+/// Index of the channel with the most energy in this callback chunk. Devices
+/// can expose multiple channels with voice on only one (a mono mic on a
+/// stereo interface); averaging would attenuate that speech by the channel
+/// count, so the mono stream follows the loudest channel instead.
+fn loudest_channel(samples: &[f32], channels: usize) -> usize {
+    if channels == 1 {
+        return 0;
+    }
+    let mut energy = vec![0.0f64; channels];
+    for frame in samples.chunks(channels) {
+        for (index, sample) in frame.iter().enumerate() {
+            energy[index] += f64::from(sample * sample);
+        }
+    }
+    energy
+        .iter()
+        .enumerate()
+        .max_by(|left, right| left.1.total_cmp(right.1))
+        .map(|(index, _)| index)
+        .unwrap_or(0)
 }
 
 pub(super) fn average_f32(frame: &[f32]) -> f32 {

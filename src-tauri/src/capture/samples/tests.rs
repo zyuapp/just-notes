@@ -24,7 +24,6 @@ fn stereo_downmix_preserves_identical_channels() {
 // interface) should not lose half its level in the mono downmix — the loss
 // stacks with the live speech gate and drops whole segments.
 #[test]
-#[ignore = "average downmix halves single-live-channel devices; quality-harness red test"]
 fn stereo_downmix_keeps_single_live_channel_level() {
     let interleaved: Vec<f32> = std::iter::repeat([0.5, 0.0]).take(100).flatten().collect();
     let mono = mic_mono_after(&interleaved, 2);
