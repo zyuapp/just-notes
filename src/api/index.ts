@@ -1,5 +1,6 @@
 import { appApi } from "./app";
 import { eventsApi } from "./events";
+import { meetingsApi } from "./meetings";
 import { recordingApi } from "./recording";
 import { settingsApi } from "./settings";
 import { systemApi } from "./system";
@@ -11,6 +12,7 @@ export { getApiErrorMessage, toApiError, ApiError } from "./errors";
 export const api = {
   app: appApi,
   events: eventsApi,
+  meetings: meetingsApi,
   recording: recordingApi,
   settings: settingsApi,
   system: systemApi,

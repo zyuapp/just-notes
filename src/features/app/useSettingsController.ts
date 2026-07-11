@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import type { AppSettings } from "../../bindings/AppSettings";
 import type { AppAction, AppState } from "./state";
@@ -6,12 +6,16 @@ import type { AppAction, AppState } from "./state";
 type AppDispatch = (action: AppAction) => void;
 
 export type SettingsActions = ReturnType<typeof useSettingsController>;
+export type SettingsUpdater = (settings: AppSettings) => AppSettings;
 
 export function useSettingsController(
   state: AppState,
   dispatch: AppDispatch,
   onStorageChanged: () => Promise<void>,
 ) {
+  const settingsRef = useRef(state.settings);
+  const updateQueue = useRef<Promise<void>>(Promise.resolve());
+  settingsRef.current = state.settings;
   const fail = useCallback(
     (error: unknown) => dispatch({ type: "failed", message: getApiErrorMessage(error) }),
     [dispatch],
@@ -23,6 +27,10 @@ export function useSettingsController(
       .getPermissions()
       .then((permissions) => dispatch({ type: "permissionsLoaded", permissions }))
       .catch(() => undefined);
+    api.meetings
+      .getAccessStatus()
+      .then((meetingAccess) => dispatch({ type: "meetingAccessLoaded", meetingAccess }))
+      .catch(() => undefined);
   }, [dispatch]);
 
   const closeSettings = useCallback(
@@ -30,33 +38,40 @@ export function useSettingsController(
     [dispatch],
   );
 
-  const saveSettings = useCallback(
-    async (settings: AppSettings, refreshAfterSave: boolean) => {
-      try {
-        const saved = await api.settings.update(settings);
+  const updateSettings = useCallback(
+    (update: SettingsUpdater, refreshAfterSave = false) => {
+      const operation = updateQueue.current.then(async () => {
+        const current = settingsRef.current;
+        if (!current) return;
+        const saved = await api.settings.update(update(current));
+        settingsRef.current = saved;
         dispatch({ type: "settingsLoaded", settings: saved });
-        if (refreshAfterSave) {
-          await onStorageChanged();
-        }
-      } catch (error) {
+        if (refreshAfterSave) await onStorageChanged();
+      });
+      updateQueue.current = operation.catch(() => undefined);
+      return operation.catch((error) => {
         fail(error);
-      }
+      });
     },
     [dispatch, fail, onStorageChanged],
   );
 
   const toggleRawAudio = useCallback(async () => {
-    if (!state.settings) return;
-    await saveSettings({ ...state.settings, saveRawAudio: !state.settings.saveRawAudio }, false);
-  }, [saveSettings, state.settings]);
+    await updateSettings((settings) => ({
+      ...settings,
+      saveRawAudio: !settings.saveRawAudio,
+    }));
+  }, [updateSettings]);
 
   const toggleMarkdownCopy = useCallback(async () => {
-    if (!state.settings) return;
-    await saveSettings({ ...state.settings, markdownCopy: !state.settings.markdownCopy }, false);
-  }, [saveSettings, state.settings]);
+    await updateSettings((settings) => ({
+      ...settings,
+      markdownCopy: !settings.markdownCopy,
+    }));
+  }, [updateSettings]);
 
   const openPrivacySettings = useCallback(
-    async (pane: "microphone" | "system-audio") => {
+    async (pane: "microphone" | "system-audio" | "calendar" | "notifications") => {
       try {
         await api.system.openPrivacySettings(pane);
       } catch (error) {
@@ -72,5 +87,6 @@ export function useSettingsController(
     openSettings,
     toggleMarkdownCopy,
     toggleRawAudio,
+    updateSettings,
   };
 }

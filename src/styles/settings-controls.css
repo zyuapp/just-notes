@@ -46,6 +46,14 @@
   outline-offset: 2px;
 }
 
+.settings-switch input:disabled {
+  cursor: not-allowed;
+}
+
+.settings-switch input:disabled + .settings-knob {
+  opacity: 0.45;
+}
+
 .settings-segmented {
   display: inline-flex;
   flex: 0 0 auto;

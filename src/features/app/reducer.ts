@@ -15,6 +15,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         threads: action.threads,
         settings: action.settings,
         permissions: action.permissions,
+        meetingAccess: action.meetingAccess,
       };
     case "threadsLoaded":
       return { ...state, threads: action.threads };
@@ -46,6 +47,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, transcriptionStatus: action.transcriptionStatus };
     case "permissionsLoaded":
       return { ...state, permissions: action.permissions };
+    case "meetingAccessLoaded":
+      return { ...state, meetingAccess: action.meetingAccess };
     case "settingsOpenChanged":
       return { ...state, settingsOpen: action.open };
     case "finalizationReceived":
