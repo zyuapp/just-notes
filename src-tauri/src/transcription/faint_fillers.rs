@@ -82,6 +82,16 @@ fn is_faint(
     })
 }
 
+/// Decode-time form of the shadowed rule below, for the live worker: the
+/// live view is what users watch during recording, so a phantom the stop
+/// polish would delete anyway should never be published. Dominance comes
+/// from the capture buffers' audio rather than segment overlap.
+pub(crate) fn is_live_phantom_backchannel(text: &str, mic_rms: f32, system_rms: f32) -> bool {
+    is_probable_filler_text(text)
+        && mic_rms < QUIET_CONFIRMATION_RMS
+        && mic_audio_is_system_dominated(mic_rms, system_rms)
+}
+
 /// A faint mic filler spoken while system audio dominates the mic is far
 /// more likely a decode of breath or bleed than a real backchannel: anything
 /// the user actually voices lands well above the confirmation level. Phantom
@@ -187,6 +197,21 @@ mod tests {
             segment("mic", 6_000, 6_400, "Mm-hmm."),
         ];
         assert!(suppress_with_profiles(segments, Some(&mic), None).is_empty());
+    }
+
+    #[test]
+    fn live_phantom_gate_matches_the_shadowed_rule() {
+        use super::is_live_phantom_backchannel;
+        // Faint filler under dominant system audio: never published live.
+        assert!(is_live_phantom_backchannel("Mm-hmm.", 0.005, 0.06));
+        // A voiced backchannel, quiet audio elsewhere, or real content passes.
+        assert!(!is_live_phantom_backchannel("Mm-hmm.", 0.05, 0.06));
+        assert!(!is_live_phantom_backchannel("Mm-hmm.", 0.005, 0.002));
+        assert!(!is_live_phantom_backchannel(
+            "Let me check the logs.",
+            0.005,
+            0.06
+        ));
     }
 
     // The live-test phantom: a 240 ms "Mm-hmm." right after the user's own
