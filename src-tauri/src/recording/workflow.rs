@@ -41,6 +41,7 @@ struct RecordingStart {
     recorder: RecorderState,
     settings: AppSettings,
     requested_thread_id: Option<String>,
+    new_thread_title: Option<String>,
 }
 
 pub(crate) fn start_recording(
@@ -57,6 +58,7 @@ pub(crate) fn start_recording(
             recorder,
             settings,
             requested_thread_id,
+            new_thread_title: None,
         },
         RecordingInputMode::Devices,
     )
@@ -78,11 +80,32 @@ pub(crate) fn start_fixture_recording(
             recorder,
             settings,
             requested_thread_id,
+            new_thread_title: None,
         },
         RecordingInputMode::Fixture {
             mic_path: fixture_dir.join("qa-mic.wav"),
             system_path: fixture_dir.join("qa-system.wav"),
         },
+    )
+}
+
+pub(crate) fn start_scheduled_recording(
+    app: AppHandle,
+    paths: AppPaths,
+    recorder: RecorderState,
+    settings: AppSettings,
+    meeting_title: String,
+) -> Result<RecordingPayload, String> {
+    start_recording_with_mode(
+        RecordingStart {
+            app,
+            paths,
+            recorder,
+            settings,
+            requested_thread_id: None,
+            new_thread_title: Some(meeting_title),
+        },
+        RecordingInputMode::Devices,
     )
 }
 
@@ -105,6 +128,7 @@ fn prepare_recording_session(
         recorder,
         settings,
         requested_thread_id,
+        new_thread_title,
     } = start;
     recorder.ensure_idle()?;
     paths.ensure()?;
@@ -113,16 +137,20 @@ fn prepare_recording_session(
         return Err("Parakeet model is required before recording".to_string());
     }
 
+    // Prepare permissions and devices before allocating a new thread. A failed
+    // calendar-notification retry should not leave an empty meeting note behind.
+    let input = prepare_audio_input(&app, input_mode)?;
+
     let SelectedThread {
         thread,
         resume_offset_ms,
-    } = select_recording_thread(&paths, requested_thread_id)?;
+        newly_created,
+    } = select_recording_thread(&paths, requested_thread_id, new_thread_title.as_deref())?;
     let thread_id = thread.summary.id.clone();
     let thread_dir = paths.thread_dir(&thread_id);
     prepare_work_dir(&thread_dir)?;
 
     let started = Instant::now();
-    let input = prepare_audio_input(&app, input_mode)?;
     set_thread_status(&thread_dir, ThreadStatus::Recording)?;
 
     let config = RecordingSessionConfig {
@@ -136,7 +164,11 @@ fn prepare_recording_session(
         resume_offset_ms,
     };
     if let Err(err) = activate_session(&recorder, config) {
-        let _ = set_thread_status(&thread_dir, ThreadStatus::Idle);
+        if newly_created {
+            crate::threads::create::discard_failed_thread(&thread_dir);
+        } else {
+            let _ = set_thread_status(&thread_dir, ThreadStatus::Idle);
+        }
         return Err(err);
     }
     tray::set_tray_recording(&app, true);
@@ -166,7 +198,8 @@ fn activate_session(
         let _ = audio_artifacts.cleanup_if_transient();
         return Err(err);
     }
-    let session = build_recording_session(config, audio_sink, audio_artifacts);
+    let session_id = recorder.allocate_session_id();
+    let session = build_recording_session(config, audio_sink, audio_artifacts, session_id);
     recorder.store_session(session)
 }
 
@@ -174,6 +207,7 @@ fn build_recording_session(
     config: RecordingSessionConfig,
     audio_sink: super::audio_sink::AudioSink,
     audio_artifacts: FinalizationAudioArtifacts,
+    session_id: u64,
 ) -> RecorderSession {
     let input = config.input;
     let should_stop_meter = Arc::new(AtomicBool::new(false));
@@ -196,6 +230,7 @@ fn build_recording_session(
     });
 
     RecorderSession {
+        session_id,
         thread_id: config.thread_id,
         thread_dir: config.thread_dir,
         started: config.started,

@@ -9,6 +9,7 @@ import { appReducer, getActiveThreadId, getStatusLabel, initialAppState } from "
 import { useAppEvents } from "./features/app/useAppEvents";
 import { useArchivedThreads } from "./features/app/useArchivedThreads";
 import { useJustNotesController } from "./features/app/useJustNotesController";
+import { useMeetingSettingsController } from "./features/app/useMeetingSettingsController";
 import { useSettingsController } from "./features/app/useSettingsController";
 import { useSidebarWidth } from "./features/app/useSidebarWidth";
 import { useThreadActions } from "./features/app/useThreadActions";
@@ -20,6 +21,9 @@ export default function App() {
   const actions = useJustNotesController(state, dispatch);
   const threadActions = useThreadActions(state, dispatch, actions.refreshThreads);
   const settingsActions = useSettingsController(state, dispatch, actions.bootstrap);
+  const meetingSettingsActions = useMeetingSettingsController(
+    state, dispatch, settingsActions.updateSettings,
+  );
   const search = useThreadSearch(dispatch, state.threads);
   const archived = useArchivedThreads(state.archiveOpen);
   const { iconRef, scopeRef, flyToArchive } = useArchiveFlight();
@@ -122,12 +126,19 @@ export default function App() {
           appInfo={state.appInfo}
           transcriptionStatus={state.transcriptionStatus}
           permissions={state.permissions}
+          meetingAccess={state.meetingAccess}
+          meetingSettingsBusy={meetingSettingsActions.busy}
           onClose={settingsActions.closeSettings}
           onRevealFolder={() => {
             if (state.appInfo) void threadActions.revealPath(state.appInfo.threadsDir);
           }}
           onToggleRawAudio={() => void settingsActions.toggleRawAudio()}
           onToggleMarkdownCopy={() => void settingsActions.toggleMarkdownCopy()}
+          onRequestMeetingAccess={() => void meetingSettingsActions.requestAccess()}
+          onToggleMeetingCalendar={(id) => void meetingSettingsActions.toggleCalendar(id)}
+          onToggleMeetingReminders={() => void meetingSettingsActions.toggleReminders()}
+          onSetMeetingReminderMinutes={(minutes) => void meetingSettingsActions.setReminderMinutes(minutes)}
+          onToggleMeetingEndReminders={() => void meetingSettingsActions.toggleEndReminders()}
           onCancelModelDownload={() => void actions.cancelModelDownload()}
           onStartModelDownload={() => void actions.startModelDownload()}
           onDeleteModel={() => void actions.deleteModel()}

@@ -14,7 +14,11 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Platform
 
-`platform` owns macOS shell integration: Finder reveal, the native folder chooser, clipboard copy, and System Settings deep links. It must not depend on any domain module.
+`platform` owns macOS shell integration: Finder reveal, the native folder chooser, clipboard copy, System Settings deep links, EventKit access, and native actionable notifications. It must not depend on any domain module.
+
+### Meetings
+
+`meetings` owns calendar-driven recording reminders. It filters eligible events, deduplicates start prompts, associates a notification-started recording with its meeting, schedules end prompts, and handles notification actions. It coordinates `platform`, `recording`, and `settings` without putting meeting policy into those contexts.
 
 ### Tray
 
@@ -44,11 +48,13 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 The intended direction is:
 
-`lib.rs` -> `commands`, `recording`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
+`lib.rs` -> `commands`, `meetings`, `recording`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
 
 `commands` -> any domain it adapts, but no business logic of its own
 
 `recording` -> `capture`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
+
+`meetings` -> `app`, `platform`, `recording`, `settings`
 
 `transcription` -> `capture` buffers, `threads` transcript storage, `ipc` event payloads
 

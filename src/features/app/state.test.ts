@@ -124,6 +124,17 @@ describe("appReducer", () => {
     expect(updated.finalization?.state).toBe("running");
   });
 
+  test("stores meeting calendar access", () => {
+    const meetingAccess = { calendarAuthorization: "authorized",
+      notificationAuthorization: "authorized", calendars: [{ id: "calendar-1", title: "Work" }] };
+
+    const updated = appReducer(initialAppState, {
+      type: "meetingAccessLoaded",
+      meetingAccess,
+    });
+    expect(updated.meetingAccess).toBe(meetingAccess);
+  });
+
   test("updates transcription status without changing selected thread", () => {
     const state = {
       ...initialAppState,

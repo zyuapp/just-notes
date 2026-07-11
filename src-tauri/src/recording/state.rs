@@ -1,7 +1,7 @@
 use std::{
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex,
     },
     thread::JoinHandle,
@@ -21,9 +21,11 @@ use crate::{
 pub(crate) struct RecorderState {
     session: Arc<Mutex<Option<RecorderSession>>>,
     is_starting: Arc<AtomicBool>,
+    next_session_id: Arc<AtomicU64>,
 }
 
 pub(super) struct RecorderSession {
+    pub(super) session_id: u64,
     pub(super) thread_id: String,
     pub(super) thread_dir: PathBuf,
     pub(super) started: Instant,
@@ -96,6 +98,18 @@ impl RecorderState {
             .lock()
             .map(|session| session.is_some())
             .unwrap_or(false)
+    }
+
+    pub(crate) fn active_session_id(&self) -> Option<u64> {
+        self.session
+            .lock()
+            .ok()?
+            .as_ref()
+            .map(|session| session.session_id)
+    }
+
+    pub(super) fn allocate_session_id(&self) -> u64 {
+        self.next_session_id.fetch_add(1, Ordering::SeqCst) + 1
     }
 }
 

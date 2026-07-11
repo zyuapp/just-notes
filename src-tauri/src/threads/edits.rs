@@ -8,6 +8,7 @@ use super::{
         list_threads, load_thread_by_id, load_thread_detail, read_thread_metadata,
         render_thread_markdown, update_thread_metadata, update_thread_metadata_preserving_activity,
     },
+    title::validated_title,
     transcript_store::{read_transcript_jsonl, write_transcript_jsonl},
     ThreadDetail, ThreadSummary,
 };
@@ -19,13 +20,7 @@ pub(crate) fn rename_thread(
     thread_id: &str,
     title: &str,
 ) -> Result<ThreadDetail, String> {
-    let title = title.trim();
-    if title.is_empty() {
-        return Err("Thread title cannot be empty".to_string());
-    }
-    if title.chars().count() > 120 {
-        return Err("Thread title must stay under 120 characters".to_string());
-    }
+    let title = validated_title(title)?;
 
     let thread_dir = existing_thread_dir(paths, thread_id)?;
     ensure_thread_not_busy(&thread_dir)?;

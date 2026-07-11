@@ -1,0 +1,43 @@
+.calendar-connect {
+  display: grid;
+  gap: 9px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.calendar-connect .settings-row-actions {
+  justify-content: flex-end;
+}
+
+.calendar-access-note {
+  color: var(--text-2);
+}
+
+.calendar-list {
+  display: grid;
+  gap: 5px;
+  margin: 6px 0 8px;
+  padding: 8px 10px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+
+.calendar-list legend {
+  padding: 0 4px;
+  color: var(--text-3);
+  font-size: 10.5px;
+}
+
+.calendar-option {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.calendar-option input {
+  accent-color: var(--blue);
+}

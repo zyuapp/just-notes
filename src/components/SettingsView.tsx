@@ -2,6 +2,8 @@ import { X } from "lucide-react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { AppSettings } from "../bindings/AppSettings";
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
+import type { MeetingAccessPayload } from "../bindings/MeetingAccessPayload";
+import { MeetingSettingsSection } from "./MeetingSettingsSection";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { permissionLabel, SettingsToggle } from "./SettingsControls";
 import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
@@ -12,14 +14,21 @@ type SettingsViewProps = {
   appInfo: AppInfo | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
   permissions: PermissionsPayload | null;
+  meetingAccess: MeetingAccessPayload | null;
   onClose: () => void;
   onRevealFolder: () => void;
   onToggleRawAudio: () => void;
   onToggleMarkdownCopy: () => void;
+  onRequestMeetingAccess: () => void;
+  onToggleMeetingCalendar: (calendarId: string) => void;
+  onToggleMeetingReminders: () => void;
+  onSetMeetingReminderMinutes: (minutes: number) => void;
+  onToggleMeetingEndReminders: () => void;
+  meetingSettingsBusy: boolean;
   onStartModelDownload: () => void;
   onCancelModelDownload: () => void;
   onDeleteModel: () => void;
-  onOpenPrivacy: (pane: "microphone" | "system-audio") => void;
+  onOpenPrivacy: (pane: "microphone" | "system-audio" | "calendar" | "notifications") => void;
 };
 
 export function SettingsView({
@@ -27,10 +36,17 @@ export function SettingsView({
   appInfo,
   transcriptionStatus,
   permissions,
+  meetingAccess,
   onClose,
   onRevealFolder,
   onToggleRawAudio,
   onToggleMarkdownCopy,
+  onRequestMeetingAccess,
+  onToggleMeetingCalendar,
+  onToggleMeetingReminders,
+  onSetMeetingReminderMinutes,
+  onToggleMeetingEndReminders,
+  meetingSettingsBusy,
   onStartModelDownload,
   onCancelModelDownload,
   onDeleteModel,
@@ -78,6 +94,18 @@ export function SettingsView({
           onStartModelDownload={onStartModelDownload}
           onCancelModelDownload={onCancelModelDownload}
           onDeleteModel={onDeleteModel}
+        />
+
+        <MeetingSettingsSection
+          settings={settings}
+          access={meetingAccess}
+          onRequestAccess={onRequestMeetingAccess}
+          onToggleCalendar={onToggleMeetingCalendar}
+          onToggleReminders={onToggleMeetingReminders}
+          onSetReminderMinutes={onSetMeetingReminderMinutes}
+          onToggleEndReminders={onToggleMeetingEndReminders}
+          onOpenPrivacy={onOpenPrivacy}
+          busy={meetingSettingsBusy}
         />
 
         <section>

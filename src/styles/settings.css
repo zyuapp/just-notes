@@ -103,6 +103,12 @@
   color: var(--text-bright);
 }
 
+.settings-row-actions button:disabled,
+.settings-segmented button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .settings-row-actions button.settings-danger {
   color: #ff9d99;
 }
@@ -112,4 +118,3 @@
   border-color: transparent;
   background: var(--red-soft);
 }
-

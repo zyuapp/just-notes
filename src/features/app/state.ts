@@ -3,6 +3,7 @@ import type { AppSettings } from "../../bindings/AppSettings";
 import type { FinalizationStatusPayload } from "../../bindings/FinalizationStatusPayload";
 import type { LiveTranscriptPayload } from "../../bindings/LiveTranscriptPayload";
 import type { MeterPayload } from "../../bindings/MeterPayload";
+import type { MeetingAccessPayload } from "../../bindings/MeetingAccessPayload";
 import type { PermissionsPayload } from "../../bindings/PermissionsPayload";
 import type { RecordingPayload } from "../../bindings/RecordingPayload";
 import type { ThreadDetail } from "../../bindings/ThreadDetail";
@@ -28,6 +29,7 @@ export type AppState = {
   transcriptionStatus: TranscriptionStatusPayload | null;
   settings: AppSettings | null;
   permissions: PermissionsPayload | null;
+  meetingAccess: MeetingAccessPayload | null;
   finalization: FinalizationStatusPayload | null;
   settingsOpen: boolean;
   archiveOpen: boolean;
@@ -53,6 +55,7 @@ export const initialAppState: AppState = {
   transcriptionStatus: null,
   settings: null,
   permissions: null,
+  meetingAccess: null,
   finalization: null,
   settingsOpen: false,
   archiveOpen: false,
@@ -69,6 +72,7 @@ export type AppAction =
       threads: ThreadSummary[];
       settings: AppSettings;
       permissions: PermissionsPayload;
+      meetingAccess: MeetingAccessPayload;
     }
   | { type: "threadsLoaded"; threads: ThreadSummary[] }
   | { type: "threadSelected"; detail: ThreadDetail }
@@ -78,6 +82,7 @@ export type AppAction =
   | { type: "settingsLoaded"; settings: AppSettings }
   | { type: "transcriptionStatusLoaded"; transcriptionStatus: TranscriptionStatusPayload }
   | { type: "permissionsLoaded"; permissions: PermissionsPayload }
+  | { type: "meetingAccessLoaded"; meetingAccess: MeetingAccessPayload }
   | { type: "settingsOpenChanged"; open: boolean }
   | { type: "finalizationReceived"; payload: FinalizationStatusPayload }
   | { type: "recordingStarting" }

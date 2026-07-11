@@ -11,16 +11,28 @@ fn settings_round_trip_and_defaults() {
     assert!(defaults.save_raw_audio);
     assert!(defaults.markdown_copy);
     assert_eq!(defaults.transcripts_dir, None);
+    assert!(!defaults.meeting_reminders_enabled);
+    assert!(defaults.meeting_calendar_ids.is_empty());
+    assert_eq!(defaults.meeting_reminder_minutes, 5);
+    assert!(defaults.meeting_end_reminders);
 
     let custom = AppSettings {
         transcripts_dir: Some("/tmp/notes".to_string()),
         save_raw_audio: false,
         markdown_copy: true,
+        meeting_reminders_enabled: true,
+        meeting_calendar_ids: vec!["calendar-1".to_string()],
+        meeting_reminder_minutes: 10,
+        meeting_end_reminders: false,
     };
     save_settings(&dir, &custom).unwrap();
     let loaded = load_settings(&dir);
     assert_eq!(loaded.transcripts_dir.as_deref(), Some("/tmp/notes"));
     assert!(!loaded.save_raw_audio);
+    assert!(loaded.meeting_reminders_enabled);
+    assert_eq!(loaded.meeting_calendar_ids, ["calendar-1"]);
+    assert_eq!(loaded.meeting_reminder_minutes, 10);
+    assert!(!loaded.meeting_end_reminders);
 
     let base = AppPaths {
         threads_dir: dir.join("threads"),
@@ -57,6 +69,8 @@ fn legacy_transcription_provider_key_is_ignored() {
     assert_eq!(loaded.transcripts_dir.as_deref(), Some("/tmp/notes"));
     assert!(!loaded.save_raw_audio);
     assert!(loaded.markdown_copy);
+    assert_eq!(loaded.meeting_reminder_minutes, 5);
+    assert!(loaded.meeting_end_reminders);
 
     let _ = fs::remove_dir_all(&dir);
 }
@@ -74,6 +88,8 @@ fn missing_settings_file_uses_defaults() {
     assert_eq!(loaded.transcripts_dir, None);
     assert!(loaded.save_raw_audio);
     assert!(loaded.markdown_copy);
+    assert!(!loaded.meeting_reminders_enabled);
+    assert!(loaded.meeting_calendar_ids.is_empty());
 
     let _ = fs::remove_dir_all(&dir);
 }

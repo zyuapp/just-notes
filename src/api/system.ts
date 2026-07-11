@@ -14,7 +14,9 @@ export const systemApi = {
     return invokeCommand("copy_text_to_clipboard", { text });
   },
 
-  openPrivacySettings(pane: "microphone" | "system-audio"): Promise<void> {
+  openPrivacySettings(
+    pane: "microphone" | "system-audio" | "calendar" | "notifications",
+  ): Promise<void> {
     return invokeCommand("open_privacy_settings", { pane });
   },
 };

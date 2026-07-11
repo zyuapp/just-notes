@@ -54,3 +54,20 @@ pub(crate) struct PermissionsPayload {
     pub(crate) microphone: String,
     pub(crate) system_audio: String,
 }
+
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) struct MeetingCalendarPayload {
+    pub(crate) id: String,
+    pub(crate) title: String,
+}
+
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) struct MeetingAccessPayload {
+    pub(crate) calendar_authorization: String,
+    pub(crate) notification_authorization: String,
+    pub(crate) calendars: Vec<MeetingCalendarPayload>,
+}

@@ -3,6 +3,9 @@ use std::{
     process::{Command, Stdio},
 };
 
+pub(crate) mod calendar;
+pub(crate) mod notifications;
+
 pub(crate) fn reveal_in_finder(path: &str) -> Result<(), String> {
     let status = Command::new("open")
         .arg("-R")
@@ -67,6 +70,8 @@ pub(crate) fn open_privacy_settings(pane: &str) -> Result<(), String> {
         "system-audio" => {
             "x-apple.systempreferences:com.apple.preference.security?Privacy_AudioCapture"
         }
+        "calendar" => "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars",
+        "notifications" => "x-apple.systempreferences:com.apple.Notifications-Settings.extension",
         _ => "x-apple.systempreferences:com.apple.preference.security",
     };
     let status = Command::new("open")

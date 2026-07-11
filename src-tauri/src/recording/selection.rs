@@ -2,24 +2,29 @@ use super::state::{classify_selected_thread, ThreadSelection};
 use crate::{
     app::AppPaths,
     threads::{
-        repository::{create_thread as create_thread_record, load_thread_by_id},
-        ThreadDetail,
+        create::create_thread_with_external_title, repository::load_thread_by_id, ThreadDetail,
     },
 };
 
 pub(super) struct SelectedThread {
     pub(super) thread: ThreadDetail,
     pub(super) resume_offset_ms: Option<u64>,
+    pub(super) newly_created: bool,
 }
 
 pub(super) fn select_recording_thread(
     paths: &AppPaths,
     requested_thread_id: Option<String>,
+    new_thread_title: Option<&str>,
 ) -> Result<SelectedThread, String> {
     let Some(thread_id) = requested_thread_id else {
         return Ok(SelectedThread {
-            thread: create_thread_record(paths)?,
+            thread: create_thread_with_external_title(
+                paths,
+                new_thread_title.unwrap_or("Untitled thread"),
+            )?,
             resume_offset_ms: None,
+            newly_created: true,
         });
     };
 
@@ -28,10 +33,12 @@ pub(super) fn select_recording_thread(
         ThreadSelection::Reuse(thread) => Ok(SelectedThread {
             thread: *thread,
             resume_offset_ms: None,
+            newly_created: false,
         }),
         ThreadSelection::Resume(thread) => Ok(SelectedThread {
             resume_offset_ms: Some(prior_recording_end_ms(&thread)),
             thread: *thread,
+            newly_created: false,
         }),
     }
 }

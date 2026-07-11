@@ -4,6 +4,7 @@ mod app;
 mod capture;
 mod commands;
 mod ipc;
+mod meetings;
 mod platform;
 mod recording;
 mod settings;
@@ -12,6 +13,7 @@ mod transcription;
 mod tray;
 
 use app::AppPaths;
+use meetings::MeetingSchedulerState;
 use recording::RecorderState;
 use settings::SettingsState;
 use threads::repository::reset_stale_recording_threads;
@@ -27,11 +29,20 @@ pub fn run() {
         .manage(SettingsState::new(initial_settings))
         .manage(FinalizeState::default())
         .manage(ModelDownloadState::default())
+        .manage(MeetingSchedulerState::default())
         .setup(|app| {
             let paths = app.state::<AppPaths>();
             let settings = app.state::<SettingsState>().snapshot();
             reset_stale_recording_threads(&settings::effective_paths(&paths, &settings))?;
             tray::init_tray(app, start_recording_from_tray, stop_recording_from_tray)?;
+            let action_app = app.handle().clone();
+            platform::notifications::initialize(
+                meetings::notification_categories(),
+                move |response| {
+                    meetings::handle_notification_action(action_app.clone(), response);
+                },
+            );
+            meetings::spawn_scheduler(app.handle().clone());
             // The minWidth/minHeight from tauri.conf.json is not enforced on
             // macOS; the layout needs at least this much room.
             if let Some(window) = app.get_webview_window("main") {
@@ -94,6 +105,8 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::settings::get_settings,
         commands::settings::update_settings,
         commands::settings::pick_folder,
+        commands::meetings::get_meeting_access_status,
+        commands::meetings::request_meeting_access,
         commands::recording::start_recording,
         commands::recording::start_fixture_recording,
         commands::recording::stop_recording,
@@ -129,6 +142,8 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::settings::get_settings,
         commands::settings::update_settings,
         commands::settings::pick_folder,
+        commands::meetings::get_meeting_access_status,
+        commands::meetings::request_meeting_access,
         commands::recording::start_recording,
         commands::recording::stop_recording,
         commands::recording::reprocess_thread,

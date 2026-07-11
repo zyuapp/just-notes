@@ -3,9 +3,16 @@ type SettingsToggleProps = {
   description: string;
   checked: boolean;
   onToggle: () => void;
+  disabled?: boolean;
 };
 
-export function SettingsToggle({ label, description, checked, onToggle }: SettingsToggleProps) {
+export function SettingsToggle({
+  label,
+  description,
+  checked,
+  onToggle,
+  disabled = false,
+}: SettingsToggleProps) {
   return (
     <div className="settings-row">
       <div>
@@ -13,7 +20,13 @@ export function SettingsToggle({ label, description, checked, onToggle }: Settin
         <p className="settings-hint">{description}</p>
       </div>
       <label className="settings-switch">
-        <input type="checkbox" checked={checked} onChange={onToggle} aria-label={label} />
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          aria-label={label}
+          disabled={disabled}
+        />
         <span className="settings-knob" aria-hidden="true" />
       </label>
     </div>

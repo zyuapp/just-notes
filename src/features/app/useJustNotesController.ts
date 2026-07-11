@@ -38,14 +38,23 @@ export function useJustNotesController(state: AppState, dispatch: AppDispatch) {
   const bootstrap = useCallback(async () => {
     dispatch({ type: "errorCleared" });
     try {
-      const [info, transcriptionStatus, threads, settings, permissions] = await Promise.all([
+      const [info, transcriptionStatus, threads, settings, permissions, meetingAccess] = await Promise.all([
         api.app.getInfo(),
         api.transcription.getStatus(),
         api.threads.list(),
         api.settings.get(),
         api.system.getPermissions(),
+        api.meetings.getAccessStatus(),
       ]);
-      dispatch({ type: "bootstrapLoaded", info, transcriptionStatus, threads, settings, permissions });
+      dispatch({
+        type: "bootstrapLoaded",
+        info,
+        transcriptionStatus,
+        threads,
+        settings,
+        permissions,
+        meetingAccess,
+      });
       if (threads.length > 0) {
         await selectThread(threads[0].id);
       }

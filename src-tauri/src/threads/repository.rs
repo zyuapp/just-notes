@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{fs, path::Path};
 
 use crate::app::{now_ms, AppPaths};
 
@@ -36,34 +36,6 @@ fn list_thread_summaries_in(dir: &Path) -> Result<Vec<ThreadSummary>, String> {
             .then_with(|| right.created_at_ms.cmp(&left.created_at_ms))
     });
     Ok(threads)
-}
-
-pub(crate) fn create_thread(paths: &AppPaths) -> Result<ThreadDetail, String> {
-    paths.ensure()?;
-
-    let now = now_ms()?;
-    let id = format!("thread-{now}");
-    let thread_dir = paths.thread_dir(&id);
-    fs::create_dir_all(thread_dir.join("work")).map_err(|err| {
-        format!(
-            "Failed to create thread folder at {}: {err}",
-            thread_dir.display()
-        )
-    })?;
-
-    let metadata = ThreadMetadata {
-        id,
-        title: "Untitled thread".to_string(),
-        created_at_ms: now,
-        updated_at_ms: now,
-        status: ThreadStatus::Idle,
-        duration_ms: 0,
-        speaker_labels: BTreeMap::new(),
-    };
-    save_thread_metadata(&thread_dir, &metadata)?;
-    write_text_atomic(&thread_dir.join("transcript.md"), "# Untitled thread\n\n")?;
-
-    load_thread_detail(&thread_dir)
 }
 
 pub(crate) fn load_thread_by_id(paths: &AppPaths, thread_id: &str) -> Result<ThreadDetail, String> {
@@ -235,7 +207,10 @@ pub(crate) fn read_thread_metadata(path: &Path) -> Result<ThreadMetadata, String
     serde_json::from_str(&json).map_err(|err| format!("Invalid {}: {err}", path.display()))
 }
 
-fn save_thread_metadata(thread_dir: &Path, metadata: &ThreadMetadata) -> Result<(), String> {
+pub(super) fn save_thread_metadata(
+    thread_dir: &Path,
+    metadata: &ThreadMetadata,
+) -> Result<(), String> {
     let json = serde_json::to_string_pretty(metadata)
         .map_err(|err| format!("Failed to encode thread metadata: {err}"))?;
     write_text_atomic(&thread_dir.join("thread.json"), &json)
