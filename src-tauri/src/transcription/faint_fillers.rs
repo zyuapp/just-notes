@@ -43,14 +43,16 @@ fn suppress_with_profiles(
     mic_profile: Option<&ChannelProfile>,
     system_profile: Option<&ChannelProfile>,
 ) -> Vec<TranscriptSegment> {
+    let candidates: Vec<bool> = segments
+        .iter()
+        .map(|segment| {
+            is_probable_filler_text(&segment.text) && is_faint(segment, mic_profile, system_profile)
+        })
+        .collect();
     let dropped: Vec<bool> = segments
         .iter()
         .enumerate()
-        .map(|(index, segment)| {
-            is_probable_filler_text(&segment.text)
-                && is_faint(segment, mic_profile, system_profile)
-                && is_isolated(index, &segments)
-        })
+        .map(|(index, _)| candidates[index] && is_isolated(index, &segments, &candidates))
         .collect();
     segments
         .into_iter()
@@ -76,10 +78,14 @@ fn is_faint(
     })
 }
 
-fn is_isolated(index: usize, segments: &[TranscriptSegment]) -> bool {
+/// Only substantive or confident speech counts as conversational context;
+/// another candidate hallucination cannot shield its neighbor, or clustered
+/// fillers ("Okay" then "Mm-hmm" on room noise) would keep each other alive.
+fn is_isolated(index: usize, segments: &[TranscriptSegment], candidates: &[bool]) -> bool {
     let segment = &segments[index];
     !segments.iter().enumerate().any(|(other_index, other)| {
         other_index != index
+            && !candidates[other_index]
             && other.start_ms <= segment.end_ms.saturating_add(FILLER_ISOLATION_MS)
             && segment.start_ms <= other.end_ms.saturating_add(FILLER_ISOLATION_MS)
     })
@@ -137,6 +143,16 @@ mod tests {
             None,
         );
         assert_eq!(substantive.len(), 1);
+    }
+
+    #[test]
+    fn clustered_faint_fillers_do_not_shield_each_other() {
+        let mic = profile(0.005, 800);
+        let segments = vec![
+            segment("mic", 1_000, 1_400, "Okay."),
+            segment("mic", 6_000, 6_400, "Mm-hmm."),
+        ];
+        assert!(suppress_with_profiles(segments, Some(&mic), None).is_empty());
     }
 
     #[test]
