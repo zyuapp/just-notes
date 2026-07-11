@@ -8,6 +8,7 @@ reproducible across machines.
 """
 
 import json
+import math
 import random
 import subprocess
 import sys
@@ -111,6 +112,27 @@ def overlay(base, noise):
         base[index] = max(-32768, min(32767, base[index] + noise[index]))
 
 
+def high_frequency_noise(duration_ms, rms, seed, carrier_hz=11_000):
+    """Narrowband noise centered above the 8 kHz model Nyquist limit.
+
+    LibriSpeech audio is 16 kHz-native and carries no energy above 8 kHz, so
+    without this a fixture cannot detect resampler aliasing: this band folds
+    into the speech band under a filterless decimator and vanishes under a
+    correct one."""
+    rng = random.Random(seed)
+    total = RATE * duration_ms // 1000
+    raw = []
+    level = 0.0
+    for index in range(total):
+        level = 0.92 * level + 0.08 * rng.gauss(0.0, 1.0)
+        raw.append(level * math.cos(2 * math.pi * carrier_hz * index / RATE))
+    scale = rms / (sum(value * value for value in raw) / total) ** 0.5
+    return array(
+        "h",
+        (max(-32768, min(32767, int(value * scale * 32767))) for value in raw),
+    )
+
+
 def mix_bleed(mic, system, gain, delay_ms):
     offset = RATE * delay_ms // 1000
     for index, sample in enumerate(system):
@@ -210,6 +232,15 @@ def main():
         shaped_noise(quiet_noisy.duration_ms(), NOISE_FLOOR_RMS, NOISE_SEED + 1),
     )
     write_fixture(out_dir, "7-quiet-with-room-tone", quiet_noisy)
+
+    # Clean speech plus energy above 8 kHz (like real 48 kHz mic capture with
+    # sibilants and hiss); measures aliasing in the downsample-to-16k path.
+    hf_speech = monologue(a[:3], gap_ms=1000)
+    overlay(
+        hf_speech.samples,
+        high_frequency_noise(hf_speech.duration_ms(), 0.06, NOISE_SEED + 2),
+    )
+    write_fixture(out_dir, "8-hf-noise", hf_speech)
     print("Done.")
 
 

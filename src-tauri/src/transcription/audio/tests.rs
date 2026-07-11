@@ -42,7 +42,6 @@ fn resampling_preserves_in_band_tones() {
 // input. A correct decimator removes it; without a low-pass stage it folds to
 // 6 kHz inside the speech band and corrupts what the recognizer hears.
 #[test]
-#[ignore = "resample_to_rate has no anti-alias filter; quality-harness red test"]
 fn resampling_suppresses_tones_above_target_nyquist() {
     for source_rate in [48_000, 44_100] {
         let tone = sine(10_000.0, 0.5, source_rate, 1_000);
