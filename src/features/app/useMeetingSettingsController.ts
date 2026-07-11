@@ -80,7 +80,7 @@ export function useMeetingSettingsController(
       meetingRemindersEnabled:
         settings.meetingCalendarIds.some((id) => available.has(id))
           && !settings.meetingRemindersEnabled,
-    });
+    }));
   }, [persist, state.meetingAccess?.calendars]);
 
   const setReminderMinutes = useCallback(
