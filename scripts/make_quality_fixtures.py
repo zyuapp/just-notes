@@ -241,6 +241,19 @@ def main():
         high_frequency_noise(hf_speech.duration_ms(), 0.06, NOISE_SEED + 2),
     )
     write_fixture(out_dir, "8-hf-noise", hf_speech)
+
+    # System audio bleeding into an otherwise silent mic — the user never
+    # speaks, so every mic-channel segment is a phantom. Reproduces the live
+    # test where speaker bleed decoded as "Mm-hmm"/"Okay" backchannels.
+    system = monologue(b, gap_ms=1000, source="system")
+    silent_mic = Track()
+    silent_mic.pad_to(system.duration_ms())
+    mix_bleed(silent_mic.samples, system.samples, 0.15, BLEED_DELAY_MS)
+    overlay(
+        silent_mic.samples,
+        shaped_noise(silent_mic.duration_ms(), NOISE_FLOOR_RMS, NOISE_SEED + 3),
+    )
+    write_fixture(out_dir, "9-bleed-only-mic", silent_mic, system)
     print("Done.")
 
 

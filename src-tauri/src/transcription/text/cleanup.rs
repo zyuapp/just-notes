@@ -5,9 +5,10 @@ use super::words::normalized_words;
 /// utterances whose audio never reaches a confident speech level, so loud
 /// real backchannels ("yeah", "okay") are unaffected.
 pub(crate) fn is_probable_filler_text(text: &str) -> bool {
-    const FILLER_WORDS: [&str; 19] = [
+    const FILLER_WORDS: [&str; 25] = [
         "mm", "mmm", "hmm", "hm", "mhm", "mmhmm", "uh", "um", "uhhuh", "huh", "oh", "ah", "okay",
-        "ok", "yeah", "yes", "thank", "thanks", "you",
+        "ok", "yeah", "yes", "yep", "yup", "cool", "right", "sure", "alright", "thank", "thanks",
+        "you",
     ];
     let words = normalized_words(text);
     !words.is_empty()
