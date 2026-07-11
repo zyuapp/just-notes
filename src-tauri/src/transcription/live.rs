@@ -17,7 +17,7 @@ const FORCE_CUT_LOOKBACK_MS: u64 = 2_000;
 /// Peak frame RMS below which an utterance counts as faint. The gate sits
 /// near the noise floor to favor recall, so faint non-speech audio reaches
 /// the recognizer; filler-only decodes of it are dropped as hallucinations.
-const QUIET_CONFIRMATION_RMS: f32 = 0.02;
+pub(crate) const QUIET_CONFIRMATION_RMS: f32 = 0.02;
 /// Multiple of the tracked noise floor a frame must exceed to count as
 /// speech under the adaptive gate.
 const NOISE_FLOOR_GATE_RATIO: f32 = 2.5;

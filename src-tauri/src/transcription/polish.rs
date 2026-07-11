@@ -1,9 +1,9 @@
 //! Stop-time transcript polish. The live worker publishes each channel's
-//! segments with no cross-channel filtering, and no re-transcription pass
-//! runs on stop — so speaker bleed (system audio leaking into the mic and
-//! being attributed to "You") would otherwise stay in the transcript
-//! forever. This pass runs both bleed suppressors over the committed
-//! transcript while the recording's WAVs are still on disk.
+//! segments with no cross-channel context, and no re-transcription pass runs
+//! on stop — so speaker bleed (system audio attributed to "You") and
+//! hallucinated fillers would otherwise stay in the transcript forever. This
+//! pass runs the transcript suppressors over the committed transcript while
+//! the recording's WAVs are still on disk.
 
 use std::path::Path;
 
@@ -12,7 +12,10 @@ use crate::threads::{
     TranscriptSegment,
 };
 
-use super::{suppress_cross_channel_bleed, suppress_system_dominated_mic_segments};
+use super::{
+    suppress_cross_channel_bleed, suppress_isolated_faint_fillers,
+    suppress_system_dominated_mic_segments,
+};
 
 pub(crate) fn polish_thread_transcript(
     thread_dir: &Path,
@@ -30,6 +33,8 @@ pub(crate) fn polish_thread_transcript(
     let segments = suppress_cross_channel_bleed(segments);
     let segments =
         suppress_system_dominated_mic_segments(segments, audio.mic_path(), audio.system_path())?;
+    let segments =
+        suppress_isolated_faint_fillers(segments, audio.mic_path(), audio.system_path())?;
     if segments.len() == before {
         return Ok(());
     }

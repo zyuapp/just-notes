@@ -15,12 +15,12 @@ struct EnvelopeBin {
 }
 
 #[derive(Debug)]
-pub(super) struct ChannelProfile {
+pub(crate) struct ChannelProfile {
     bins: Vec<EnvelopeBin>,
 }
 
 impl ChannelProfile {
-    pub(super) fn from_wav(path: &Path) -> Result<Self, String> {
+    pub(crate) fn from_wav(path: &Path) -> Result<Self, String> {
         let mut reader = WavReader::open(path)
             .map_err(|err| format!("Failed to read {} for bleed profile: {err}", path.display()))?;
         let spec = reader.spec();
@@ -45,7 +45,7 @@ impl ChannelProfile {
         Ok(builder.finish())
     }
 
-    pub(super) fn rms(&self, start_ms: u64, end_ms: u64) -> f32 {
+    pub(crate) fn rms(&self, start_ms: u64, end_ms: u64) -> f32 {
         if end_ms <= start_ms {
             return 0.0;
         }
@@ -77,7 +77,7 @@ impl ChannelProfile {
     }
 
     #[cfg(test)]
-    pub(super) fn from_envelope(values: &[f32]) -> Self {
+    pub(crate) fn from_envelope(values: &[f32]) -> Self {
         const SAMPLES_PER_FRAME: u64 = 400;
         Self {
             bins: values

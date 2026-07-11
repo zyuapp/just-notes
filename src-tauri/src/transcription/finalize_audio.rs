@@ -81,7 +81,6 @@ pub(super) fn transcribe_wav_channel(
     let mut utterances = Vec::new();
     let mut segments = Vec::new();
     let mut next_index = 0u64;
-    let mut last_speech_end = None;
 
     loop {
         if cancel.load(Ordering::Relaxed) {
@@ -93,22 +92,10 @@ pub(super) fn transcribe_wav_channel(
         }
         segmenter.push(next_index, &block, &mut utterances);
         next_index += block.len() as u64;
-        drain_utterances(
-            transcriber,
-            role,
-            &mut utterances,
-            &mut segments,
-            &mut last_speech_end,
-        )?;
+        drain_utterances(transcriber, role, &mut utterances, &mut segments)?;
     }
     segmenter.flush(&mut utterances);
-    drain_utterances(
-        transcriber,
-        role,
-        &mut utterances,
-        &mut segments,
-        &mut last_speech_end,
-    )?;
+    drain_utterances(transcriber, role, &mut utterances, &mut segments)?;
     Ok(segments)
 }
 
@@ -117,14 +104,9 @@ fn drain_utterances(
     role: ChannelRole,
     utterances: &mut Vec<Utterance>,
     segments: &mut Vec<TranscriptSegment>,
-    last_speech_end: &mut Option<u64>,
 ) -> Result<(), String> {
     for utterance in utterances.drain(..) {
-        let produced =
-            transcribe_live_utterance(transcriber, &utterance, role, 0, *last_speech_end)?;
-        let latest_end = produced.iter().map(|segment| segment.end_ms).max();
-        *last_speech_end = (*last_speech_end).max(latest_end);
-        segments.extend(produced);
+        segments.extend(transcribe_live_utterance(transcriber, &utterance, role, 0)?);
     }
     Ok(())
 }

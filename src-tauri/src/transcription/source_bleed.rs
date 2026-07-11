@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::threads::TranscriptSegment;
 
-mod profile;
+pub(super) mod profile;
 #[cfg(test)]
 mod tests;
 

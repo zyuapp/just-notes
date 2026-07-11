@@ -7,6 +7,12 @@
 //! `scripts/setup-quality-fixtures.sh`); the baseline is
 //! `src-tauri/quality/baseline.json`. Run via `bun run test:quality`, and
 //! rerun with `UPDATE_QUALITY_BASELINE=1` to accept improved numbers.
+//!
+//! Accepted residual: `7-quiet-with-room-tone@live` sits near 50% WER. The
+//! fixture is whispering-level speech ~6 dB above a noise floor; the live
+//! gate cannot separate that reliably, and the finalize pass (5.9%) remains
+//! the recovery path via reprocess with retained audio. The baseline entry
+//! guards against regression, not as a statement that the number is good.
 
 use std::sync::atomic::AtomicBool;
 
@@ -16,7 +22,8 @@ use crate::threads::TranscriptSegment;
 use super::{
     finalize_audio::transcribe_wav_channel, load_transcriber,
     models::finalization_transcription_selection, suppress_cross_channel_bleed,
-    suppress_system_dominated_mic_segments, ChannelRole, SegmenterConfig, Transcriber,
+    suppress_isolated_faint_fillers, suppress_system_dominated_mic_segments, ChannelRole,
+    SegmenterConfig, Transcriber,
 };
 
 mod fixtures;
@@ -123,7 +130,9 @@ fn transcribe_fixture(
             .then_with(|| left.source.cmp(&right.source))
     });
     let segments = suppress_cross_channel_bleed(segments);
-    suppress_system_dominated_mic_segments(segments, &fixture.mic_path, &fixture.system_path)
+    let segments =
+        suppress_system_dominated_mic_segments(segments, &fixture.mic_path, &fixture.system_path)?;
+    suppress_isolated_faint_fillers(segments, &fixture.mic_path, &fixture.system_path)
 }
 
 fn print_table(results: &[(String, FixtureMetrics)]) {
