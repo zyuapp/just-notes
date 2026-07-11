@@ -1,0 +1,112 @@
+{
+  "1-clean-single@finalize": {
+    "wer": 0.0,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "1-clean-single@live": {
+    "wer": 0.011764706,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "10-quiet-backchannels@finalize": {
+    "wer": 0.22413793,
+    "missed_segments": 2,
+    "hallucinated_segments": 0
+  },
+  "10-quiet-backchannels@live": {
+    "wer": 0.10344828,
+    "missed_segments": 4,
+    "hallucinated_segments": 0
+  },
+  "11-quiet-replies-over-bleed@finalize": {
+    "wer": 0.30136988,
+    "missed_segments": 3,
+    "hallucinated_segments": 0
+  },
+  "11-quiet-replies-over-bleed@live": {
+    "wer": 0.28767124,
+    "missed_segments": 3,
+    "hallucinated_segments": 0
+  },
+  "2-quiet-speaker@finalize": {
+    "wer": 0.011764706,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "2-quiet-speaker@live": {
+    "wer": 0.011764706,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "3-call-two-party@finalize": {
+    "wer": 0.0,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "3-call-two-party@live": {
+    "wer": 0.01459854,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "4-call-with-bleed@finalize": {
+    "wer": 0.0,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "4-call-with-bleed@live": {
+    "wer": 0.01459854,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "5-long-monologue@finalize": {
+    "wer": 0.034782607,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "5-long-monologue@live": {
+    "wer": 0.034782607,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "6-room-tone@finalize": {
+    "wer": 0.0,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "6-room-tone@live": {
+    "wer": 0.0,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "7-quiet-with-room-tone@finalize": {
+    "wer": 0.05882353,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "7-quiet-with-room-tone@live": {
+    "wer": 0.49411765,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "8-hf-noise@finalize": {
+    "wer": 0.011764706,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "8-hf-noise@live": {
+    "wer": 0.011764706,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "9-bleed-only-mic@finalize": {
+    "wer": 0.01923077,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "9-bleed-only-mic@live": {
+    "wer": 0.0,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  }
+}

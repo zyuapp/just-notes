@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::threads::TranscriptSegment;
 
-mod profile;
+pub(super) mod profile;
 #[cfg(test)]
 mod tests;
 
@@ -13,6 +13,7 @@ const SYSTEM_DOMINATED_MIN_SYSTEM_RMS: f32 = 0.005;
 const SYSTEM_DOMINATED_MIC_MAX_RATIO: f32 = 0.65;
 const ECHO_CORRELATION_THRESHOLD: f32 = 0.6;
 const ECHO_MAX_LAG_MS: u64 = 500;
+const ECHO_MIN_WINDOW_MS: u64 = 1_500;
 
 pub(crate) fn mic_audio_is_system_dominated(mic_rms: f32, system_rms: f32) -> bool {
     system_rms >= SYSTEM_DOMINATED_MIN_SYSTEM_RMS
@@ -78,13 +79,28 @@ fn mic_segment_is_system_bleed(
 
     // A quieter mic segment is only bleed when its energy envelope tracks the
     // overlapping system audio: echo is a delayed copy of that signal, whereas
-    // genuinely quiet speech is uncorrelated with it.
+    // genuinely quiet speech is uncorrelated with it. Short segments (a
+    // hallucinated "mm-hmm" runs a few hundred ms) carry too few envelope
+    // frames to judge on their own span, so the correlation window is widened
+    // around them to keep the evidence requirement met.
+    let (start_ms, end_ms) =
+        correlation_window(segment.start_ms, segment.end_ms, ECHO_MIN_WINDOW_MS);
     let correlation = max_envelope_correlation(
         mic_profile,
         system_profile,
-        segment.start_ms,
-        segment.end_ms,
+        start_ms,
+        end_ms,
         ECHO_MAX_LAG_MS,
     );
     correlation >= ECHO_CORRELATION_THRESHOLD
+}
+
+/// The segment's span widened symmetrically to at least `min_window_ms`.
+fn correlation_window(start_ms: u64, end_ms: u64, min_window_ms: u64) -> (u64, u64) {
+    let length = end_ms.saturating_sub(start_ms);
+    if length >= min_window_ms {
+        return (start_ms, end_ms);
+    }
+    let pad = (min_window_ms - length) / 2;
+    (start_ms.saturating_sub(pad), end_ms.saturating_add(pad))
 }

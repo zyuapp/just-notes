@@ -11,8 +11,9 @@ use std::{
 use tauri::{AppHandle, Emitter};
 
 use super::{
-    load_transcriber, transcribe_live_utterance, LiveSegmenter, SegmenterConfig, Transcriber,
-    TranscriptionModelSelection, Utterance,
+    is_live_phantom_backchannel, load_transcriber, rms, samples_to_ms, transcribe_live_utterance,
+    ChannelRole, LiveSegmenter, SegmenterConfig, Transcriber, TranscriptionModelSelection,
+    Utterance,
 };
 use crate::{
     capture::SharedBuffers,
@@ -129,7 +130,7 @@ impl LiveChannel {
         }
         let mut utterances = Vec::new();
         self.segmenter.push(start_index, &samples, &mut utterances);
-        self.transcribe(utterances, transcriber, config.offset_ms)
+        self.transcribe(utterances, transcriber, config)
     }
 
     // Drains, then closes the open utterance so the channel's tail is captured.
@@ -141,7 +142,7 @@ impl LiveChannel {
         let mut segments = self.drain(config, transcriber);
         let mut utterances = Vec::new();
         self.segmenter.flush(&mut utterances);
-        segments.extend(self.transcribe(utterances, transcriber, config.offset_ms));
+        segments.extend(self.transcribe(utterances, transcriber, config));
         segments
     }
 
@@ -149,22 +150,58 @@ impl LiveChannel {
         &self,
         utterances: Vec<Utterance>,
         transcriber: &dyn Transcriber,
-        offset_ms: u64,
+        config: &LiveTranscriptionConfig,
     ) -> Vec<TranscriptSegment> {
         let mut segments = Vec::new();
+        let role = ChannelRole {
+            source: self.source,
+            speaker: self.speaker,
+        };
         for utterance in utterances {
-            if let Ok(mut produced) = transcribe_live_utterance(
-                transcriber,
-                &utterance,
-                self.source,
-                self.speaker,
-                offset_ms,
-            ) {
+            if let Ok(mut produced) =
+                transcribe_live_utterance(transcriber, &utterance, role, config.offset_ms)
+            {
+                self.hide_phantom_backchannels(&utterance, config, &mut produced);
                 segments.append(&mut produced);
             }
         }
         segments
     }
+
+    /// The live view is what users watch during recording, so a faint mic
+    /// filler that system audio dominates — which the stop-time polish would
+    /// delete anyway — is never published in the first place.
+    fn hide_phantom_backchannels(
+        &self,
+        utterance: &Utterance,
+        config: &LiveTranscriptionConfig,
+        produced: &mut Vec<TranscriptSegment>,
+    ) {
+        if !self.is_mic {
+            return;
+        }
+        let Some(system_rms) = system_rms_for(config, utterance) else {
+            return;
+        };
+        let mic_rms = rms(&utterance.samples);
+        produced.retain(|segment| !is_live_phantom_backchannel(&segment.text, mic_rms, system_rms));
+    }
+}
+
+/// RMS of the system channel over the utterance's absolute time window, or
+/// None once the rolling buffer no longer covers it.
+fn system_rms_for(config: &LiveTranscriptionConfig, utterance: &Utterance) -> Option<f32> {
+    let start_ms = samples_to_ms(utterance.start_index, utterance.sample_rate);
+    let end_ms = samples_to_ms(
+        utterance.start_index + utterance.samples.len() as u64,
+        utterance.sample_rate,
+    );
+    let rate = u64::from(config.system_sample_rate);
+    let shared = config.buffers.lock().ok()?;
+    let window = shared
+        .system
+        .window((start_ms * rate) / 1000, (end_ms * rate) / 1000)?;
+    Some(rms(&window))
 }
 
 fn read_new(buffers: &Mutex<SharedBuffers>, is_mic: bool, cursor: &mut u64) -> (u64, Vec<f32>) {

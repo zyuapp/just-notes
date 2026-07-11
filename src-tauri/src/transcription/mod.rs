@@ -1,11 +1,15 @@
 mod artifacts;
 mod audio;
 mod download;
+mod faint_fillers;
 mod finalize;
 mod finalize_audio;
 mod live;
 mod live_worker;
 pub(crate) mod models;
+mod polish;
+#[cfg(test)]
+mod quality;
 mod runtime;
 mod source_bleed;
 mod status;
@@ -14,14 +18,19 @@ mod text;
 pub(crate) use artifacts::{parakeet_artifact, ModelArtifact};
 pub(crate) use audio::{resample_to_rate, rms, samples_to_ms, wav_duration_ms};
 pub(crate) use download::ModelDownloadState;
+pub(crate) use faint_fillers::{is_live_phantom_backchannel, suppress_isolated_faint_fillers};
 pub(crate) use finalize::{
     spawn_finalization, FinalizationConfig, FinalizationStart, FinalizeState,
 };
 pub(crate) use finalize_audio::FinalizationAudioArtifacts;
-pub(crate) use live::{transcribe_live_utterance, LiveSegmenter, SegmenterConfig, Utterance};
+pub(crate) use live::{
+    transcribe_live_utterance, ChannelRole, LiveSegmenter, SegmenterConfig, Utterance,
+};
 pub(crate) use live_worker::{
     spawn_live_transcription, LiveTranscription, LiveTranscriptionConfig,
 };
+pub(crate) use polish::polish_thread_transcript;
+
 pub(crate) use models::{
     delete_parakeet_model, finalization_transcription_catalog,
     finalization_transcription_selection, parakeet_model_files, TranscriptionModelDownloadState,

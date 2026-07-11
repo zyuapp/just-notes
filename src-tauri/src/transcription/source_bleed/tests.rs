@@ -50,6 +50,23 @@ fn drops_quiet_mic_segment_that_echoes_system_audio() {
     assert_eq!(kept[0].source, "system");
 }
 
+// The signature of speaker bleed decoding as a phantom backchannel: a short
+// quiet "mm-hmm"-length mic segment whose surrounding audio tracks the
+// system channel. The correlation window widens around short segments, so
+// the drop still rests on a full evidence window.
+#[test]
+fn drops_short_quiet_echo_using_surrounding_audio() {
+    let system_env = system_envelope();
+    let mic = ChannelProfile::from_envelope(&scaled(&system_env, 0.3));
+    let system = ChannelProfile::from_envelope(&system_env);
+    let segments = vec![segment("system", 0, 1_000), segment("mic", 300, 700)];
+
+    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system);
+
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].source, "system");
+}
+
 #[test]
 fn keeps_quiet_mic_speech_that_does_not_track_system_audio() {
     let mic = ChannelProfile::from_envelope(&ramp_envelope());
@@ -84,6 +101,21 @@ fn keeps_mic_segment_without_nearby_system_transcript() {
         suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system).len(),
         1
     );
+}
+
+// Six 25 ms frames give the lag search 41 chances to hit a spurious match;
+// short quiet interjections during loud playback need stronger evidence than
+// a correlation measured on so few frames.
+#[test]
+fn keeps_short_quiet_mic_segment_despite_chance_envelope_match() {
+    let mic_env = [0.01, 0.02, 0.03, 0.03, 0.02, 0.01];
+    let mic = ChannelProfile::from_envelope(&mic_env);
+    let system = ChannelProfile::from_envelope(&system_envelope());
+    let segments = vec![segment("system", 0, 1_000), segment("mic", 0, 150)];
+
+    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system);
+
+    assert_eq!(kept.len(), 2);
 }
 
 #[test]

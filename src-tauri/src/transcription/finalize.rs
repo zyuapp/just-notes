@@ -13,7 +13,8 @@ use tauri::{AppHandle, Emitter};
 
 use super::finalize_audio::{transcribe_wav_channel, FinalizationAudioArtifacts};
 use super::{
-    load_transcriber, suppress_cross_channel_bleed, suppress_system_dominated_mic_segments,
+    load_transcriber, suppress_cross_channel_bleed, suppress_isolated_faint_fillers,
+    suppress_system_dominated_mic_segments, ChannelRole, SegmenterConfig,
     TranscriptionModelSelection,
 };
 use crate::{
@@ -189,13 +190,25 @@ fn run_finalization(
     system_path: &Path,
 ) -> Result<FinalizationOutcome, String> {
     let transcriber = load_transcriber(&config.model_selection)?;
-    let mut segments = transcribe_wav_channel(&*transcriber, mic_path, "mic", "You", cancel)?;
+    let mut segments = transcribe_wav_channel(
+        &*transcriber,
+        mic_path,
+        ChannelRole {
+            source: "mic",
+            speaker: "You",
+        },
+        cancel,
+        SegmenterConfig::finalize(),
+    )?;
     segments.extend(transcribe_wav_channel(
         &*transcriber,
         system_path,
-        "system",
-        "Others",
+        ChannelRole {
+            source: "system",
+            speaker: "Others",
+        },
         cancel,
+        SegmenterConfig::finalize(),
     )?);
     if cancel.load(Ordering::Relaxed) {
         return Ok(FinalizationOutcome::Cancelled);
@@ -209,6 +222,7 @@ fn run_finalization(
     });
     let segments = suppress_cross_channel_bleed(segments);
     let segments = suppress_system_dominated_mic_segments(segments, mic_path, system_path)?;
+    let segments = suppress_isolated_faint_fillers(segments, mic_path, system_path)?;
     if segments.is_empty() {
         return Ok(FinalizationOutcome::Empty);
     }

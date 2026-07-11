@@ -23,8 +23,11 @@ fn emits_one_utterance_and_trims_trailing_silence() {
 
     assert_eq!(utterances.len(), 1);
     assert_eq!(utterances[0].start_index, 0);
-    // Trailing silence is trimmed back to the speech run (500 ms).
-    assert_eq!(utterances[0].samples.len(), samples_for_ms(RATE, 500));
+    // Trailing silence is trimmed back to the speech run plus the kept tail.
+    assert_eq!(
+        utterances[0].samples.len(),
+        samples_for_ms(RATE, 500 + TAIL_KEEP_MS)
+    );
 }
 
 #[test]
@@ -86,6 +89,84 @@ fn realigns_after_dropped_samples() {
     assert_eq!(out[0].start_index, gap_start);
 }
 
+// Speech at 0.01 RMS is well above typical room tone; soft speakers must
+// reach the recognizer because the live transcript is authoritative.
+#[test]
+fn keeps_quiet_speech_above_the_noise_floor() {
+    let mut stream = samples(500, 0.01);
+    stream.extend(samples(700, 0.0));
+
+    assert_eq!(segment(&stream).len(), 1);
+}
+
+// Unvoiced word onsets (/h/, /f/, /s/) sit below the gate; without pre-roll
+// the recognizer never hears the first phonemes of an utterance.
+#[test]
+fn utterance_includes_audio_shortly_before_the_gate_opens() {
+    let mut stream = samples(200, 0.004);
+    stream.extend(samples(500, 0.1));
+    stream.extend(samples(700, 0.0));
+
+    let utterances = segment(&stream);
+
+    assert_eq!(utterances.len(), 1);
+    // The loud onset is at 200 ms; at least 100 ms of pre-roll should survive.
+    assert!(
+        utterances[0].start_index as usize <= samples_for_ms(RATE, 100),
+        "utterance starts at sample {}",
+        utterances[0].start_index
+    );
+}
+
+// The duration cap should cut where a word is least likely to straddle the
+// boundary, not at whatever sample the cap lands on.
+#[test]
+fn force_cut_lands_in_a_low_energy_dip() {
+    let mut stream = samples(23_000, 0.1);
+    stream.extend(samples(200, 0.002));
+    stream.extend(samples(3_000, 0.1));
+    stream.extend(samples(700, 0.0));
+
+    let utterances = segment(&stream);
+
+    assert!(utterances.len() >= 2);
+    let boundary = utterances[0].start_index as usize + utterances[0].samples.len();
+    let dip = samples_for_ms(RATE, 23_000)..=samples_for_ms(RATE, 23_200);
+    assert!(
+        dip.contains(&boundary),
+        "cut at sample {boundary}, low-energy dip spans {dip:?}"
+    );
+}
+
+// Clipped one-word replies ("yes", "no") can run under 250 ms of gated audio.
+#[test]
+fn keeps_a_short_single_word_reply() {
+    let mut stream = samples(180, 0.1);
+    stream.extend(samples(700, 0.0));
+
+    assert_eq!(segment(&stream).len(), 1);
+}
+
+// In a noisy room the adaptive gate must rise above the room tone: steady
+// noise never opens an utterance, while clearly louder speech still does.
+#[test]
+fn gate_rises_above_steady_room_tone() {
+    let mut stream = samples(3_000, 0.004);
+    stream.extend(samples(500, 0.05));
+    stream.extend(samples(700, 0.0));
+
+    let utterances = segment(&stream);
+
+    assert_eq!(utterances.len(), 1);
+    // The utterance anchors at the speech onset (minus pre-roll), not inside
+    // the room tone.
+    assert!(
+        utterances[0].start_index as usize >= samples_for_ms(RATE, 3_000 - PRE_ROLL_MS),
+        "utterance starts at sample {} inside the room tone",
+        utterances[0].start_index
+    );
+}
+
 #[test]
 fn start_index_tracks_silence_skipped_before_speech() {
     let mut stream = samples(1000, 0.0);
@@ -95,8 +176,9 @@ fn start_index_tracks_silence_skipped_before_speech() {
     let utterances = segment(&stream);
 
     assert_eq!(utterances.len(), 1);
+    // Skipped silence is not counted as speech, minus the kept pre-roll.
     assert_eq!(
         utterances[0].start_index as usize,
-        samples_for_ms(RATE, 1000)
+        samples_for_ms(RATE, 1000 - PRE_ROLL_MS)
     );
 }
