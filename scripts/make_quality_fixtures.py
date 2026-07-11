@@ -8,6 +8,7 @@ reproducible across machines.
 """
 
 import json
+import random
 import subprocess
 import sys
 import tempfile
@@ -17,8 +18,11 @@ from pathlib import Path
 
 RATE = 48000
 QUIET_GAIN = 0.06
-BLEED_GAIN = 0.12
+BLEED_GAIN = 0.25
 BLEED_DELAY_MS = 100
+ROOM_TONE_RMS = 0.004
+NOISE_FLOOR_RMS = 0.002
+NOISE_SEED = 42
 
 
 def load_speakers(corpus_dir):
@@ -79,6 +83,32 @@ class Track:
 
 def scaled(samples, gain):
     return array("h", (int(sample * gain) for sample in samples))
+
+
+def shaped_noise(duration_ms, rms, seed):
+    """Low-passed gaussian noise with speech-cadence amplitude bumps, so it
+    resembles room tone with faint activity rather than sterile hiss. The
+    fixed seed keeps it byte-identical across runs."""
+    rng = random.Random(seed)
+    total = RATE * duration_ms // 1000
+    bump_period = RATE * 700 // 1000
+    bump_len = RATE * 200 // 1000
+    raw = []
+    level = 0.0
+    for index in range(total):
+        level = 0.92 * level + 0.08 * rng.gauss(0.0, 1.0)
+        envelope = 3.0 if index % bump_period < bump_len else 1.0
+        raw.append(level * envelope)
+    scale = rms / (sum(value * value for value in raw) / total) ** 0.5
+    return array(
+        "h",
+        (max(-32768, min(32767, int(value * scale * 32767))) for value in raw),
+    )
+
+
+def overlay(base, noise):
+    for index in range(min(len(base), len(noise))):
+        base[index] = max(-32768, min(32767, base[index] + noise[index]))
 
 
 def mix_bleed(mic, system, gain, delay_ms):
@@ -162,6 +192,24 @@ def main():
     write_fixture(out_dir, "4-call-with-bleed", mic, system)
 
     write_fixture(out_dir, "5-long-monologue", monologue(a[3:], gap_ms=150, min_ms=40_000))
+
+    # Room tone with no speech: the correct transcript is empty, so every
+    # hypothesis segment counts as a hallucination. Guards the regression that
+    # motivated raising the live speech gate.
+    room_tone = Track()
+    room_tone.samples = shaped_noise(30_000, ROOM_TONE_RMS, NOISE_SEED)
+    write_fixture(out_dir, "6-room-tone", room_tone)
+
+    # Quiet speech over a noise floor: recall must survive realistic capture
+    # conditions, not just digital silence between words.
+    quiet_noisy = monologue(
+        [(scaled(samples, QUIET_GAIN), text) for samples, text in a[:3]], gap_ms=1000
+    )
+    overlay(
+        quiet_noisy.samples,
+        shaped_noise(quiet_noisy.duration_ms(), NOISE_FLOOR_RMS, NOISE_SEED + 1),
+    )
+    write_fixture(out_dir, "7-quiet-with-room-tone", quiet_noisy)
     print("Done.")
 
 

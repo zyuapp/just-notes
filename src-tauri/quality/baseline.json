@@ -23,5 +23,15 @@
     "wer": 0.034782607,
     "missed_segments": 0,
     "hallucinated_segments": 0
+  },
+  "6-room-tone": {
+    "wer": 0.0,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "7-quiet-with-room-tone": {
+    "wer": 0.05882353,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
   }
 }
