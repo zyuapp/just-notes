@@ -1,3 +1,4 @@
+pub(crate) mod meetings;
 pub(crate) mod recording;
 pub(crate) mod settings;
 pub(crate) mod system;

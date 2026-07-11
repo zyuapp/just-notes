@@ -22,6 +22,7 @@ pub(crate) fn stop_recording(
     let session = recorder.take_session()?;
 
     let RecorderSession {
+        session_id: _,
         thread_id,
         thread_dir,
         started,

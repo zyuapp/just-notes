@@ -13,6 +13,10 @@ pub(crate) struct AppSettings {
     pub(crate) transcripts_dir: Option<String>,
     pub(crate) save_raw_audio: bool,
     pub(crate) markdown_copy: bool,
+    pub(crate) meeting_reminders_enabled: bool,
+    pub(crate) meeting_calendar_ids: Vec<String>,
+    pub(crate) meeting_reminder_minutes: u16,
+    pub(crate) meeting_end_reminders: bool,
 }
 
 impl Default for AppSettings {
@@ -21,6 +25,10 @@ impl Default for AppSettings {
             transcripts_dir: None,
             save_raw_audio: true,
             markdown_copy: true,
+            meeting_reminders_enabled: false,
+            meeting_calendar_ids: Vec::new(),
+            meeting_reminder_minutes: 5,
+            meeting_end_reminders: true,
         }
     }
 }

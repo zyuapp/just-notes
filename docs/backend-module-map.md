@@ -14,6 +14,7 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
 - `settings.rs`: settings read/update and the native folder picker.
 - `system.rs`: app info, permission status, Finder reveal, clipboard, and privacy-settings deep links.
+- `meetings.rs`: calendar/notification permission status and access requests.
 
 Commands here stay thin: they resolve state handles and delegate to the owning domain. This module exists so `lib.rs` stays a small adapter.
 
@@ -35,8 +36,20 @@ Use this when adding a user preference or changing how the transcripts folder ov
 ## `src-tauri/src/platform`
 
 - `mod.rs`: macOS shell helpers — reveal in Finder, native folder chooser, clipboard copy, and System Settings privacy-pane links.
+- `calendar.rs`: EventKit authorization, calendar listing, and eligible event retrieval.
+- `notifications.rs`: UserNotifications permission, categories, delivery, and action callback adapter.
 
 Keep this free of domain knowledge; it only shells out to the OS.
+
+## `src-tauri/src/meetings`
+
+- `model.rs`: calendar-access payloads and the internal meeting model.
+- `state.rs`: prompt deduplication and the active meeting-recording association.
+- `scheduler.rs`: periodic calendar refresh plus start/end prompt timing.
+- `actions.rs`: notification-action orchestration into the recording domain.
+- `mod.rs`: meeting-context facade used by commands and app setup.
+
+Use this when changing which calendar events qualify, when meeting reminders appear, or how their actions start and stop recordings.
 
 ## `src-tauri/src/tray`
 
@@ -54,7 +67,8 @@ Use this when frontend/backend payload shape changes are needed.
 ## `src-tauri/src/threads`
 
 - `model.rs`: thread metadata (including duration and speaker labels), thread summaries/details (including the `has_audio` flag), transcript segment model, and thread status (idle/recording/transcribing).
-- `repository.rs`: thread creation, active/archived listing, loading, status/duration updates, work directory setup, markdown rendering and `transcript.md` export, and stale-status cleanup.
+- `repository.rs`: active/archived listing, loading, status/duration updates, work directory setup, markdown rendering and `transcript.md` export, and stale-status cleanup.
+- `create.rs`: collision-safe thread directory creation plus internal and external title handling.
 - `edits.rs`: user-initiated mutations — rename, archive, restore, delete, rename speakers, edit segment text, and search across titles and transcript text.
 - `edits/fs_move.rs`: filesystem move of a thread directory between the active and archive locations.
 - `artifacts.rs`: `RecordingAudioPaths` — on-disk locations of a thread's raw `mic.wav`/`system.wav`, plus existence checks and removal.
@@ -114,6 +128,7 @@ Use this when changing the lifecycle of a recording session or how capture/trans
 - Add a new Tauri command: declare it in the matching `commands/*.rs` file, register it in `lib.rs`, then delegate to the owning context.
 - Add a frontend-visible field: update `ipc/dto.rs` or the relevant exported domain model, then run binding checks.
 - Add a user preference: start in `settings`, then thread it through the commands that need it.
+- Change meeting reminder timing or eligibility: start in `meetings`.
 - Change audio capture: start in `capture`.
 - Change transcript quality: start in `transcription/text` or `transcription/source_bleed`.
 - Change model download/install: start in `transcription/download`.

@@ -1,8 +1,8 @@
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::{
     app::AppPaths,
-    platform,
+    meetings, platform,
     settings::{save_settings, validate_settings, AppSettings, SettingsState},
 };
 
@@ -13,13 +13,16 @@ pub(crate) fn get_settings(settings: State<'_, SettingsState>) -> AppSettings {
 
 #[tauri::command]
 pub(crate) fn update_settings(
+    app: AppHandle,
     paths: State<'_, AppPaths>,
     state: State<'_, SettingsState>,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
+    let previous = state.snapshot();
     validate_settings(&paths, &settings)?;
     save_settings(&paths.data_dir, &settings)?;
     state.replace(settings.clone());
+    meetings::settings_updated(&app, &previous, &settings);
     Ok(settings)
 }
 

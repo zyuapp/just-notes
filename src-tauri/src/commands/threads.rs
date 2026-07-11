@@ -4,7 +4,7 @@ use super::effective_paths;
 use crate::{
     app::AppPaths,
     settings::SettingsState,
-    threads::{edits, repository, ThreadDetail, ThreadSummary},
+    threads::{create, edits, repository, ThreadDetail, ThreadSummary},
 };
 
 #[tauri::command]
@@ -20,7 +20,7 @@ pub(crate) fn create_thread(
     paths: State<'_, AppPaths>,
     settings: State<'_, SettingsState>,
 ) -> Result<ThreadDetail, String> {
-    repository::create_thread(&effective_paths(&paths, &settings))
+    create::create_thread(&effective_paths(&paths, &settings))
 }
 
 #[tauri::command]
