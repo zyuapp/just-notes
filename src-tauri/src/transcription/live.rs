@@ -18,36 +18,14 @@ const FORCE_CUT_LOOKBACK_MS: u64 = 2_000;
 /// near the noise floor to favor recall, so faint non-speech audio reaches
 /// the recognizer; filler-only decodes of it are dropped as hallucinations.
 const QUIET_CONFIRMATION_RMS: f32 = 0.02;
+/// Multiple of the tracked noise floor a frame must exceed to count as
+/// speech under the adaptive gate.
+const NOISE_FLOOR_GATE_RATIO: f32 = 2.5;
+/// Per-frame EMA rate of the noise-floor estimate (~1 s time constant).
+const NOISE_FLOOR_SMOOTHING: f32 = 0.02;
 
-/// Tuning for turning a raw sample stream into speech utterances.
-#[derive(Clone, Copy)]
-pub(crate) struct SegmenterConfig {
-    /// Frame RMS at or above which a [`FRAME_MS`] frame counts as speech.
-    pub(crate) speech_rms: f32,
-    /// Shortest run worth transcribing; briefer speech islands are dropped.
-    pub(crate) min_utterance_ms: u64,
-}
-
-impl SegmenterConfig {
-    /// Live: a gate near the noise floor favors recall — quiet speech must
-    /// reach the recognizer because the live transcript is authoritative.
-    /// Filler hallucinations on faint non-speech audio are rejected after
-    /// decoding instead (see [`transcribe_live_utterance`]).
-    pub(crate) fn live() -> Self {
-        Self {
-            speech_rms: 0.006,
-            min_utterance_ms: 150,
-        }
-    }
-
-    /// Finalization: a low gate favors recall since this pass is authoritative.
-    pub(crate) fn finalize() -> Self {
-        Self {
-            speech_rms: 0.0008,
-            min_utterance_ms: 60,
-        }
-    }
-}
+mod config;
+pub(crate) use config::SegmenterConfig;
 
 /// A closed run of speech plus the absolute sample index of its first sample.
 pub(crate) struct Utterance {
@@ -73,6 +51,8 @@ pub(crate) struct LiveSegmenter {
     sample_rate: u32,
     frame_len: usize,
     speech_rms: f32,
+    adaptive_gate: bool,
+    noise_floor: f32,
     redemption_frames: usize,
     min_samples: usize,
     max_samples: usize,
@@ -93,6 +73,8 @@ impl LiveSegmenter {
             sample_rate,
             frame_len,
             speech_rms: config.speech_rms,
+            adaptive_gate: config.adaptive_gate,
+            noise_floor: config.speech_rms,
             redemption_frames: (samples_for_ms(sample_rate, REDEMPTION_MS) / frame_len).max(1),
             min_samples: samples_for_ms(sample_rate, config.min_utterance_ms),
             max_samples: samples_for_ms(sample_rate, MAX_UTTERANCE_MS).max(frame_len),
@@ -140,11 +122,13 @@ impl LiveSegmenter {
     }
 
     fn process_frame(&mut self, out: &mut Vec<Utterance>) {
-        let is_speech = rms(&self.frame) >= self.speech_rms;
+        let frame_rms = rms(&self.frame);
+        let is_speech = frame_rms >= self.gate();
         if self.active.is_none() {
             if is_speech {
                 self.open_utterance();
             } else {
+                self.track_noise_floor(frame_rms);
                 self.buffer_pre_roll();
             }
             return;
@@ -165,6 +149,23 @@ impl LiveSegmenter {
             self.close(finished, out);
         } else if cap_hit {
             self.force_cut(out);
+        }
+    }
+
+    fn gate(&self) -> f32 {
+        if self.adaptive_gate {
+            (self.noise_floor * NOISE_FLOOR_GATE_RATIO)
+                .clamp(self.speech_rms, QUIET_CONFIRMATION_RMS)
+        } else {
+            self.speech_rms
+        }
+    }
+
+    /// Tracks ambient level from frames classified as silence outside any
+    /// utterance, so room tone raises the gate without speech inflating it.
+    fn track_noise_floor(&mut self, frame_rms: f32) {
+        if self.adaptive_gate {
+            self.noise_floor += (frame_rms - self.noise_floor) * NOISE_FLOOR_SMOOTHING;
         }
     }
 

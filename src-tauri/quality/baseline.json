@@ -15,7 +15,7 @@
     "hallucinated_segments": 0
   },
   "2-quiet-speaker@live": {
-    "wer": 0.63529414,
+    "wer": 0.011764706,
     "missed_segments": 0,
     "hallucinated_segments": 0
   },
@@ -65,7 +65,7 @@
     "hallucinated_segments": 0
   },
   "7-quiet-with-room-tone@live": {
-    "wer": 0.6117647,
+    "wer": 0.49411765,
     "missed_segments": 0,
     "hallucinated_segments": 0
   },

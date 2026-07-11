@@ -123,7 +123,7 @@ fn utterance_includes_audio_shortly_before_the_gate_opens() {
 #[test]
 fn force_cut_lands_in_a_low_energy_dip() {
     let mut stream = samples(23_000, 0.1);
-    stream.extend(samples(200, 0.005));
+    stream.extend(samples(200, 0.002));
     stream.extend(samples(3_000, 0.1));
     stream.extend(samples(700, 0.0));
 
@@ -145,6 +145,26 @@ fn keeps_a_short_single_word_reply() {
     stream.extend(samples(700, 0.0));
 
     assert_eq!(segment(&stream).len(), 1);
+}
+
+// In a noisy room the adaptive gate must rise above the room tone: steady
+// noise never opens an utterance, while clearly louder speech still does.
+#[test]
+fn gate_rises_above_steady_room_tone() {
+    let mut stream = samples(3_000, 0.004);
+    stream.extend(samples(500, 0.05));
+    stream.extend(samples(700, 0.0));
+
+    let utterances = segment(&stream);
+
+    assert_eq!(utterances.len(), 1);
+    // The utterance anchors at the speech onset (minus pre-roll), not inside
+    // the room tone.
+    assert!(
+        utterances[0].start_index as usize >= samples_for_ms(RATE, 3_000 - PRE_ROLL_MS),
+        "utterance starts at sample {} inside the room tone",
+        utterances[0].start_index
+    );
 }
 
 #[test]
