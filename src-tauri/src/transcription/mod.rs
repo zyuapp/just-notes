@@ -6,6 +6,7 @@ mod finalize_audio;
 mod live;
 mod live_worker;
 pub(crate) mod models;
+mod polish;
 #[cfg(test)]
 mod quality;
 mod runtime;
@@ -24,6 +25,8 @@ pub(crate) use live::{transcribe_live_utterance, LiveSegmenter, SegmenterConfig,
 pub(crate) use live_worker::{
     spawn_live_transcription, LiveTranscription, LiveTranscriptionConfig,
 };
+pub(crate) use polish::polish_thread_transcript;
+
 pub(crate) use models::{
     delete_parakeet_model, finalization_transcription_catalog,
     finalization_transcription_selection, parakeet_model_files, TranscriptionModelDownloadState,

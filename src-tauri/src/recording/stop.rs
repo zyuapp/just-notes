@@ -53,6 +53,11 @@ pub(crate) fn stop_recording(
     // persisting below fails.
     tray::set_tray_recording(&app, false);
 
+    // The live worker publishes per-channel segments with no cross-channel
+    // filtering, so suppress speaker bleed once while the WAVs still exist.
+    // Best-effort: an unpolished transcript never blocks the stop.
+    let _ = crate::transcription::polish_thread_transcript(&thread_dir, audio_artifacts.paths());
+
     // Duration from the recorded audio rather than wall-clock, which over-counts
     // by the capture startup latency; fall back to elapsed time only when the
     // WAVs cannot be measured.
