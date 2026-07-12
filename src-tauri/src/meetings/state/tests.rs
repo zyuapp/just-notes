@@ -29,6 +29,22 @@ fn failed_start_can_restore_the_same_action() {
 }
 
 #[test]
+fn current_prompt_is_the_earliest_and_can_be_dismissed() {
+    let state = MeetingSchedulerState::default();
+    let mut later = meeting();
+    later.id = "meeting-2".to_string();
+    later.start_at_ms = 1_500;
+    assert!(state.register_start_prompt("start-2".to_string(), later));
+    assert!(state.register_start_prompt("start-1".to_string(), meeting()));
+
+    let current = state.current_start_prompt().unwrap();
+    assert_eq!(current.request_id, "start-1");
+    assert!(state.dismiss_start_prompt("start-1"));
+    assert_eq!(state.current_start_prompt().unwrap().request_id, "start-2");
+    assert!(!state.dismiss_start_prompt("start-1"));
+}
+
+#[test]
 fn end_prompt_is_once_per_due_time_and_keep_rearms_it() {
     let state = MeetingSchedulerState::default();
     state.set_active(meeting(), 1, "end-1".to_string());
@@ -44,6 +60,25 @@ fn end_prompt_is_once_per_due_time_and_keep_rearms_it() {
     assert_eq!(
         state.due_end_prompt(3_000, 1),
         Some(("end-1".to_string(), meeting()))
+    );
+}
+
+#[test]
+fn failed_end_notification_rearms_the_same_prompt() {
+    let state = MeetingSchedulerState::default();
+    let meeting = meeting();
+    state.set_active(meeting.clone(), 7, "end-1".to_string());
+
+    assert_eq!(
+        state.due_end_prompt(2_000, 7),
+        Some(("end-1".to_string(), meeting.clone()))
+    );
+    assert_eq!(state.due_end_prompt(2_000, 7), None);
+
+    state.retry_end_prompt("end-1");
+    assert_eq!(
+        state.due_end_prompt(2_000, 7),
+        Some(("end-1".to_string(), meeting))
     );
 }
 

@@ -4,9 +4,7 @@ use super::{
     state::RecorderState,
     workflow::{start_recording_with_mode, RecordingRequest},
 };
-use crate::{
-    app::AppPaths, capture::RecordingInputMode, ipc::RecordingPayload, settings::SettingsState,
-};
+use crate::{app::AppPaths, capture::RecordingInputMode, settings::SettingsState};
 
 pub(crate) fn start_recording(
     app: AppHandle,
@@ -14,7 +12,7 @@ pub(crate) fn start_recording(
     recorder: RecorderState,
     settings: SettingsState,
     thread_id: Option<String>,
-) -> Result<RecordingPayload, String> {
+) -> Result<super::StartedRecording, String> {
     start_recording_with_mode(RecordingRequest {
         app,
         base_paths: paths,
@@ -33,7 +31,7 @@ pub(crate) fn start_fixture_recording(
     recorder: RecorderState,
     settings: SettingsState,
     thread_id: Option<String>,
-) -> Result<RecordingPayload, String> {
+) -> Result<super::StartedRecording, String> {
     let fixture_dir = paths.data_dir.join("fixtures");
     start_recording_with_mode(RecordingRequest {
         app,
@@ -55,7 +53,7 @@ pub(crate) fn start_scheduled_recording(
     recorder: RecorderState,
     settings: SettingsState,
     meeting_title: String,
-) -> Result<RecordingPayload, String> {
+) -> Result<super::StartedRecording, String> {
     start_recording_with_mode(RecordingRequest {
         app,
         base_paths: paths,

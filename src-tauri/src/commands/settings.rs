@@ -2,7 +2,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::{
     app::{AppPaths, StorageGate},
-    meetings,
+    meeting_surfaces, meetings,
     platform::{self, FolderAccessState},
     recording::RecorderState,
     settings::{
@@ -48,6 +48,7 @@ pub(crate) fn update_settings(
     state.replace_persisted(persisted);
     let saved = state.snapshot();
     meetings::settings_updated(&app, &previous, &saved);
+    meeting_surfaces::sync_current(&app);
     Ok(saved)
 }
 

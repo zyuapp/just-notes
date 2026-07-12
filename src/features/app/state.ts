@@ -4,6 +4,7 @@ import type { FinalizationStatusPayload } from "../../bindings/FinalizationStatu
 import type { LiveTranscriptPayload } from "../../bindings/LiveTranscriptPayload";
 import type { MeterPayload } from "../../bindings/MeterPayload";
 import type { MeetingAccessPayload } from "../../bindings/MeetingAccessPayload";
+import type { MeetingPromptPayload } from "../../bindings/MeetingPromptPayload";
 import type { PermissionsPayload } from "../../bindings/PermissionsPayload";
 import type { RecordingPayload } from "../../bindings/RecordingPayload";
 import type { ThreadDetail } from "../../bindings/ThreadDetail";
@@ -30,6 +31,7 @@ export type AppState = {
   settings: AppSettings | null;
   permissions: PermissionsPayload | null;
   meetingAccess: MeetingAccessPayload | null;
+  meetingPrompt: MeetingPromptPayload | null;
   finalization: FinalizationStatusPayload | null;
   settingsOpen: boolean;
   archiveOpen: boolean;
@@ -56,6 +58,7 @@ export const initialAppState: AppState = {
   settings: null,
   permissions: null,
   meetingAccess: null,
+  meetingPrompt: null,
   finalization: null,
   settingsOpen: false,
   archiveOpen: false,
@@ -83,6 +86,7 @@ export type AppAction =
   | { type: "transcriptionStatusLoaded"; transcriptionStatus: TranscriptionStatusPayload }
   | { type: "permissionsLoaded"; permissions: PermissionsPayload }
   | { type: "meetingAccessLoaded"; meetingAccess: MeetingAccessPayload }
+  | { type: "meetingPromptChanged"; meetingPrompt: MeetingPromptPayload | null }
   | { type: "settingsOpenChanged"; open: boolean }
   | { type: "finalizationReceived"; payload: FinalizationStatusPayload }
   | { type: "recordingStarting" }

@@ -2,6 +2,8 @@
 
 The Rust backend is split around domain responsibilities rather than technical layers alone. `src-tauri/src/lib.rs` should stay a thin Tauri adapter: it wires state, setup, the tray, and command registration. Command declarations live in the `commands` module (also part of the adapter layer), and business behavior lives in the domain modules below.
 
+`meeting_surfaces` is a small adapter that projects the meetings domain's current prompt into frontend events and the menu bar without making the domain depend on either surface.
+
 ## Bounded Contexts
 
 ### App
@@ -18,11 +20,11 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Meetings
 
-`meetings` owns calendar-driven recording reminders. It filters eligible events, deduplicates start prompts, associates a notification-started recording with its meeting, schedules end prompts, and handles notification actions. It coordinates `platform`, `recording`, and `settings` without putting meeting policy into those contexts.
+`meetings` owns calendar-driven recording reminders. It filters eligible events, deduplicates start prompts, exposes the current prompt to user-facing adapters, associates a meeting-started recording with its event, schedules end prompts, and handles prompt actions. It coordinates `platform`, `recording`, and `settings` without putting meeting policy into those contexts.
 
 ### Tray
 
-`tray` owns the menu bar item: status text, elapsed-time title, and the stop/open/quit menu. It is a thin adapter over Tauri's tray API; `lib.rs` injects behavior and `recording` pushes status updates into it.
+`tray` owns the menu bar item: contextual and quick recording actions, status text, elapsed-time title, and the open/quit menu. It is a thin adapter over Tauri's tray API; `lib.rs` injects behavior and meeting prompt data, while `recording` pushes status updates into it.
 
 ### IPC
 

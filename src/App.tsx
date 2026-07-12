@@ -10,6 +10,7 @@ import { useAppEvents } from "./features/app/useAppEvents";
 import { useArchivedThreads } from "./features/app/useArchivedThreads";
 import { useJustNotesController } from "./features/app/useJustNotesController";
 import { useMeetingSettingsController } from "./features/app/useMeetingSettingsController";
+import { useMeetingPromptController } from "./features/app/useMeetingPromptController";
 import { useSettingsController } from "./features/app/useSettingsController";
 import { useSidebarWidth } from "./features/app/useSidebarWidth";
 import { useThreadActions } from "./features/app/useThreadActions";
@@ -20,9 +21,8 @@ export default function App() {
   const actions = useJustNotesController(state, dispatch);
   const threadActions = useThreadActions(state, dispatch, actions.refreshThreads);
   const settingsActions = useSettingsController(state, dispatch, actions.bootstrap);
-  const meetingSettingsActions = useMeetingSettingsController(
-    state, dispatch, settingsActions.updateSettings,
-  );
+  const meetingSettingsActions = useMeetingSettingsController(state, dispatch, settingsActions.updateSettings);
+  const meetingPromptActions = useMeetingPromptController(dispatch, actions.refreshThreads);
   const search = useThreadSearch(dispatch, state.threads);
   const archived = useArchivedThreads(state.archiveOpen);
   const { iconRef, scopeRef, flyToArchive } = useArchiveFlight();
@@ -34,13 +34,9 @@ export default function App() {
     },
     [flyToArchive, threadActions],
   );
-  const onFinalizationSettled = useCallback(
-    () => void actions.refreshThreads(),
-    [actions.refreshThreads],
-  );
+  const onFinalizationSettled = useCallback(() => void actions.refreshThreads(), [actions.refreshThreads]);
   const onRecordingStarted = useCallback(
-    (threadId: string) => void actions.refreshThreads(threadId),
-    [actions.refreshThreads],
+    (threadId: string) => void actions.refreshThreads(threadId), [actions.refreshThreads],
   );
   useAppEvents(dispatch, onFinalizationSettled, onRecordingStarted);
   const activeThreadId = getActiveThreadId(state);
@@ -105,6 +101,7 @@ export default function App() {
         recorderState={state.recorderState}
         selectedThread={state.selectedThread}
         liveSegments={state.selectedThreadId === state.recordingThreadId ? state.liveSegments : []}
+        meetingPrompt={state.meetingPrompt}
         statusLabel={statusLabel}
         transcriptionStatus={state.transcriptionStatus}
         threadActions={threadActions}
@@ -114,6 +111,8 @@ export default function App() {
         onStartModelDownload={actions.startModelDownload}
         onStartFixtureRecording={actions.startFixtureRecording}
         onStartRecording={actions.startRecording}
+        onStartMeetingRecording={(id) => void meetingPromptActions.startMeetingRecording(id)}
+        onDismissMeetingPrompt={(id) => void meetingPromptActions.dismissMeetingPrompt(id)}
         onStopRecording={actions.stopRecording}
       />
       {state.settingsOpen && state.settings && (

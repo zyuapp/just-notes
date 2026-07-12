@@ -71,3 +71,13 @@ pub(crate) struct MeetingAccessPayload {
     pub(crate) notification_authorization: String,
     pub(crate) calendars: Vec<MeetingCalendarPayload>,
 }
+
+#[derive(serde::Serialize, ts_rs::TS, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) struct MeetingPromptPayload {
+    pub(crate) request_id: String,
+    pub(crate) title: String,
+    pub(crate) start_at_ms: u64,
+    pub(crate) end_at_ms: u64,
+}

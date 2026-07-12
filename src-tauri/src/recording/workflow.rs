@@ -5,13 +5,13 @@ use tauri::{AppHandle, Manager};
 use super::{
     audio_sink::spawn_audio_sink,
     meter::spawn_meter_thread,
+    model::StartedRecording,
     selection::{select_recording_thread, SelectedThread},
     state::{RecorderSession, RecorderState},
 };
 use crate::{
     app::{AppPaths, StorageGate},
     capture::{prepare_audio_input, start_audio_capture, PreparedAudioInput, RecordingInputMode},
-    ipc::RecordingPayload,
     settings::{self, AppSettings, SettingsState},
     threads::{
         repository::{load_thread_by_id, prepare_work_dir, set_thread_status},
@@ -56,7 +56,7 @@ pub(super) struct RecordingRequest {
 
 pub(super) fn start_recording_with_mode(
     request: RecordingRequest,
-) -> Result<RecordingPayload, String> {
+) -> Result<StartedRecording, String> {
     let starting_recorder = request.recorder.clone();
     let gate = request.app.state::<StorageGate>();
     let _storage_guard = gate.lock()?;
@@ -76,7 +76,7 @@ pub(super) fn start_recording_with_mode(
 fn prepare_recording_session(
     start: RecordingStart,
     input_mode: RecordingInputMode,
-) -> Result<RecordingPayload, String> {
+) -> Result<StartedRecording, String> {
     let RecordingStart {
         app,
         paths,
@@ -128,7 +128,7 @@ fn prepare_recording_session(
     }
     tray::set_tray_recording(&app, true);
 
-    Ok(RecordingPayload {
+    Ok(StartedRecording {
         thread: load_thread_by_id(&paths, &thread_id)?,
         transcription,
     })
