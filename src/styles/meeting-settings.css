@@ -4,7 +4,7 @@
   padding: 10px 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--raised);
+  background: transparent;
 }
 
 .calendar-connect .settings-row-actions {
@@ -39,5 +39,5 @@
 }
 
 .calendar-option input {
-  accent-color: var(--blue);
+  accent-color: var(--text-2);
 }

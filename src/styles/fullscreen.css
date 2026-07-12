@@ -1,0 +1,104 @@
+.settings-overlay,
+.archive-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  background: var(--app-bg);
+}
+
+.settings-nav,
+.archive-nav {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 36px 12px 12px;
+  border-right: 1px solid var(--line);
+  background: var(--sidebar);
+}
+
+.settings-nav-title,
+.archive-nav-title {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  padding: 0 8px 0 34px;
+  color: var(--text-bright);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-nav-item,
+.archive-nav-item {
+  display: flex;
+  width: 100%;
+  height: 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--text-2);
+  text-align: left;
+}
+
+.settings-nav-item:hover,
+.settings-nav-item.active,
+.archive-nav-item:hover,
+.archive-nav-item.active {
+  background: var(--blue-soft);
+  color: var(--text-bright);
+}
+
+.settings-nav-back,
+.archive-nav-back {
+  position: absolute;
+  top: 40px;
+  left: 14px;
+  width: 32px;
+  justify-content: center;
+  padding: 0;
+}
+
+.settings-content,
+.archive-content {
+  min-width: 0;
+  overflow: auto;
+  background: var(--panel);
+}
+
+.settings-panel,
+.archive-panel {
+  width: min(760px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 36px 0 72px;
+}
+
+.settings-titlebar,
+.archive-titlebar {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.settings-titlebar h2,
+.archive-titlebar h2 {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .settings-overlay,
+  .archive-overlay {
+    grid-template-columns: 184px minmax(0, 1fr);
+  }
+
+  .settings-panel,
+  .archive-panel {
+    width: calc(100% - 40px);
+  }
+}

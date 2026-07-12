@@ -1,46 +1,11 @@
-.settings-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  padding: 28px;
-  background: rgba(8, 9, 11, 0.6);
-  backdrop-filter: blur(3px);
-}
-
-.settings-panel {
-  width: min(560px, 100%);
-  max-height: calc(100vh - 56px);
-  overflow: auto;
-  border: 1px solid var(--line-strong);
-  border-radius: 11px;
-  background: var(--sidebar);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
-}
-
-.settings-panel header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
-}
-
-.settings-panel h2 {
-  margin: 0;
-  color: var(--text-bright);
-  font-size: 14px;
-  font-weight: 600;
-}
-
 .settings-panel section {
-  padding: 14px 16px 16px;
-  border-bottom: 1px solid var(--line);
+  scroll-margin-top: 24px;
+  margin: 0 0 28px;
+  padding: 0;
 }
 
-.settings-panel section:last-of-type {
-  border-bottom: 0;
+.settings-section-anchor {
+  scroll-margin-top: 24px;
 }
 
 .settings-panel h3 {
@@ -52,12 +17,20 @@
   text-transform: uppercase;
 }
 
+.settings-panel section > .settings-row:first-of-type,
+.settings-panel section > .calendar-connect:first-of-type,
+.settings-panel section > .settings-hint:first-of-type {
+  border-top: 1px solid var(--line);
+}
+
 .settings-row {
-  display: flex;
-  gap: 16px;
+  display: grid;
+  min-height: 56px;
   align-items: center;
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
   padding: 7px 0;
+  border-bottom: 1px solid var(--line);
 }
 
 .settings-row strong {
@@ -89,28 +62,26 @@
 
 .settings-row-actions button {
   height: 26px;
-  padding: 0 11px;
+  padding: 0 10px;
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   background: var(--raised);
   color: var(--text);
-  cursor: pointer;
   font-size: 12px;
 }
 
 .settings-row-actions button:hover {
-  background: #333840;
   color: var(--text-bright);
 }
 
 .settings-row-actions button:disabled,
 .settings-segmented button:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .settings-row-actions button.settings-danger {
-  color: #ff9d99;
+  color: #e7a4a7;
 }
 
 .settings-row-actions button.settings-danger:hover,

@@ -1,4 +1,4 @@
-import { ArchiveRestore, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
 import { formatThreadDate } from "../lib/format";
@@ -42,22 +42,31 @@ export function ArchivedView({
 
   return (
     <div className="archive-overlay" role="dialog" aria-modal="true" aria-label="Archived recordings">
-      <div className="archive-panel">
-        <header>
-          <h2>Archived</h2>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={onClose}
-            aria-label="Close archive"
-          >
-            <X size={15} aria-hidden="true" />
-          </button>
+      <nav className="archive-nav" aria-label="Archive navigation">
+        <button
+          type="button"
+          className="archive-nav-item archive-nav-back"
+          onClick={onClose}
+          aria-label="Back to notes"
+          title="Back to notes"
+        >
+          <ArrowLeft size={16} aria-hidden="true" />
+        </button>
+        <div className="archive-nav-title">Archived</div>
+        <div className="archive-nav-item active">
+          <Archive size={16} aria-hidden="true" />
+          <span>Recordings</span>
+        </div>
+      </nav>
+      <div className="archive-content">
+        <div className="archive-panel">
+        <header className="archive-titlebar">
+          <h2>Archived recordings</h2>
         </header>
 
-        {error && <p className="archive-error">{error}</p>}
+          {error && <p className="archive-error">{error}</p>}
 
-        {items === null ? (
+          {items === null ? (
           <p className="archive-empty">Loading…</p>
         ) : items.length === 0 ? (
           <p className="archive-empty">
@@ -76,7 +85,8 @@ export function ArchivedView({
               />
             ))}
           </ul>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
