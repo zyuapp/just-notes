@@ -167,6 +167,7 @@ impl ChannelSelector {
     }
 }
 
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 pub(super) fn average_f32(frame: &[f32]) -> f32 {
     frame.iter().copied().sum::<f32>() / frame.len() as f32
 }
