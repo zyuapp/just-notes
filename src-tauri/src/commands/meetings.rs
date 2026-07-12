@@ -1,7 +1,6 @@
 use tauri::{AppHandle, State};
 
 use crate::{
-    commands::recording::to_payload as to_recording_payload,
     ipc::{MeetingAccessPayload, MeetingCalendarPayload, MeetingPromptPayload, RecordingPayload},
     meeting_surfaces,
     meetings::{self, MeetingSchedulerState},
@@ -29,15 +28,9 @@ pub(crate) async fn start_meeting_recording(
     app: AppHandle,
     request_id: String,
 ) -> Result<RecordingPayload, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let result = meetings::start_meeting_recording(&app, &request_id)
-            .map(to_recording_payload)
-            .map_err(|err| err.message);
-        meeting_surfaces::sync_current(&app);
-        result
-    })
-    .await
-    .map_err(|err| format!("Meeting recording task failed: {err}"))?
+    tauri::async_runtime::spawn_blocking(move || meeting_surfaces::start(&app, &request_id))
+        .await
+        .map_err(|err| format!("Meeting recording task failed: {err}"))?
 }
 
 #[tauri::command]
@@ -46,8 +39,7 @@ pub(crate) fn dismiss_meeting_prompt(
     scheduler: State<'_, MeetingSchedulerState>,
     request_id: String,
 ) -> Option<MeetingPromptPayload> {
-    meetings::dismiss_prompt(&scheduler, &request_id);
-    meeting_surfaces::sync_current(&app)
+    meeting_surfaces::dismiss(&app, &scheduler, &request_id)
 }
 
 #[tauri::command]

@@ -52,7 +52,9 @@ pub(crate) fn request_access(app: &AppHandle) -> Result<(), String> {
 
 fn request_access_on_main(sender: mpsc::Sender<Result<(), String>>) {
     let store = unsafe { EKEventStore::new() };
+    let store_until_completion = store.clone();
     let completion = RcBlock::new(move |granted: Bool, _error: *mut NSError| {
+        let _keep_store_alive = &store_until_completion;
         let result = if granted.as_bool() {
             Ok(())
         } else {
@@ -63,7 +65,6 @@ fn request_access_on_main(sender: mpsc::Sender<Result<(), String>>) {
     unsafe {
         store.requestFullAccessToEventsWithCompletion(&*completion as *const _ as *mut _);
     }
-    std::mem::forget(completion);
 }
 
 pub(crate) fn list_calendars() -> Result<Vec<CalendarInfo>, String> {

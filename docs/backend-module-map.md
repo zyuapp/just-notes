@@ -22,6 +22,10 @@ Commands here stay thin: they resolve state handles and delegate to the owning d
 
 Thin adapter that synchronizes the current meeting prompt to frontend events and the menu-bar item, and translates native meeting-start outcomes into recording events or failure notifications. Meeting eligibility and prompt lifecycle remain in the `meetings` context.
 
+## `src-tauri/src/recording_payload.rs`
+
+Neutral adapter that converts the recording domain's start result into the IPC payload shared by commands, tray actions, and meeting surfaces. Keeping this conversion outside those sibling adapters prevents them from depending on one another.
+
 ## `src-tauri/src/app`
 
 - `paths.rs`: discovers and stores app filesystem paths, including the active and archived thread directories.

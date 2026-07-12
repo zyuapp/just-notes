@@ -8,6 +8,7 @@ mod meeting_surfaces;
 mod meetings;
 mod platform;
 mod recording;
+mod recording_payload;
 mod settings;
 mod threads;
 mod transcription;
@@ -181,7 +182,7 @@ fn start_recording_from_tray(app: &AppHandle) {
         let recorder = app.state::<RecorderState>().inner().clone();
         match recording::start_recording(app.clone(), effective, recorder, settings, None) {
             Ok(started) => {
-                let payload = commands::recording::to_payload(started);
+                let payload = recording_payload::from_started(started);
                 let _ = app.emit("recording-started", &payload);
             }
             Err(err) => eprintln!("recording start failed: {err}"),

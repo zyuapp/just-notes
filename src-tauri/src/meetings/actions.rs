@@ -41,6 +41,7 @@ pub(crate) fn handle_notification_action(
 pub(crate) struct MeetingStartError {
     pub(crate) title: String,
     pub(crate) message: String,
+    pub(crate) retryable: bool,
 }
 
 pub(crate) fn start_meeting_recording(
@@ -48,42 +49,62 @@ pub(crate) fn start_meeting_recording(
     request_id: &str,
 ) -> Result<recording::StartedRecording, MeetingStartError> {
     let scheduler = app.state::<MeetingSchedulerState>().inner().clone();
+    let paths = app.state::<AppPaths>();
+    let settings_state = app.state::<SettingsState>();
+    let app_settings = settings_state.snapshot();
+    let effective_paths = settings::effective_paths(&paths, &app_settings);
+    let recorder = app.state::<RecorderState>().inner().clone();
+    orchestrate_start(
+        &scheduler,
+        request_id,
+        |meeting| meeting_is_current(&app_settings, meeting),
+        |meeting| {
+            recording::start_scheduled_recording(
+                app.clone(),
+                effective_paths,
+                recorder.clone(),
+                app_settings.clone(),
+                meeting.title.clone(),
+            )
+        },
+        |meeting, _| {
+            super::notifications::remove(&[request_id.to_string()]);
+            if app_settings.meeting_end_reminders {
+                if let Some(session_id) = recorder.active_session_id() {
+                    scheduler.set_active(
+                        meeting.clone(),
+                        session_id,
+                        notification_id("end", &meeting.id),
+                    );
+                }
+            }
+        },
+    )
+}
+
+fn orchestrate_start<T>(
+    scheduler: &MeetingSchedulerState,
+    request_id: &str,
+    is_current: impl FnOnce(&super::model::Meeting) -> bool,
+    start: impl FnOnce(&super::model::Meeting) -> Result<T, String>,
+    after_success: impl FnOnce(&super::model::Meeting, &T),
+) -> Result<T, MeetingStartError> {
     let Some(meeting) = scheduler.take_start_prompt(request_id) else {
         return Err(MeetingStartError {
             title: "Meeting".to_string(),
             message: "This meeting prompt is no longer available".to_string(),
+            retryable: false,
         });
     };
-    let paths = app.state::<AppPaths>();
-    let settings_state = app.state::<SettingsState>();
-    let app_settings = settings_state.snapshot();
-    if !meeting_is_current(&app_settings, &meeting) {
+    if !is_current(&meeting) {
         return Err(MeetingStartError {
             title: meeting.title,
             message: "This meeting is no longer available to record".to_string(),
+            retryable: false,
         });
     }
-    let effective_paths = settings::effective_paths(&paths, &app_settings);
-    let recorder = app.state::<RecorderState>().inner().clone();
-    let started = retryable_start(&scheduler, request_id, &meeting, || {
-        recording::start_scheduled_recording(
-            app.clone(),
-            effective_paths,
-            recorder.clone(),
-            app_settings.clone(),
-            meeting.title.clone(),
-        )
-    })?;
-    super::notifications::remove(&[request_id.to_string()]);
-    if app_settings.meeting_end_reminders {
-        if let Some(session_id) = recorder.active_session_id() {
-            scheduler.set_active(
-                meeting.clone(),
-                session_id,
-                notification_id("end", &meeting.id),
-            );
-        }
-    }
+    let started = retryable_start(scheduler, request_id, &meeting, || start(&meeting))?;
+    after_success(&meeting, &started);
     Ok(started)
 }
 
@@ -98,6 +119,7 @@ fn retryable_start<T>(
         MeetingStartError {
             title: meeting.title.clone(),
             message,
+            retryable: true,
         }
     })
 }

@@ -70,6 +70,6 @@ pub(crate) fn show_start_failure(request_id: &str, meeting_title: &str, error: &
     );
 }
 
-pub(super) fn remove(request_ids: &[String]) {
+pub(crate) fn remove(request_ids: &[String]) {
     notifications::remove(request_ids);
 }

@@ -3,9 +3,9 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::{
-    commands::recording::to_payload as to_recording_payload,
-    ipc::MeetingPromptPayload,
+    ipc::{MeetingPromptPayload, RecordingPayload},
     meetings::{self, MeetingPrompt, MeetingSchedulerState},
+    recording_payload,
     tray::{self, TrayMeetingPrompt},
 };
 
@@ -19,14 +19,33 @@ pub(crate) fn start_native_meeting(app: &AppHandle, request_id: String) {
 }
 
 pub(crate) fn start_native_meeting_now(app: &AppHandle, request_id: &str) {
-    match meetings::start_meeting_recording(app, request_id) {
-        Ok(started) => {
-            let payload = to_recording_payload(started);
-            let _ = app.emit("recording-started", &payload);
+    if let Ok(payload) = start(app, request_id) {
+        let _ = app.emit("recording-started", &payload);
+    }
+}
+
+pub(crate) fn start(app: &AppHandle, request_id: &str) -> Result<RecordingPayload, String> {
+    let result = meetings::start_meeting_recording(app, request_id);
+    if let Err(err) = &result {
+        if err.retryable {
+            meetings::show_start_failure(request_id, &err.title, &err.message);
+        } else {
+            meetings::remove_notifications(&[request_id.to_string()]);
         }
-        Err(err) => meetings::show_start_failure(request_id, &err.title, &err.message),
     }
     sync_current(app);
+    result
+        .map(recording_payload::from_started)
+        .map_err(|err| err.message)
+}
+
+pub(crate) fn dismiss(
+    app: &AppHandle,
+    scheduler: &MeetingSchedulerState,
+    request_id: &str,
+) -> Option<MeetingPromptPayload> {
+    meetings::dismiss_prompt(scheduler, request_id);
+    sync_current(app)
 }
 
 pub(crate) fn to_payload(prompt: MeetingPrompt) -> MeetingPromptPayload {

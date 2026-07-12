@@ -1,9 +1,6 @@
 mod icon;
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, Mutex,
-};
+use std::sync::{Arc, Mutex};
 
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -16,13 +13,19 @@ const TRAY_ID: &str = "just-notes-tray";
 struct TrayState {
     record: MenuItem<Wry>,
     meeting: MenuItem<Wry>,
-    meeting_request_id: Arc<Mutex<Option<String>>>,
-    recording: Arc<AtomicBool>,
+    view: Arc<Mutex<TrayView>>,
 }
 
+#[derive(Clone)]
 pub(crate) struct TrayMeetingPrompt {
     pub(crate) request_id: String,
     pub(crate) title: String,
+}
+
+#[derive(Default)]
+struct TrayView {
+    recording: bool,
+    prompt: Option<TrayMeetingPrompt>,
 }
 
 struct TrayMenu {
@@ -71,10 +74,9 @@ pub(crate) fn init_tray(
         meeting,
     } = build_menu(app)?;
 
-    let recording = Arc::new(AtomicBool::new(false));
-    let recording_for_event = Arc::clone(&recording);
-    let meeting_request_id = Arc::new(Mutex::new(None));
-    let meeting_request_for_event = Arc::clone(&meeting_request_id);
+    let view = Arc::new(Mutex::new(TrayView::default()));
+    let view_for_event = Arc::clone(&view);
+    let meeting_for_event = meeting.clone();
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon::template_icon())
         .icon_as_template(true)
@@ -82,17 +84,19 @@ pub(crate) fn init_tray(
         .show_menu_on_left_click(true)
         .on_menu_event(move |app, event| match event.id().as_ref() {
             "tray-record" => {
-                if recording_for_event.load(Ordering::SeqCst) {
+                let recording = view_for_event.lock().is_ok_and(|view| view.recording);
+                if recording {
                     on_stop(app);
                 } else {
                     on_start(app);
                 }
             }
             "tray-meeting-record" => {
-                let request_id = meeting_request_for_event
-                    .lock()
-                    .ok()
-                    .and_then(|mut request_id| request_id.take());
+                let request_id = view_for_event.lock().ok().and_then(|mut view| {
+                    let request_id = view.prompt.take().map(|prompt| prompt.request_id);
+                    render_meeting(&meeting_for_event, &view);
+                    request_id
+                });
                 if let Some(request_id) = request_id {
                     on_start_meeting(app, request_id);
                 }
@@ -111,25 +115,22 @@ pub(crate) fn init_tray(
     app.manage(TrayState {
         record,
         meeting,
-        meeting_request_id,
-        recording,
+        view,
     });
     Ok(())
 }
 
 pub(crate) fn set_tray_recording(app: &AppHandle, recording: bool) {
     if let Some(state) = app.try_state::<TrayState>() {
-        state.recording.store(recording, Ordering::SeqCst);
-        let _ = state.record.set_text(if recording {
-            "Stop recording"
-        } else {
-            "Start recording"
-        });
-        let has_meeting = state
-            .meeting_request_id
-            .lock()
-            .is_ok_and(|request_id| request_id.is_some());
-        let _ = state.meeting.set_enabled(!recording && has_meeting);
+        if let Ok(mut view) = state.view.lock() {
+            view.recording = recording;
+            let _ = state.record.set_text(if recording {
+                "Stop recording"
+            } else {
+                "Start recording"
+            });
+            render_meeting(&state.meeting, &view);
+        }
     }
     if !recording {
         if let Some(tray) = app.tray_by_id(TRAY_ID) {
@@ -144,16 +145,20 @@ pub(crate) fn set_meeting_prompt(app: &AppHandle, prompt: Option<TrayMeetingProm
     let Some(state) = app.try_state::<TrayState>() else {
         return;
     };
-    let recording = state.recording.load(Ordering::SeqCst);
-    if let Ok(mut request_id) = state.meeting_request_id.lock() {
-        *request_id = prompt.as_ref().map(|prompt| prompt.request_id.clone());
-    }
-    let label = prompt
+    if let Ok(mut view) = state.view.lock() {
+        view.prompt = prompt;
+        render_meeting(&state.meeting, &view);
+    };
+}
+
+fn render_meeting(item: &MenuItem<Wry>, view: &TrayView) {
+    let label = view
+        .prompt
         .as_ref()
         .map(|prompt| format!("Record “{}”", prompt.title))
         .unwrap_or_else(|| "No meeting starting soon".to_string());
-    let _ = state.meeting.set_text(label);
-    let _ = state.meeting.set_enabled(!recording && prompt.is_some());
+    let _ = item.set_text(label);
+    let _ = item.set_enabled(!view.recording && view.prompt.is_some());
 }
 
 pub(crate) fn set_tray_elapsed(app: &AppHandle, elapsed_ms: u64) {

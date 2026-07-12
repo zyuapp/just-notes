@@ -21,7 +21,7 @@ const thread: ThreadDetail = {
   transcriptMarkdownPath: "/threads/thread-1/transcript.md",
 };
 
-test("starting a recording clears the meeting prompt", () => {
+test("starting a recording leaves prompt ownership to the meetings domain", () => {
   const payload = {
     thread,
     transcription: {
@@ -35,7 +35,7 @@ test("starting a recording clears the meeting prompt", () => {
     { type: "recordingStarted", payload },
   );
 
-  expect(state.meetingPrompt).toBeNull();
+  expect(state.meetingPrompt).toEqual(prompt);
 });
 
 test("a stale start failure cannot overwrite an active recording", () => {

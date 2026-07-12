@@ -18,12 +18,18 @@ export async function runRecordingStart({
   recoverFailure,
 }: RecordingStartOptions) {
   dispatch({ type: "recordingStarting" });
+  let payload: RecordingPayload;
   try {
-    const payload = await start();
-    dispatch({ type: "recordingStarted", payload });
-    await refreshThreads(payload.thread.summary.id);
+    payload = await start();
   } catch (error) {
     dispatch({ type: "recordingStartFailed", message: getApiErrorMessage(error) });
     await recoverFailure?.();
+    return;
+  }
+  dispatch({ type: "recordingStarted", payload });
+  try {
+    await refreshThreads(payload.thread.summary.id);
+  } catch (error) {
+    dispatch({ type: "failed", message: getApiErrorMessage(error) });
   }
 }

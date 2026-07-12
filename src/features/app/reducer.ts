@@ -72,7 +72,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         selectedThread: action.payload.thread,
         transcriptionStatus: action.payload.transcription,
         recorderState: "recording",
-        meetingPrompt: null,
       };
     case "recordingStartFailed":
       if (state.recorderState !== "starting") return state;

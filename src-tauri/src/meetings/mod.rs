@@ -11,6 +11,7 @@ use crate::platform::{calendar, notifications as platform_notifications};
 pub(crate) use actions::{handle_notification_action, start_meeting_recording};
 pub(crate) use model::{MeetingAccess, MeetingCalendar, MeetingPrompt};
 pub(crate) use notifications::categories as notification_categories;
+pub(crate) use notifications::remove as remove_notifications;
 pub(crate) use notifications::show_start_failure;
 pub(crate) use scheduler::spawn as spawn_scheduler;
 pub(crate) use state::MeetingSchedulerState;
