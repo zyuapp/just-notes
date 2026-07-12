@@ -6,7 +6,7 @@ export function buildNotice(
   state: AppState,
   openSettings: () => void,
   openPrivacy: (pane: "microphone" | "system-audio") => Promise<void>,
-  startModelDownload: () => Promise<void>,
+  startModelDownload: () => void,
 ): Notice | null {
   if (state.permissions && ["denied", "restricted"].includes(state.permissions.microphone)) {
     return {

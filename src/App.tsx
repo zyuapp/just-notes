@@ -1,5 +1,6 @@
 import { type CSSProperties, useCallback, useMemo, useReducer } from "react";
 import { ArchivedView } from "./components/ArchivedView";
+import { ModelDownloadDialog } from "./components/ModelDownloadDialog";
 import { SettingsView } from "./components/SettingsView";
 import { ThreadSidebar } from "./components/ThreadSidebar";
 import { TranscriptPanel } from "./components/TranscriptPanel";
@@ -56,12 +57,8 @@ export default function App() {
       settingsActions.openSettings,
     ],
   );
-
   return (
-    <main
-      className="app-shell"
-      style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
-    >
+    <main className="app-shell" style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
       <ThreadSidebar
         activeThreadId={activeThreadId}
         selectedThreadId={state.selectedThreadId}
@@ -138,7 +135,7 @@ export default function App() {
           onToggleMeetingReminders={() => void meetingSettingsActions.toggleReminders()}
           onSetMeetingReminderMinutes={(minutes) => void meetingSettingsActions.setReminderMinutes(minutes)}
           onToggleMeetingEndReminders={() => void meetingSettingsActions.toggleEndReminders()}
-          onCancelModelDownload={() => void actions.cancelModelDownload()} onStartModelDownload={() => void actions.startModelDownload()}
+          onCancelModelDownload={() => void actions.cancelModelDownload()} onStartModelDownload={actions.startModelDownload}
           onDeleteModel={() => void actions.deleteModel()}
           onOpenPrivacy={(pane) => void settingsActions.openPrivacySettings(pane)}
           onOpenExternalUrl={(url) => void settingsActions.openExternalUrl(url)} onOpenLegalDocument={(document) => void settingsActions.openLegalDocument(document)}
@@ -153,6 +150,10 @@ export default function App() {
           onRestore={(threadId) => threadActions.restoreThread(threadId)}
           onDeletePermanently={(threadId) => threadActions.deleteArchivedThread(threadId)}
         />
+      )}
+      {actions.modelDownloadConsent && (
+        <ModelDownloadDialog model={actions.modelDownloadConsent} onCancel={actions.dismissModelDownloadConsent}
+          onConfirm={() => void actions.confirmModelDownload()} />
       )}
     </main>
   );

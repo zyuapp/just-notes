@@ -57,31 +57,13 @@ target=${MAC_APP_STORE_TARGET:-}
 
 mkdir -p "$work_dir" "$output_dir"
 /usr/bin/ditto "$MAC_APP_STORE_PROFILE" "$profile"
-
-cat > "$entitlements" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>com.apple.application-identifier</key>
-  <string>${APPLE_APP_ID_PREFIX}.${bundle_id}</string>
-  <key>com.apple.developer.team-identifier</key>
-  <string>${APPLE_TEAM_ID}</string>
-  <key>com.apple.security.app-sandbox</key>
-  <true/>
-  <key>com.apple.security.network.client</key>
-  <true/>
-  <key>com.apple.security.device.audio-input</key>
-  <true/>
-  <key>com.apple.security.files.user-selected.read-write</key>
-  <true/>
-  <key>com.apple.security.files.bookmarks.app-scope</key>
-  <true/>
-  <key>com.apple.security.personal-information.calendars</key>
-  <true/>
-</dict>
-</plist>
-EOF
+/usr/bin/ditto src-tauri/Entitlements.plist "$entitlements"
+/usr/libexec/PlistBuddy -c \
+  "Add :com.apple.application-identifier string ${APPLE_APP_ID_PREFIX}.${bundle_id}" \
+  "$entitlements"
+/usr/libexec/PlistBuddy -c \
+  "Add :com.apple.developer.team-identifier string ${APPLE_TEAM_ID}" \
+  "$entitlements"
 
 /usr/bin/plutil -lint "$entitlements" >/dev/null
 /usr/bin/ditto src-tauri/tauri.appstore.conf.json "$generated_config"
@@ -91,8 +73,8 @@ EOF
 
 profile_plist="$work_dir/profile.plist"
 /usr/bin/security cms -D -i "$profile" > "$profile_plist"
-profile_app_id=$(/usr/bin/plutil -extract Entitlements.com.apple.application-identifier raw "$profile_plist")
-profile_team_id=$(/usr/bin/plutil -extract Entitlements.com.apple.developer.team-identifier raw "$profile_plist")
+profile_app_id=$(/usr/bin/plutil -extract 'Entitlements.com\.apple\.application-identifier' raw "$profile_plist")
+profile_team_id=$(/usr/bin/plutil -extract 'Entitlements.com\.apple\.developer\.team-identifier' raw "$profile_plist")
 expected_app_id="${APPLE_APP_ID_PREFIX}.${bundle_id}"
 if [ "$profile_app_id" != "$expected_app_id" ]; then
   echo "Provisioning profile App ID is $profile_app_id; expected $expected_app_id" >&2
@@ -128,9 +110,9 @@ fi
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$app"
 signed_entitlements="$work_dir/signed-entitlements.plist"
 /usr/bin/codesign -d --entitlements :- "$app" > "$signed_entitlements"
-signed_app_id=$(/usr/bin/plutil -extract com.apple.application-identifier raw "$signed_entitlements")
-signed_team_id=$(/usr/bin/plutil -extract com.apple.developer.team-identifier raw "$signed_entitlements")
-sandbox=$(/usr/bin/plutil -extract com.apple.security.app-sandbox raw "$signed_entitlements")
+signed_app_id=$(/usr/bin/plutil -extract 'com\.apple\.application-identifier' raw "$signed_entitlements")
+signed_team_id=$(/usr/bin/plutil -extract 'com\.apple\.developer\.team-identifier' raw "$signed_entitlements")
+sandbox=$(/usr/bin/plutil -extract 'com\.apple\.security\.app-sandbox' raw "$signed_entitlements")
 if [ "$signed_app_id" != "$expected_app_id" ] || [ "$signed_team_id" != "$APPLE_TEAM_ID" ] || [ "$sandbox" != "true" ]; then
   echo "Signed app entitlements do not match the profile, team, and sandbox requirements" >&2
   exit 1
