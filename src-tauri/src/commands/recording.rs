@@ -5,6 +5,7 @@ use crate::{
     app::AppPaths,
     ipc::RecordingPayload,
     recording::{self, RecorderState},
+    recording_payload,
     settings::SettingsState,
     threads::ThreadDetail,
     transcription::FinalizeState,
@@ -26,6 +27,7 @@ pub(crate) async fn start_recording(
     })
     .await
     .map_err(|err| format!("Audio startup task failed: {err}"))?
+    .map(recording_payload::from_started)
 }
 
 #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
@@ -45,6 +47,7 @@ pub(crate) async fn start_fixture_recording(
     })
     .await
     .map_err(|err| format!("Fixture startup task failed: {err}"))?
+    .map(recording_payload::from_started)
 }
 
 #[tauri::command]

@@ -12,10 +12,16 @@ pub(crate) struct MeetingAccess {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct Meeting {
-    pub(super) id: String,
-    pub(super) calendar_id: String,
-    pub(super) title: String,
-    pub(super) start_at_ms: u64,
-    pub(super) end_at_ms: u64,
+pub(crate) struct Meeting {
+    pub(crate) id: String,
+    pub(crate) calendar_id: String,
+    pub(crate) title: String,
+    pub(crate) start_at_ms: u64,
+    pub(crate) end_at_ms: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct MeetingPrompt {
+    pub(crate) request_id: String,
+    pub(crate) meeting: Meeting,
 }

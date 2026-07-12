@@ -4,9 +4,11 @@ mod app;
 mod capture;
 mod commands;
 mod ipc;
+mod meeting_surfaces;
 mod meetings;
 mod platform;
 mod recording;
+mod recording_payload;
 mod settings;
 mod threads;
 mod transcription;
@@ -34,15 +36,29 @@ pub fn run() {
             let paths = app.state::<AppPaths>();
             let settings = app.state::<SettingsState>().snapshot();
             reset_stale_recording_threads(&settings::effective_paths(&paths, &settings))?;
-            tray::init_tray(app, start_recording_from_tray, stop_recording_from_tray)?;
+            tray::init_tray(
+                app,
+                start_recording_from_tray,
+                stop_recording_from_tray,
+                meeting_surfaces::start_native_meeting,
+            )?;
             let action_app = app.handle().clone();
             platform::notifications::initialize(
                 meetings::notification_categories(),
                 move |response| {
-                    meetings::handle_notification_action(action_app.clone(), response);
+                    meetings::handle_notification_action(
+                        action_app.clone(),
+                        response,
+                        meeting_surfaces::start_native_meeting_now,
+                        |app| {
+                            meeting_surfaces::sync_current(app);
+                        },
+                    );
                 },
             );
-            meetings::spawn_scheduler(app.handle().clone());
+            meetings::spawn_scheduler(app.handle().clone(), |app| {
+                meeting_surfaces::sync_current(app);
+            });
             // The minWidth/minHeight from tauri.conf.json is not enforced on
             // macOS; the layout needs at least this much room.
             if let Some(window) = app.get_webview_window("main") {
@@ -106,6 +122,9 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::settings::pick_folder,
         commands::meetings::get_meeting_access_status,
         commands::meetings::request_meeting_access,
+        commands::meetings::get_meeting_prompt,
+        commands::meetings::start_meeting_recording,
+        commands::meetings::dismiss_meeting_prompt,
         commands::recording::start_recording,
         commands::recording::start_fixture_recording,
         commands::recording::stop_recording,
@@ -142,6 +161,9 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::settings::pick_folder,
         commands::meetings::get_meeting_access_status,
         commands::meetings::request_meeting_access,
+        commands::meetings::get_meeting_prompt,
+        commands::meetings::start_meeting_recording,
+        commands::meetings::dismiss_meeting_prompt,
         commands::recording::start_recording,
         commands::recording::stop_recording,
         commands::recording::reprocess_thread,
@@ -159,7 +181,8 @@ fn start_recording_from_tray(app: &AppHandle) {
         let effective = settings::effective_paths(&paths, &settings);
         let recorder = app.state::<RecorderState>().inner().clone();
         match recording::start_recording(app.clone(), effective, recorder, settings, None) {
-            Ok(payload) => {
+            Ok(started) => {
+                let payload = recording_payload::from_started(started);
                 let _ = app.emit("recording-started", &payload);
             }
             Err(err) => eprintln!("recording start failed: {err}"),

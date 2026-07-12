@@ -1,8 +1,9 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, State};
 
 use crate::{
-    ipc::{MeetingAccessPayload, MeetingCalendarPayload},
-    meetings,
+    ipc::{MeetingAccessPayload, MeetingCalendarPayload, MeetingPromptPayload, RecordingPayload},
+    meeting_surfaces,
+    meetings::{self, MeetingSchedulerState},
 };
 
 #[tauri::command]
@@ -11,6 +12,34 @@ pub(crate) async fn get_meeting_access_status() -> Result<MeetingAccessPayload, 
         .await
         .map_err(|err| format!("Calendar status task failed: {err}"))
         .map(to_payload)
+}
+
+#[tauri::command]
+pub(crate) fn get_meeting_prompt(
+    scheduler: State<'_, MeetingSchedulerState>,
+) -> Option<MeetingPromptPayload> {
+    scheduler
+        .current_start_prompt()
+        .map(meeting_surfaces::to_payload)
+}
+
+#[tauri::command]
+pub(crate) async fn start_meeting_recording(
+    app: AppHandle,
+    request_id: String,
+) -> Result<RecordingPayload, String> {
+    tauri::async_runtime::spawn_blocking(move || meeting_surfaces::start(&app, &request_id))
+        .await
+        .map_err(|err| format!("Meeting recording task failed: {err}"))?
+}
+
+#[tauri::command]
+pub(crate) fn dismiss_meeting_prompt(
+    app: AppHandle,
+    scheduler: State<'_, MeetingSchedulerState>,
+    request_id: String,
+) -> Option<MeetingPromptPayload> {
+    meeting_surfaces::dismiss(&app, &scheduler, &request_id)
 }
 
 #[tauri::command]

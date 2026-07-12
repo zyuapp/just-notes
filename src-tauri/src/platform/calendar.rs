@@ -1,12 +1,14 @@
 mod store;
 mod worker;
 
-use std::{sync::mpsc, time::Duration};
+use std::{ptr::NonNull, sync::mpsc, time::Duration};
 
 use block2::RcBlock;
 use objc2::runtime::Bool;
-use objc2_event_kit::{EKAuthorizationStatus, EKEntityType, EKEventStore};
-use objc2_foundation::NSError;
+use objc2_event_kit::{
+    EKAuthorizationStatus, EKEntityType, EKEventStore, EKEventStoreChangedNotification,
+};
+use objc2_foundation::{NSError, NSNotification, NSNotificationCenter};
 use tauri::AppHandle;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -52,7 +54,9 @@ pub(crate) fn request_access(app: &AppHandle) -> Result<(), String> {
 
 fn request_access_on_main(sender: mpsc::Sender<Result<(), String>>) {
     let store = unsafe { EKEventStore::new() };
+    let store_until_completion = store.clone();
     let completion = RcBlock::new(move |granted: Bool, _error: *mut NSError| {
+        let _keep_store_alive = &store_until_completion;
         let result = if granted.as_bool() {
             Ok(())
         } else {
@@ -63,7 +67,22 @@ fn request_access_on_main(sender: mpsc::Sender<Result<(), String>>) {
     unsafe {
         store.requestFullAccessToEventsWithCompletion(&*completion as *const _ as *mut _);
     }
-    std::mem::forget(completion);
+}
+
+pub(crate) fn observe_changes(on_change: impl Fn() + Send + Sync + 'static) {
+    let center = NSNotificationCenter::defaultCenter();
+    let callback = RcBlock::new(move |_notification: NonNull<NSNotification>| on_change());
+    let observer = unsafe {
+        center.addObserverForName_object_queue_usingBlock(
+            Some(EKEventStoreChangedNotification),
+            None,
+            None,
+            &callback,
+        )
+    };
+    // Calendar observation is process-lifetime infrastructure. NotificationCenter
+    // owns the callback registration; retain its opaque token until app exit.
+    std::mem::forget(observer);
 }
 
 pub(crate) fn list_calendars() -> Result<Vec<CalendarInfo>, String> {

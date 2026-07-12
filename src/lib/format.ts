@@ -30,3 +30,11 @@ export function formatThreadDate(ms: number) {
     minute: "2-digit",
   }).format(new Date(ms));
 }
+
+export function formatMeetingTiming(startAtMs: number, nowMs: number) {
+  const deltaMinutes = Math.ceil((startAtMs - nowMs) / 60_000);
+  if (deltaMinutes > 1) return `starts in ${deltaMinutes} min`;
+  if (deltaMinutes >= 0) return "starts now";
+  const minutesAgo = Math.abs(deltaMinutes);
+  return `started ${minutesAgo} min ago`;
+}

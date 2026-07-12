@@ -137,6 +137,19 @@ fn request_access_on_main(sender: mpsc::Sender<Result<(), String>>) {
 }
 
 pub(crate) fn show(request_id: &str, title: &str, body: &str, category: &str) {
+    let logged_request_id = request_id.to_string();
+    show_with_error_handler(request_id, title, body, category, move |error| {
+        eprintln!("notification {logged_request_id} could not be delivered: {error}");
+    });
+}
+
+pub(crate) fn show_with_error_handler(
+    request_id: &str,
+    title: &str,
+    body: &str,
+    category: &str,
+    on_error: impl Fn(String) + Send + Sync + 'static,
+) {
     let content = UNMutableNotificationContent::new();
     content.setTitle(&NSString::from_str(title));
     content.setBody(&NSString::from_str(body));
@@ -147,8 +160,14 @@ pub(crate) fn show(request_id: &str, title: &str, body: &str, category: &str) {
         &content,
         None,
     );
+    let completion = RcBlock::new(move |error: *mut NSError| {
+        let Some(error) = (unsafe { error.as_ref() }) else {
+            return;
+        };
+        on_error(error.localizedDescription().to_string());
+    });
     UNUserNotificationCenter::currentNotificationCenter()
-        .addNotificationRequest_withCompletionHandler(&request, None);
+        .addNotificationRequest_withCompletionHandler(&request, Some(&completion));
 }
 
 pub(crate) fn remove(request_ids: &[String]) {

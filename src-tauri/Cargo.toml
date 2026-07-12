@@ -28,7 +28,7 @@ objc2 = "0.6.4"
 objc2-av-foundation = { version = "0.3.2", default-features = false, features = ["AVCaptureDevice", "AVMediaFormat", "block2", "std"] }
 objc2-core-audio = { version = "0.3.2", default-features = false, features = ["AudioHardware", "objc2", "objc2-foundation", "std"] }
 objc2-core-foundation = { version = "0.3.2", features = ["CFArray", "CFDictionary", "CFString"] }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSArray", "NSString", "NSUUID", "std"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSArray", "NSNotification", "NSOperation", "NSString", "NSUUID", "block2", "std"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10.8"
