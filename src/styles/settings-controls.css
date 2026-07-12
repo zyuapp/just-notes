@@ -17,7 +17,7 @@
   width: 32px;
   height: 19px;
   border-radius: 10px;
-  background: #3c424a;
+  background: var(--line-strong);
   transition: background 0.15s ease;
 }
 
@@ -34,11 +34,12 @@
 }
 
 .settings-switch input:checked + .settings-knob {
-  background: var(--blue);
+  background: var(--text-2);
 }
 
 .settings-switch input:checked + .settings-knob::after {
   transform: translateX(13px);
+  background: var(--app-bg);
 }
 
 .settings-switch input:focus-visible + .settings-knob {
@@ -79,6 +80,6 @@
 }
 
 .settings-segmented button.selected {
-  background: var(--blue);
-  color: #fff;
+  background: var(--blue-soft);
+  color: var(--text-bright);
 }

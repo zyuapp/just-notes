@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fs, io::ErrorKind, path::PathBuf};
+use std::{fs, io::ErrorKind, path::PathBuf};
 
 use crate::app::{now_ms, AppPaths};
 
@@ -28,7 +28,6 @@ pub(crate) fn create_thread_with_title(
         updated_at_ms: now,
         status: ThreadStatus::Idle,
         duration_ms: 0,
-        speaker_labels: BTreeMap::new(),
     };
     save_thread_metadata(&thread_dir, &metadata)?;
     write_text_atomic(&thread_dir.join("transcript.md"), &format!("# {title}\n\n"))?;

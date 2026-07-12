@@ -4,20 +4,20 @@
   height: 100%;
   min-height: 300px;
   align-content: center;
-  justify-items: start;
-  gap: 14px;
+  justify-items: center;
+  gap: 10px;
   margin: 0 auto;
   color: var(--text-2);
 }
 
 .empty-mark {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  background: var(--raised);
+  border-radius: 8px;
+  background: transparent;
   color: var(--text-2);
 }
 
@@ -28,14 +28,16 @@
 
 .empty-state h2 {
   color: var(--text-bright);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
+  text-align: center;
 }
 
 .empty-state p {
   max-width: 340px;
   margin-top: 5px;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.55;
+  text-align: center;
 }

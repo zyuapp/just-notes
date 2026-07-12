@@ -56,7 +56,7 @@ mod tests {
     use super::polish_thread_transcript;
     use crate::app::AppPaths;
     use crate::threads::{
-        commit::append_thread_segments, repository::create_thread,
+        commit::append_thread_segments, create::create_thread,
         transcript_store::read_transcript_jsonl, RecordingAudioPaths, TranscriptSegment,
     };
 

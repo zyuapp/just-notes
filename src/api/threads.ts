@@ -35,10 +35,6 @@ export const threadsApi = {
     return invokeCommand("delete_thread", { threadId });
   },
 
-  renameSpeaker(threadId: string, speaker: string, label: string): Promise<ThreadDetail> {
-    return invokeCommand("rename_speaker", { threadId, speaker, label });
-  },
-
   updateSegmentText(threadId: string, segmentIndex: number, text: string): Promise<ThreadDetail> {
     return invokeCommand("update_segment_text", { threadId, segmentIndex, text });
   },

@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import {
-  displaySpeaker,
   mergeLiveSegments,
   showsSpeakerHeader,
   sortTranscriptSegments,
@@ -59,13 +58,6 @@ describe("showsSpeakerHeader", () => {
     expect(showsSpeakerHeader(items, 0)).toBe(true);
     expect(showsSpeakerHeader(items, 1)).toBe(false);
     expect(showsSpeakerHeader(items, 2)).toBe(true);
-  });
-});
-
-describe("displaySpeaker", () => {
-  test("prefers the configured label", () => {
-    expect(displaySpeaker("You", { You: "Zhuocheng" })).toBe("Zhuocheng");
-    expect(displaySpeaker("Others", {})).toBe("Others");
   });
 });
 

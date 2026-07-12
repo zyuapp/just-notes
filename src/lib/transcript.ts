@@ -14,20 +14,12 @@ export function showsSpeakerHeader(items: IndexedSegment[], position: number): b
   return items[position - 1].segment.speaker !== items[position].segment.speaker;
 }
 
-export function displaySpeaker(speaker: string, labels: Record<string, string>): string {
-  return labels[speaker] ?? speaker;
-}
-
 export function transcriptToText(
   segments: TranscriptSegment[],
-  labels: Record<string, string>,
   formatTime: (ms: number) => string,
 ): string {
   return segments
-    .map(
-      (segment) =>
-        `[${formatTime(segment.startMs)}] ${displaySpeaker(segment.speaker, labels)}: ${segment.text}`,
-    )
+    .map((segment) => `[${formatTime(segment.startMs)}] ${segment.speaker}: ${segment.text}`)
     .join("\n");
 }
 

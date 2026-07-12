@@ -2,4 +2,4 @@
 import type { ThreadSummary } from "./ThreadSummary";
 import type { TranscriptSegment } from "./TranscriptSegment";
 
-export type ThreadDetail = { summary: ThreadSummary, segments: Array<TranscriptSegment>, speakerLabels: { [key in string]: string }, transcriptMarkdownPath: string, };
+export type ThreadDetail = { summary: ThreadSummary, segments: Array<TranscriptSegment>, transcriptMarkdownPath: string, };

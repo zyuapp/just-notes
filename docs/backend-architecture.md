@@ -30,7 +30,7 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Threads
 
-`threads` owns the note-thread domain: thread metadata (including duration and speaker labels), summaries, details, transcript segments, transcript JSONL storage, markdown rendering, user edits (rename, delete, speaker labels, segment text, search), and stale-status cleanup. It does not know how audio is captured or transcribed; it only persists and presents thread data.
+`threads` owns the note-thread domain: thread metadata, summaries, details, transcript segments, transcript JSONL storage, markdown rendering, user edits (rename, delete, segment text, search), and stale-status cleanup. It does not know how audio is captured or transcribed; it only persists and presents thread data.
 
 ### Capture
 

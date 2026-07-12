@@ -6,7 +6,7 @@ import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
 import type { ThreadActions } from "../features/app/useThreadActions";
-import { formatDuration, formatThreadDate } from "../lib/format";
+import { formatCompactDuration, formatThreadDate } from "../lib/format";
 import { CaptureBar } from "./CaptureBar";
 import { ErrorToast } from "./ErrorToast";
 import { NoticeBar, type Notice } from "./NoticeBar";
@@ -61,13 +61,15 @@ export function TranscriptPanel({
   const hasSegments = (selectedThread?.segments.length ?? 0) > 0;
   const canModify = recorderState === "idle" && summary?.status === "idle";
   const canResume = canModify && hasSegments;
-  const speakers = Array.from(
-    new Set(selectedThread?.segments.map((segment) => segment.speaker) ?? []),
-  );
 
   return (
     <section className="thread-panel" aria-label="Transcript">
       <header className="panel-head" data-tauri-drag-region="">
+        <ThreadTitle
+          title={summary?.title ?? null}
+          canRename={canModify}
+          onRename={(title) => void threadActions.renameThread(title)}
+        />
         <p className="eyebrow">
           <span className={isRecording ? "status-dot live" : "status-dot"} />
           {summary ? (
@@ -76,13 +78,7 @@ export function TranscriptPanel({
               {summary.durationMs > 0 && (
                 <>
                   <i>·</i>
-                  <time>{formatDuration(summary.durationMs)}</time>
-                </>
-              )}
-              {(hasSegments || summary.hasAudio) && (
-                <>
-                  <i>·</i>
-                  <span>Mic + System</span>
+                  <time>{formatCompactDuration(summary.durationMs)}</time>
                 </>
               )}
             </>
@@ -90,23 +86,15 @@ export function TranscriptPanel({
             <span>Local</span>
           )}
         </p>
-        <ThreadTitle
-          title={summary?.title ?? null}
-          canRename={canModify}
-          onRename={(title) => void threadActions.renameThread(title)}
-        />
       </header>
 
       {selectedThread && (hasSegments || selectedThread.summary.hasAudio) && (
         <TranscriptToolbar
           query={query}
-          speakers={speakers}
-          speakerLabels={selectedThread.speakerLabels}
           canModify={canModify}
           onQueryChange={setQuery}
           onCopy={() => void threadActions.copyTranscript()}
           onArchive={() => onArchiveThread(selectedThread.summary.id)}
-          onRenameSpeaker={(speaker, label) => void threadActions.renameSpeaker(speaker, label)}
           onReprocess={
             selectedThread.summary.hasAudio
               ? () => onReprocess(selectedThread.summary.id)

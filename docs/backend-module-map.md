@@ -9,7 +9,7 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 ## `src-tauri/src/commands`
 
 - `mod.rs`: shared effective-path resolution from base paths plus settings.
-- `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, speaker rename, segment edit, search, markdown export).
+- `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, segment edit, search, markdown export).
 - `recording.rs`: start/stop/fixture recording commands and finalization cancel.
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
 - `settings.rs`: settings read/update and the native folder picker.
@@ -66,10 +66,10 @@ Use this when frontend/backend payload shape changes are needed.
 
 ## `src-tauri/src/threads`
 
-- `model.rs`: thread metadata (including duration and speaker labels), thread summaries/details (including the `has_audio` flag), transcript segment model, and thread status (idle/recording/transcribing).
+- `model.rs`: thread metadata (including duration), thread summaries/details (including the `has_audio` flag), transcript segment model, and thread status (idle/recording/transcribing).
 - `repository.rs`: active/archived listing, loading, status/duration updates, work directory setup, markdown rendering and `transcript.md` export, and stale-status cleanup.
 - `create.rs`: collision-safe thread directory creation plus internal and external title handling.
-- `edits.rs`: user-initiated mutations — rename, archive, restore, delete, rename speakers, edit segment text, and search across titles and transcript text.
+- `edits.rs`: user-initiated mutations — rename, archive, restore, delete, edit segment text, and search across titles and transcript text.
 - `edits/fs_move.rs`: filesystem move of a thread directory between the active and archive locations.
 - `artifacts.rs`: `RecordingAudioPaths` — on-disk locations of a thread's raw `mic.wav`/`system.wav`, plus existence checks and removal.
 - `transcript_store.rs`: transcript JSONL append/read/count/replace behavior, snippet extraction, and atomic text writes.

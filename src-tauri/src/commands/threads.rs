@@ -78,22 +78,6 @@ pub(crate) fn delete_thread(
 }
 
 #[tauri::command]
-pub(crate) fn rename_speaker(
-    paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
-    thread_id: String,
-    speaker: String,
-    label: String,
-) -> Result<ThreadDetail, String> {
-    edits::rename_speaker(
-        &effective_paths(&paths, &settings),
-        &thread_id,
-        &speaker,
-        &label,
-    )
-}
-
-#[tauri::command]
 pub(crate) fn update_segment_text(
     paths: State<'_, AppPaths>,
     settings: State<'_, SettingsState>,

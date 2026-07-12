@@ -1,13 +1,22 @@
-import { X } from "lucide-react";
+import { useState } from "react";
 import type { AppInfo } from "../bindings/AppInfo";
 import type { AppSettings } from "../bindings/AppSettings";
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
 import type { MeetingAccessPayload } from "../bindings/MeetingAccessPayload";
 import { MeetingSettingsSection } from "./MeetingSettingsSection";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
-import { permissionLabel, SettingsToggle } from "./SettingsControls";
+import { SettingsToggle } from "./SettingsControls";
+import { SettingsNavigation, type SettingsSectionId } from "./SettingsNavigation";
+import { SettingsPermissionsSection } from "./SettingsPermissionsSection";
 import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
 import { useDismissOnEscape } from "./useDismissOnEscape";
+
+const SECTION_COPY: Record<SettingsSectionId, { title: string; description: string }> = {
+  storage: { title: "Storage", description: "Choose where recordings live and which files are kept." },
+  transcription: { title: "Transcription", description: "Process every recording locally on this Mac." },
+  meetings: { title: "Meetings", description: "Get a prompt when a calendar meeting is about to begin or end." },
+  permissions: { title: "Permissions", description: "Review the system access Just Notes uses." },
+};
 
 type SettingsViewProps = {
   settings: AppSettings;
@@ -52,20 +61,22 @@ export function SettingsView({
   onDeleteModel,
   onOpenPrivacy,
 }: SettingsViewProps) {
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>("storage");
+  const activeSectionCopy = SECTION_COPY[activeSection];
   useDismissOnEscape(onClose);
 
   return (
-    <div className="settings-overlay" role="dialog" aria-label="Settings">
-      <div className="settings-panel">
-        <header>
-          <h2>Settings</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close settings">
-            <X size={15} aria-hidden="true" />
-          </button>
-        </header>
+    <div className="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
+      <SettingsNavigation activeSection={activeSection} onSelect={setActiveSection} onClose={onClose} />
 
-        <section>
-          <h3>Storage</h3>
+      <div className="settings-content">
+        <div className="settings-panel">
+          <header className="settings-titlebar">
+            <h2>{activeSectionCopy.title}</h2>
+            <p>{activeSectionCopy.description}</p>
+          </header>
+
+        {activeSection === "storage" && <section id="settings-storage">
           <div className="settings-row">
             <div>
               <strong>Transcripts folder</strong>
@@ -87,54 +98,35 @@ export function SettingsView({
             checked={settings.markdownCopy}
             onToggle={onToggleMarkdownCopy}
           />
-        </section>
+        </section>}
 
-        <TranscriptionSettingsSection
-          transcriptionStatus={transcriptionStatus}
-          onStartModelDownload={onStartModelDownload}
-          onCancelModelDownload={onCancelModelDownload}
-          onDeleteModel={onDeleteModel}
-        />
+        {activeSection === "transcription" && <div id="settings-transcription">
+          <TranscriptionSettingsSection
+            transcriptionStatus={transcriptionStatus}
+            onStartModelDownload={onStartModelDownload}
+            onCancelModelDownload={onCancelModelDownload}
+            onDeleteModel={onDeleteModel}
+          />
+        </div>}
 
-        <MeetingSettingsSection
-          settings={settings}
-          access={meetingAccess}
-          onRequestAccess={onRequestMeetingAccess}
-          onToggleCalendar={onToggleMeetingCalendar}
-          onToggleReminders={onToggleMeetingReminders}
-          onSetReminderMinutes={onSetMeetingReminderMinutes}
-          onToggleEndReminders={onToggleMeetingEndReminders}
-          onOpenPrivacy={onOpenPrivacy}
-          busy={meetingSettingsBusy}
-        />
+        {activeSection === "meetings" && <div id="settings-meetings">
+          <MeetingSettingsSection
+            settings={settings}
+            access={meetingAccess}
+            onRequestAccess={onRequestMeetingAccess}
+            onToggleCalendar={onToggleMeetingCalendar}
+            onToggleReminders={onToggleMeetingReminders}
+            onSetReminderMinutes={onSetMeetingReminderMinutes}
+            onToggleEndReminders={onToggleMeetingEndReminders}
+            onOpenPrivacy={onOpenPrivacy}
+            busy={meetingSettingsBusy}
+          />
+        </div>}
 
-        <section>
-          <h3>Permissions</h3>
-          <div className="settings-row">
-            <div>
-              <strong>Microphone</strong>
-              <p className="settings-hint">{permissionLabel(permissions?.microphone)}</p>
-            </div>
-            <div className="settings-row-actions">
-              <button type="button" onClick={() => onOpenPrivacy("microphone")}>
-                Open System Settings
-              </button>
-            </div>
-          </div>
-          <div className="settings-row">
-            <div>
-              <strong>System audio</strong>
-              <p className="settings-hint">
-                macOS asks on first recording. Manage it under Screen &amp; System Audio Recording.
-              </p>
-            </div>
-            <div className="settings-row-actions">
-              <button type="button" onClick={() => onOpenPrivacy("system-audio")}>
-                Open System Settings
-              </button>
-            </div>
-          </div>
-        </section>
+          {activeSection === "permissions" && (
+            <SettingsPermissionsSection permissions={permissions} onOpenPrivacy={onOpenPrivacy} />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -11,7 +11,7 @@
 }
 
 .capture-bar.recording {
-  background: linear-gradient(0deg, var(--red-soft), rgba(229, 72, 77, 0.04));
+  background: var(--sidebar);
   border-top-color: rgba(229, 72, 77, 0.3);
 }
 
@@ -22,7 +22,7 @@
   height: 30px;
   flex: 0 0 auto;
   padding: 0 14px;
-  border: 1px solid rgba(229, 72, 77, 0.5);
+  border: 1px solid rgba(208, 92, 97, 0.55);
   border-radius: 15px;
   color: var(--text-bright);
   cursor: pointer;
@@ -61,8 +61,8 @@
 
 .capture-bar.recording .record-button {
   background: var(--red);
-  border-color: #f06a6e;
-  box-shadow: 0 1px 10px rgba(229, 72, 77, 0.45);
+  border-color: var(--red);
+  box-shadow: none;
 }
 
 .capture-bar.recording .record-button:hover:not(:disabled) {
@@ -129,7 +129,7 @@
 }
 
 .capture-meter:first-child .capture-meter-bars span.on {
-  background: var(--blue);
+  background: var(--text-2);
 }
 
 .capture-status {

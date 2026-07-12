@@ -4,7 +4,9 @@
   gap: 6px;
   align-items: center;
   flex: 0 0 auto;
-  padding: 0 28px 10px;
+  min-height: 40px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
 }
 
 .toolbar-search {
@@ -16,7 +18,7 @@
   height: 28px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: var(--sunken);
+  background: rgba(15, 17, 19, 0.62);
   color: var(--text-3);
 }
 
@@ -40,39 +42,6 @@
   margin-left: auto;
 }
 
-.toolbar-actions .icon-button.active {
-  background: var(--blue-soft);
-  color: var(--text-bright);
-}
-
-.speaker-renames {
-  display: flex;
-  flex-basis: 100%;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding-top: 6px;
-}
-
-.speaker-rename {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  color: var(--text-3);
-  font-size: 12px;
-}
-
-.speaker-rename input {
-  width: 160px;
-  height: 26px;
-  padding: 0 9px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  outline: none;
-  background: var(--sunken);
-  color: var(--text);
-  font-size: 12px;
-}
-
 .notice-bar {
   display: flex;
   gap: 10px;
@@ -80,15 +49,16 @@
   flex: 0 0 auto;
   margin: 0 28px 10px;
   padding: 8px 12px;
-  border: 1px solid rgba(240, 177, 62, 0.3);
+  border: 1px solid var(--line-strong);
   border-radius: 7px;
-  background: rgba(240, 177, 62, 0.08);
-  color: #ecca8d;
+  background: var(--raised);
+  color: var(--text);
   font-size: 12px;
 }
 
 .notice-bar svg {
   flex: 0 0 auto;
+  color: var(--amber);
 }
 
 .notice-bar span {
@@ -99,10 +69,10 @@
 .notice-bar button {
   height: 24px;
   padding: 0 10px;
-  border: 1px solid rgba(240, 177, 62, 0.35);
+  border: 1px solid var(--line-strong);
   border-radius: 6px;
-  background: rgba(240, 177, 62, 0.1);
-  color: #f3d9a8;
+  background: var(--panel);
+  color: var(--text);
   cursor: pointer;
   font-size: 11.5px;
   white-space: nowrap;
