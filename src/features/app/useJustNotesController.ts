@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import type { AppAction, AppState } from "./state";
+import { runRecordingStart } from "./recordingStart";
 import { useTranscriptionModelController } from "./useTranscriptionModelController";
 
 type AppDispatch = (action: AppAction) => void;
@@ -75,25 +76,19 @@ export function useJustNotesController(state: AppState, dispatch: AppDispatch) {
   }, [dispatch, refreshThreads]);
 
   const startRecording = useCallback(async () => {
-    dispatch({ type: "recordingStarting" });
-    try {
-      const payload = await api.recording.start(state.selectedThreadId);
-      dispatch({ type: "recordingStarted", payload });
-      await refreshThreads(payload.thread.summary.id);
-    } catch (error) {
-      dispatch({ type: "recordingStartFailed", message: getApiErrorMessage(error) });
-    }
+    await runRecordingStart({
+      dispatch,
+      start: () => api.recording.start(state.selectedThreadId),
+      refreshThreads,
+    });
   }, [dispatch, refreshThreads, state.selectedThreadId]);
 
   const startFixtureRecording = useCallback(async () => {
-    dispatch({ type: "recordingStarting" });
-    try {
-      const payload = await api.recording.startFixture(state.selectedThreadId);
-      dispatch({ type: "recordingStarted", payload });
-      await refreshThreads(payload.thread.summary.id);
-    } catch (error) {
-      dispatch({ type: "recordingStartFailed", message: getApiErrorMessage(error) });
-    }
+    await runRecordingStart({
+      dispatch,
+      start: () => api.recording.startFixture(state.selectedThreadId),
+      refreshThreads,
+    });
   }, [dispatch, refreshThreads, state.selectedThreadId]);
 
   const stopRecording = useCallback(async () => {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
+import type { MeetingPromptPayload } from "../bindings/MeetingPromptPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
@@ -10,6 +11,7 @@ import { formatCompactDuration, formatThreadDate } from "../lib/format";
 import { CaptureBar } from "./CaptureBar";
 import { ErrorToast } from "./ErrorToast";
 import { NoticeBar, type Notice } from "./NoticeBar";
+import { MeetingPromptCard } from "./MeetingPromptCard";
 import { ThreadTitle } from "./ThreadTitle";
 import { TranscriptSurface } from "./TranscriptSurface";
 import { TranscriptToolbar } from "./TranscriptToolbar";
@@ -23,6 +25,7 @@ type TranscriptPanelProps = {
   recorderState: RecorderState;
   selectedThread: ThreadDetail | null;
   liveSegments: TranscriptSegment[];
+  meetingPrompt: MeetingPromptPayload | null;
   statusLabel: string;
   transcriptionStatus: TranscriptionStatusPayload | null;
   threadActions: ThreadActions;
@@ -32,6 +35,8 @@ type TranscriptPanelProps = {
   onStartModelDownload: () => void;
   onStartFixtureRecording: () => void;
   onStartRecording: () => void;
+  onStartMeetingRecording: (requestId: string) => void;
+  onDismissMeetingPrompt: (requestId: string) => void;
   onStopRecording: () => void;
 };
 
@@ -44,6 +49,7 @@ export function TranscriptPanel({
   recorderState,
   selectedThread,
   liveSegments,
+  meetingPrompt,
   statusLabel,
   transcriptionStatus,
   threadActions,
@@ -53,6 +59,8 @@ export function TranscriptPanel({
   onStartModelDownload,
   onStartFixtureRecording,
   onStartRecording,
+  onStartMeetingRecording,
+  onDismissMeetingPrompt,
   onStopRecording,
 }: TranscriptPanelProps) {
   const [query, setQuery] = useState("");
@@ -104,6 +112,14 @@ export function TranscriptPanel({
       )}
 
       <NoticeBar notice={notice} />
+
+      {recorderState === "idle" && meetingPrompt && (
+        <MeetingPromptCard
+          prompt={meetingPrompt}
+          onStart={() => onStartMeetingRecording(meetingPrompt.requestId)}
+          onDismiss={() => onDismissMeetingPrompt(meetingPrompt.requestId)}
+        />
+      )}
 
       <TranscriptSurface
         recorderState={recorderState}

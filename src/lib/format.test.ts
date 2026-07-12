@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatCompactDuration, formatDuration } from "./format";
+import { formatCompactDuration, formatDuration, formatMeetingTiming } from "./format";
 
 describe("formatDuration", () => {
   test("formats milliseconds as mm:ss", () => {
@@ -7,6 +7,14 @@ describe("formatDuration", () => {
     expect(formatDuration(999)).toBe("00:00");
     expect(formatDuration(61_000)).toBe("01:01");
     expect(formatDuration(3_605_000)).toBe("60:05");
+  });
+});
+
+describe("formatMeetingTiming", () => {
+  test("describes upcoming, current, and recently started meetings", () => {
+    expect(formatMeetingTiming(300_000, 0)).toBe("starts in 5 min");
+    expect(formatMeetingTiming(30_000, 0)).toBe("starts now");
+    expect(formatMeetingTiming(0, 61_000)).toBe("started 1 min ago");
   });
 });
 

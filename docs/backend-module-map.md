@@ -14,9 +14,13 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
 - `settings.rs`: settings read/update and the native folder picker.
 - `system.rs`: app info, permission status, Finder reveal, clipboard, and privacy-settings deep links.
-- `meetings.rs`: calendar/notification permission status and access requests.
+- `meetings.rs`: calendar/notification permission status, access requests, and current meeting-prompt actions.
 
 Commands here stay thin: they resolve state handles and delegate to the owning domain. This module exists so `lib.rs` stays a small adapter.
+
+## `src-tauri/src/meeting_surfaces.rs`
+
+Thin adapter that synchronizes the current meeting prompt to frontend events and the menu-bar item, and translates native meeting-start outcomes into recording events or failure notifications. Meeting eligibility and prompt lifecycle remain in the `meetings` context.
 
 ## `src-tauri/src/app`
 
@@ -44,16 +48,16 @@ Keep this free of domain knowledge; it only shells out to the OS.
 ## `src-tauri/src/meetings`
 
 - `model.rs`: calendar-access payloads and the internal meeting model.
-- `state.rs`: prompt deduplication and the active meeting-recording association.
-- `scheduler.rs`: periodic calendar refresh plus start/end prompt timing.
-- `actions.rs`: notification-action orchestration into the recording domain.
+- `state.rs`: prompt deduplication, current-prompt selection, and the active meeting-recording association.
+- `scheduler.rs`: periodic calendar refresh, start/end prompt timing, and prompt-surface synchronization.
+- `actions.rs`: meeting start/stop orchestration into the recording domain for notification, tray, and frontend adapters.
 - `mod.rs`: meeting-context facade used by commands and app setup.
 
 Use this when changing which calendar events qualify, when meeting reminders appear, or how their actions start and stop recordings.
 
 ## `src-tauri/src/tray`
 
-- `mod.rs`: menu bar tray icon with recording status, elapsed-time title, stop-recording action, open window, and quit.
+- `mod.rs`: menu bar tray icon with contextual meeting and quick-record actions, recording status, elapsed-time title, open window, and quit.
 
 The tray is a thin adapter: `lib.rs` injects the stop handler, and `recording` updates the status/title.
 
@@ -114,6 +118,7 @@ Use this when changing model status, Parakeet behavior, model download/install, 
 ## `src-tauri/src/recording`
 
 - `mod.rs`: recording facade and public API exports.
+- `model.rs`: recording-owned start result before adapters translate it into an IPC payload.
 - `state.rs`: recorder state, active session storage, startup guard, and selected-thread reuse predicate.
 - `workflow.rs`: start orchestration — model-readiness gate, thread selection, capture startup, audio sink startup, live transcription startup, and tray updates.
 - `stop.rs`: stop orchestration — worker shutdown (including live transcription), duration persistence, markdown rendering, raw-audio retention, and the stopped event. The transcript is already on disk, so stop does not re-transcribe.

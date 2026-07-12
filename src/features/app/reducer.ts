@@ -49,6 +49,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, permissions: action.permissions };
     case "meetingAccessLoaded":
       return { ...state, meetingAccess: action.meetingAccess };
+    case "meetingPromptChanged":
+      return { ...state, meetingPrompt: action.meetingPrompt };
     case "settingsOpenChanged":
       return { ...state, settingsOpen: action.open };
     case "finalizationReceived":
@@ -70,8 +72,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         selectedThread: action.payload.thread,
         transcriptionStatus: action.payload.transcription,
         recorderState: "recording",
+        meetingPrompt: null,
       };
     case "recordingStartFailed":
+      if (state.recorderState !== "starting") return state;
       return { ...state, error: action.message, recorderState: "idle", recordingThreadId: null };
     case "recordingStopping":
       return { ...state, error: null, recorderState: "stopping" };

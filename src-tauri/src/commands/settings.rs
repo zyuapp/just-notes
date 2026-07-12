@@ -2,7 +2,7 @@ use tauri::{AppHandle, State};
 
 use crate::{
     app::AppPaths,
-    meetings, platform,
+    meeting_surfaces, meetings, platform,
     settings::{save_settings, validate_settings, AppSettings, SettingsState},
 };
 
@@ -23,6 +23,7 @@ pub(crate) fn update_settings(
     save_settings(&paths.data_dir, &settings)?;
     state.replace(settings.clone());
     meetings::settings_updated(&app, &previous, &settings);
+    meeting_surfaces::sync_current(&app);
     Ok(settings)
 }
 

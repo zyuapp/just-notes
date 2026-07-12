@@ -5,13 +5,13 @@ use tauri::AppHandle;
 use super::{
     audio_sink::spawn_audio_sink,
     meter::spawn_meter_thread,
+    model::StartedRecording,
     selection::{select_recording_thread, SelectedThread},
     state::{RecorderSession, RecorderState},
 };
 use crate::{
     app::AppPaths,
     capture::{prepare_audio_input, start_audio_capture, PreparedAudioInput, RecordingInputMode},
-    ipc::RecordingPayload,
     settings::AppSettings,
     threads::{
         repository::{load_thread_by_id, prepare_work_dir, set_thread_status},
@@ -50,7 +50,7 @@ pub(crate) fn start_recording(
     recorder: RecorderState,
     settings: AppSettings,
     requested_thread_id: Option<String>,
-) -> Result<RecordingPayload, String> {
+) -> Result<StartedRecording, String> {
     start_recording_with_mode(
         RecordingStart {
             app,
@@ -71,7 +71,7 @@ pub(crate) fn start_fixture_recording(
     recorder: RecorderState,
     settings: AppSettings,
     requested_thread_id: Option<String>,
-) -> Result<RecordingPayload, String> {
+) -> Result<StartedRecording, String> {
     let fixture_dir = paths.data_dir.join("fixtures");
     start_recording_with_mode(
         RecordingStart {
@@ -95,7 +95,7 @@ pub(crate) fn start_scheduled_recording(
     recorder: RecorderState,
     settings: AppSettings,
     meeting_title: String,
-) -> Result<RecordingPayload, String> {
+) -> Result<StartedRecording, String> {
     start_recording_with_mode(
         RecordingStart {
             app,
@@ -112,7 +112,7 @@ pub(crate) fn start_scheduled_recording(
 fn start_recording_with_mode(
     start: RecordingStart,
     input_mode: RecordingInputMode,
-) -> Result<RecordingPayload, String> {
+) -> Result<StartedRecording, String> {
     let recorder = start.recorder.clone();
     let _starting = recorder.begin_starting()?;
     prepare_recording_session(start, input_mode)
@@ -121,7 +121,7 @@ fn start_recording_with_mode(
 fn prepare_recording_session(
     start: RecordingStart,
     input_mode: RecordingInputMode,
-) -> Result<RecordingPayload, String> {
+) -> Result<StartedRecording, String> {
     let RecordingStart {
         app,
         paths,
@@ -173,7 +173,7 @@ fn prepare_recording_session(
     }
     tray::set_tray_recording(&app, true);
 
-    Ok(RecordingPayload {
+    Ok(StartedRecording {
         thread: load_thread_by_id(&paths, &thread_id)?,
         transcription,
     })

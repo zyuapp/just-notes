@@ -61,7 +61,7 @@ pub(super) fn show_end_prompt(request_id: &str, meeting_title: &str) {
     );
 }
 
-pub(super) fn show_start_failure(request_id: &str, meeting_title: &str, error: &str) {
+pub(crate) fn show_start_failure(request_id: &str, meeting_title: &str, error: &str) {
     notifications::show(
         request_id,
         "Recording could not start",

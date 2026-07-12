@@ -26,6 +26,7 @@ pub(crate) async fn start_recording(
     })
     .await
     .map_err(|err| format!("Audio startup task failed: {err}"))?
+    .map(to_payload)
 }
 
 #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
@@ -45,6 +46,14 @@ pub(crate) async fn start_fixture_recording(
     })
     .await
     .map_err(|err| format!("Fixture startup task failed: {err}"))?
+    .map(to_payload)
+}
+
+pub(crate) fn to_payload(started: recording::StartedRecording) -> RecordingPayload {
+    RecordingPayload {
+        thread: started.thread,
+        transcription: started.transcription,
+    }
 }
 
 #[tauri::command]

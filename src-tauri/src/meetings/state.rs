@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use super::model::Meeting;
+use super::model::{Meeting, MeetingPrompt};
 
 #[derive(Clone, Default)]
 pub(crate) struct MeetingSchedulerState(Arc<Mutex<SchedulerData>>);
@@ -37,6 +37,25 @@ impl MeetingSchedulerState {
 
     pub(super) fn take_start_prompt(&self, request_id: &str) -> Option<Meeting> {
         self.0.lock().ok()?.start_prompts.remove(request_id)
+    }
+
+    pub(crate) fn current_start_prompt(&self) -> Option<MeetingPrompt> {
+        let data = self.0.lock().ok()?;
+        data.start_prompts
+            .iter()
+            .min_by_key(|(_, meeting)| (meeting.start_at_ms, &meeting.id))
+            .map(|(request_id, meeting)| MeetingPrompt {
+                request_id: request_id.clone(),
+                meeting: meeting.clone(),
+            })
+    }
+
+    pub(crate) fn dismiss_start_prompt(&self, request_id: &str) -> bool {
+        self.0
+            .lock()
+            .ok()
+            .and_then(|mut data| data.start_prompts.remove(request_id))
+            .is_some()
     }
 
     pub(super) fn restore_start_prompt(&self, request_id: String, meeting: Meeting) {

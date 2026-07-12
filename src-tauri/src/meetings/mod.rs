@@ -8,11 +8,20 @@ use tauri::{AppHandle, Manager};
 
 use crate::platform::{calendar, notifications as platform_notifications};
 
-pub(crate) use actions::handle_notification_action;
-pub(crate) use model::{MeetingAccess, MeetingCalendar};
+pub(crate) use actions::{handle_notification_action, start_meeting_recording};
+pub(crate) use model::{MeetingAccess, MeetingCalendar, MeetingPrompt};
 pub(crate) use notifications::categories as notification_categories;
+pub(crate) use notifications::show_start_failure;
 pub(crate) use scheduler::spawn as spawn_scheduler;
 pub(crate) use state::MeetingSchedulerState;
+
+pub(crate) fn dismiss_prompt(state: &MeetingSchedulerState, request_id: &str) -> bool {
+    if state.dismiss_start_prompt(request_id) {
+        platform_notifications::remove(&[request_id.to_string()]);
+        return true;
+    }
+    false
+}
 
 pub(crate) fn access_status() -> MeetingAccess {
     let calendar_authorization = calendar::authorization_status();
