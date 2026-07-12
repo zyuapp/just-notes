@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { api, getApiErrorMessage } from "../../api";
+import { requestModelDownload } from "../../lib/modelDownloadConsent";
 import { isModelDownloadActive } from "../../lib/transcriptionModel";
 import type { AppAction, AppState } from "./state";
 
@@ -20,14 +21,20 @@ export function useTranscriptionModelController(state: AppState, dispatch: AppDi
   }, [dispatch]);
 
   const startModelDownload = useCallback(async () => {
-    dispatch({ type: "errorCleared" });
+    const selectedModel = state.transcriptionStatus?.availableModels.find((model) => model.selected);
     try {
-      const transcriptionStatus = await api.transcription.startModelDownload();
+      const transcriptionStatus = await requestModelDownload(
+        selectedModel,
+        window.confirm,
+        api.transcription.startModelDownload,
+      );
+      if (!transcriptionStatus) return;
+      dispatch({ type: "errorCleared" });
       dispatch({ type: "transcriptionStatusLoaded", transcriptionStatus });
     } catch (error) {
       dispatch({ type: "failed", message: getApiErrorMessage(error) });
     }
-  }, [dispatch]);
+  }, [dispatch, state.transcriptionStatus]);
 
   const cancelModelDownload = useCallback(async () => {
     dispatch({ type: "errorCleared" });

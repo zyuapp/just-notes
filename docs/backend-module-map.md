@@ -12,15 +12,16 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 - `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, segment edit, search, markdown export).
 - `recording.rs`: start/stop/fixture recording commands and finalization cancel.
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
-- `settings.rs`: settings read/update and the native folder picker.
-- `system.rs`: app info, permission status, Finder reveal, clipboard, and privacy-settings deep links.
+- `settings.rs`: settings read/update plus coordination of native folder authorization and default storage selection.
+- `system.rs`: app info, permission status, Finder reveal, clipboard, and privacy-settings deep links through public AppKit APIs.
 - `meetings.rs`: calendar/notification permission status and access requests.
 
 Commands here stay thin: they resolve state handles and delegate to the owning domain. This module exists so `lib.rs` stays a small adapter.
 
 ## `src-tauri/src/app`
 
-- `paths.rs`: discovers and stores app filesystem paths, including the active and archived thread directories.
+- `paths.rs`: constructs the container-relative app filesystem layout, including active and archived thread directories.
+- `migration.rs`: non-overwriting import from the legacy `~/.just-notes` layout after explicit folder authorization.
 - `time.rs`: shared wall-clock helpers.
 - `mod.rs`: exports the app context API.
 
@@ -28,14 +29,14 @@ Use this when changing where Just Notes stores data, threads, fixtures, or share
 
 ## `src-tauri/src/settings`
 
-- `store.rs`: persisted user settings (`settings.json`): transcripts folder override, raw-audio toggle, markdown-copy toggle; settings state handle and effective-path resolution.
+- `store.rs`: persisted user settings (`settings.json`): transcripts folder override and private security-scoped bookmark, raw-audio toggle, markdown-copy toggle; settings state handle and effective-path resolution.
 - `mod.rs`: exports the settings API.
 
 Use this when adding a user preference or changing how the transcripts folder override works.
 
 ## `src-tauri/src/platform`
 
-- `mod.rs`: macOS shell helpers — reveal in Finder, native folder chooser, clipboard copy, and System Settings privacy-pane links.
+- `mod.rs`: public AppKit/Foundation helpers — Finder reveal, native folder chooser and persistent security-scoped access, clipboard copy, and System Settings privacy-pane links.
 - `calendar.rs`: EventKit authorization, calendar listing, and eligible event retrieval.
 - `notifications.rs`: UserNotifications permission, categories, delivery, and action callback adapter.
 

@@ -5,8 +5,14 @@ export function downloadPercent(model: TranscriptionModelStatus): number {
   return Math.min(100, Math.floor((model.progressBytes * 100) / model.totalBytes));
 }
 
-export function downloadActionLabel(): string {
-  return "Download Parakeet";
+export function downloadActionLabel(model?: TranscriptionModelStatus): string {
+  const size = model?.displaySize.trim();
+  return size ? `Download Parakeet · ${size}` : "Download Parakeet";
+}
+
+export function downloadConfirmationMessage(model: TranscriptionModelStatus): string {
+  const size = model.displaySize.trim() || "about 460 MB";
+  return `Local transcription requires a one-time ${size} download. Audio stays on this Mac.`;
 }
 
 export function isModelDownloadActive(model: TranscriptionModelStatus): boolean {

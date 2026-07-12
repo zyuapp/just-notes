@@ -8,3 +8,5 @@ src-tauri/bindings/
 .claude/
 .codex/
 .plans/
+src-tauri/.appstore/
+src-tauri/tauri.appstore.generated.conf.json

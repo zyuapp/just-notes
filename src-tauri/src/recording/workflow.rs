@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::atomic::AtomicBool, sync::Arc, time::Instant};
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use super::{
     audio_sink::spawn_audio_sink,
@@ -9,10 +9,10 @@ use super::{
     state::{RecorderSession, RecorderState},
 };
 use crate::{
-    app::AppPaths,
+    app::{AppPaths, StorageGate},
     capture::{prepare_audio_input, start_audio_capture, PreparedAudioInput, RecordingInputMode},
     ipc::RecordingPayload,
-    settings::AppSettings,
+    settings::{self, AppSettings, SettingsState},
     threads::{
         repository::{load_thread_by_id, prepare_work_dir, set_thread_status},
         ThreadStatus,
@@ -44,78 +44,33 @@ struct RecordingStart {
     new_thread_title: Option<String>,
 }
 
-pub(crate) fn start_recording(
-    app: AppHandle,
-    paths: AppPaths,
-    recorder: RecorderState,
-    settings: AppSettings,
-    requested_thread_id: Option<String>,
-) -> Result<RecordingPayload, String> {
-    start_recording_with_mode(
-        RecordingStart {
-            app,
-            paths,
-            recorder,
-            settings,
-            requested_thread_id,
-            new_thread_title: None,
-        },
-        RecordingInputMode::Devices,
-    )
+pub(super) struct RecordingRequest {
+    pub(super) app: AppHandle,
+    pub(super) base_paths: AppPaths,
+    pub(super) recorder: RecorderState,
+    pub(super) settings_state: SettingsState,
+    pub(super) requested_thread_id: Option<String>,
+    pub(super) new_thread_title: Option<String>,
+    pub(super) input_mode: RecordingInputMode,
 }
 
-#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
-pub(crate) fn start_fixture_recording(
-    app: AppHandle,
-    paths: AppPaths,
-    recorder: RecorderState,
-    settings: AppSettings,
-    requested_thread_id: Option<String>,
+pub(super) fn start_recording_with_mode(
+    request: RecordingRequest,
 ) -> Result<RecordingPayload, String> {
-    let fixture_dir = paths.data_dir.join("fixtures");
-    start_recording_with_mode(
-        RecordingStart {
-            app,
-            paths,
-            recorder,
-            settings,
-            requested_thread_id,
-            new_thread_title: None,
-        },
-        RecordingInputMode::Fixture {
-            mic_path: fixture_dir.join("qa-mic.wav"),
-            system_path: fixture_dir.join("qa-system.wav"),
-        },
-    )
-}
-
-pub(crate) fn start_scheduled_recording(
-    app: AppHandle,
-    paths: AppPaths,
-    recorder: RecorderState,
-    settings: AppSettings,
-    meeting_title: String,
-) -> Result<RecordingPayload, String> {
-    start_recording_with_mode(
-        RecordingStart {
-            app,
-            paths,
-            recorder,
-            settings,
-            requested_thread_id: None,
-            new_thread_title: Some(meeting_title),
-        },
-        RecordingInputMode::Devices,
-    )
-}
-
-fn start_recording_with_mode(
-    start: RecordingStart,
-    input_mode: RecordingInputMode,
-) -> Result<RecordingPayload, String> {
-    let recorder = start.recorder.clone();
-    let _starting = recorder.begin_starting()?;
-    prepare_recording_session(start, input_mode)
+    let starting_recorder = request.recorder.clone();
+    let gate = request.app.state::<StorageGate>();
+    let _storage_guard = gate.lock()?;
+    let _starting = starting_recorder.begin_starting()?;
+    let settings = request.settings_state.snapshot();
+    let start = RecordingStart {
+        app: request.app.clone(),
+        paths: settings::effective_paths(&request.base_paths, &settings),
+        recorder: request.recorder,
+        settings,
+        requested_thread_id: request.requested_thread_id,
+        new_thread_title: request.new_thread_title,
+    };
+    prepare_recording_session(start, request.input_mode)
 }
 
 fn prepare_recording_session(

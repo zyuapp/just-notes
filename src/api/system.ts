@@ -19,4 +19,12 @@ export const systemApi = {
   ): Promise<void> {
     return invokeCommand("open_privacy_settings", { pane });
   },
+
+  openExternalUrl(url: string): Promise<void> {
+    return invokeCommand("open_external_url", { url });
+  },
+
+  openLegalDocument(document: "privacy" | "notices"): Promise<void> {
+    return invokeCommand("open_legal_document", { document });
+  },
 };

@@ -4,53 +4,87 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+#[cfg(test)]
+use super::model::AppPreferencesUpdate;
+use super::model::{AppSettings, PersistedSettings};
 use crate::app::{AppPaths, ARCHIVED_DIR_NAME};
 
-#[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone)]
-#[serde(rename_all = "camelCase", default)]
-#[ts(export)]
-pub(crate) struct AppSettings {
-    pub(crate) transcripts_dir: Option<String>,
-    pub(crate) save_raw_audio: bool,
-    pub(crate) markdown_copy: bool,
-    pub(crate) meeting_reminders_enabled: bool,
-    pub(crate) meeting_calendar_ids: Vec<String>,
-    pub(crate) meeting_reminder_minutes: u16,
-    pub(crate) meeting_end_reminders: bool,
+#[derive(Default)]
+struct SettingsSlot {
+    persisted: PersistedSettings,
+    storage_mode: StorageMode,
 }
 
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            transcripts_dir: None,
-            save_raw_audio: true,
-            markdown_copy: true,
-            meeting_reminders_enabled: false,
-            meeting_calendar_ids: Vec::new(),
-            meeting_reminder_minutes: 5,
-            meeting_end_reminders: true,
-        }
+#[derive(Default)]
+enum StorageMode {
+    #[default]
+    Default,
+    AuthorizedCustom,
+    UnavailableCustom,
+}
+
+fn authorized_mode(settings: &PersistedSettings) -> StorageMode {
+    if settings.settings.transcripts_dir.is_some() {
+        StorageMode::AuthorizedCustom
+    } else {
+        StorageMode::Default
     }
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct SettingsState(Arc<Mutex<AppSettings>>);
+pub(crate) struct SettingsState(Arc<Mutex<SettingsSlot>>);
 
 impl SettingsState {
+    #[cfg(test)]
     pub(crate) fn new(settings: AppSettings) -> Self {
-        Self(Arc::new(Mutex::new(settings)))
+        Self::from_persisted(PersistedSettings::new(settings))
+    }
+
+    pub(crate) fn from_persisted(settings: PersistedSettings) -> Self {
+        Self(Arc::new(Mutex::new(SettingsSlot {
+            storage_mode: authorized_mode(&settings),
+            persisted: settings,
+        })))
+    }
+
+    pub(crate) fn from_unavailable_folder(settings: PersistedSettings) -> Self {
+        Self(Arc::new(Mutex::new(SettingsSlot {
+            persisted: settings,
+            storage_mode: StorageMode::UnavailableCustom,
+        })))
     }
 
     pub(crate) fn snapshot(&self) -> AppSettings {
         self.0
             .lock()
-            .map(|settings| settings.clone())
+            .map(|slot| {
+                let mut settings = slot.persisted.settings.clone();
+                if matches!(slot.storage_mode, StorageMode::UnavailableCustom) {
+                    settings.transcripts_dir = None;
+                    settings.transcripts_folder_unavailable = true;
+                }
+                settings
+            })
             .unwrap_or_default()
     }
 
-    pub(crate) fn replace(&self, settings: AppSettings) {
-        if let Ok(mut slot) = self.0.lock() {
-            *slot = settings;
+    pub(crate) fn persisted_snapshot(&self) -> PersistedSettings {
+        self.0
+            .lock()
+            .map(|slot| slot.persisted.clone())
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn replace_persisted(&self, settings: PersistedSettings) {
+        if let Ok(mut current) = self.0.lock() {
+            current.persisted = settings;
+        }
+    }
+
+    pub(crate) fn replace_authorized(&self, settings: PersistedSettings) {
+        if let Ok(mut current) = self.0.lock() {
+            current.persisted = settings;
+            current.storage_mode = authorized_mode(&current.persisted);
         }
     }
 }
@@ -59,15 +93,30 @@ pub(crate) fn settings_path(data_dir: &Path) -> PathBuf {
     data_dir.join("settings.json")
 }
 
+#[cfg(test)]
 pub(crate) fn load_settings(data_dir: &Path) -> AppSettings {
-    let path = settings_path(data_dir);
-    let Ok(json) = fs::read_to_string(&path) else {
-        return AppSettings::default();
-    };
-    serde_json::from_str::<AppSettings>(&json).unwrap_or_default()
+    load_persisted_settings(data_dir).into_settings()
 }
 
+pub(crate) fn load_persisted_settings(data_dir: &Path) -> PersistedSettings {
+    let path = settings_path(data_dir);
+    let Ok(json) = fs::read_to_string(&path) else {
+        return PersistedSettings::default();
+    };
+    serde_json::from_str::<PersistedSettings>(&json).unwrap_or_default()
+}
+
+#[cfg(test)]
 pub(crate) fn save_settings(data_dir: &Path, settings: &AppSettings) -> Result<(), String> {
+    let mut persisted = load_persisted_settings(data_dir);
+    persisted.replace_all_settings(settings.clone());
+    save_persisted_settings(data_dir, &persisted)
+}
+
+pub(crate) fn save_persisted_settings(
+    data_dir: &Path,
+    settings: &PersistedSettings,
+) -> Result<(), String> {
     let path = settings_path(data_dir);
     let json = serde_json::to_string_pretty(settings)
         .map_err(|err| format!("Failed to encode settings: {err}"))?;
@@ -131,6 +180,5 @@ pub(crate) fn effective_paths(base: &AppPaths, settings: &AppSettings) -> AppPat
         data_dir: base.data_dir.clone(),
     }
 }
-
 #[cfg(test)]
 mod tests;

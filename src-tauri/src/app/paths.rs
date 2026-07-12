@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 // The archive store's directory name under the data dir. Single source of truth
 // so the live and settings-overlay paths can't drift apart.
@@ -14,16 +14,15 @@ pub(crate) struct AppPaths {
 }
 
 impl AppPaths {
-    pub(crate) fn discover() -> Result<Self, String> {
-        let home = env::var_os("HOME")
-            .map(PathBuf::from)
-            .ok_or_else(|| "HOME is not set; cannot locate ~/.just-notes".to_string())?;
-        let data_dir = home.join(".just-notes");
-        Ok(Self {
+    /// Builds the application's filesystem layout below the platform-provided
+    /// app data directory. Production startup should obtain this directory
+    /// from Tauri's path resolver so a sandboxed build uses its container.
+    pub(crate) fn from_data_dir(data_dir: PathBuf) -> Self {
+        Self {
             threads_dir: data_dir.join("threads"),
             archived_dir: data_dir.join(ARCHIVED_DIR_NAME),
             data_dir,
-        })
+        }
     }
 
     pub(crate) fn ensure(&self) -> Result<(), String> {
@@ -47,5 +46,29 @@ impl AppPaths {
 
     pub(crate) fn archived_thread_dir(&self, thread_id: &str) -> PathBuf {
         self.archived_dir.join(thread_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AppPaths;
+    use std::path::PathBuf;
+
+    #[test]
+    fn platform_data_directory_is_the_root_for_all_internal_storage() {
+        let root = PathBuf::from("/container/Library/Application Support/dev.just-notes");
+        let paths = AppPaths::from_data_dir(root.clone());
+
+        assert_eq!(paths.data_dir, root);
+        assert_eq!(paths.threads_dir, paths.data_dir.join("threads"));
+        assert_eq!(paths.archived_dir, paths.data_dir.join("archived"));
+        assert_eq!(
+            paths.thread_dir("thread-1"),
+            paths.threads_dir.join("thread-1")
+        );
+        assert_eq!(
+            paths.archived_thread_dir("thread-1"),
+            paths.archived_dir.join("thread-1")
+        );
     }
 }

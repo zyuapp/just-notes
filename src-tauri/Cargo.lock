@@ -1808,11 +1808,13 @@ dependencies = [
 name = "just-notes"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "block2",
  "bzip2 0.5.2",
  "cpal",
  "hound",
  "objc2",
+ "objc2-app-kit",
  "objc2-av-foundation",
  "objc2-core-audio",
  "objc2-core-foundation",

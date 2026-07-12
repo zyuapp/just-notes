@@ -6,15 +6,15 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### App
 
-`app` owns application paths and filesystem locations. It answers questions like where the data directory, threads directory, fixtures, and transcription model files live. Other contexts can depend on `AppPaths`, but path discovery should stay here.
+`app` owns application paths, filesystem locations, and guarded import of the legacy unsandboxed data layout. It builds the internal layout from Tauri's platform-provided app data directory so Mac App Store builds remain inside their sandbox container. Other contexts can depend on `AppPaths`, but path and migration behavior should stay here.
 
 ### Settings
 
-`settings` owns persisted user preferences: the transcripts folder override, the raw-audio toggle, and the markdown-copy toggle. It also resolves effective `AppPaths` from the base paths plus the current settings. It may depend on `app` only.
+`settings` owns persisted user preferences and the opaque security-scoped bookmark associated with a transcripts-folder override. Bookmark data never crosses IPC. Settings also resolves effective `AppPaths` from the base paths plus the current settings. It may depend on `app` only.
 
 ### Platform
 
-`platform` owns macOS shell integration: Finder reveal, the native folder chooser, clipboard copy, System Settings deep links, EventKit access, and native actionable notifications. It must not depend on any domain module.
+`platform` owns public macOS integration: Finder reveal, the AppKit folder chooser and security-scoped URL lifetime, clipboard copy, System Settings deep links, EventKit access, and native actionable notifications. It must not depend on any domain module.
 
 ### Meetings
 

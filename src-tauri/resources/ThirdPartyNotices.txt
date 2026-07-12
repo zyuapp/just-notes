@@ -1,0 +1,25 @@
+Just Notes includes open-source software from the following projects:
+
+Tauri — Apache License 2.0 or MIT License
+https://github.com/tauri-apps/tauri
+
+React — MIT License
+https://github.com/facebook/react
+
+Lucide — ISC License
+https://github.com/lucide-icons/lucide
+
+sherpa-onnx — Apache License 2.0
+https://github.com/k2-fsa/sherpa-onnx
+The Apache License text distributed with sherpa-onnx is bundled alongside this file.
+
+ONNX Runtime — MIT License, with third-party notices
+https://github.com/microsoft/onnxruntime
+
+The application also incorporates Rust and JavaScript dependencies recorded in
+Cargo.lock and bun.lock. Their respective copyright notices and license terms
+continue to apply. Source and license information is available from each package's
+registry entry and upstream repository.
+
+The transcription model attribution and license are provided separately in
+ModelAttribution.txt.

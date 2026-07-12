@@ -128,7 +128,7 @@ function buttonLabel(
       return <DownloadingLabel percent={downloadPercent(selectedModel)} />;
     }
     if (selectedModel.downloadState === "installing") return "Installing";
-    return downloadActionLabel();
+    return downloadActionLabel(selectedModel);
   }
   return resumeSelected ? "Resume" : "Record";
 }

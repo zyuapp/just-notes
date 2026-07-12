@@ -24,7 +24,7 @@
 //!   that the energy suppressor removes wholesale. Known recall gap;
 //!   improving it must not resurrect the phantom segments of fixture 9.
 
-use std::sync::atomic::AtomicBool;
+use std::{path::PathBuf, sync::atomic::AtomicBool};
 
 use crate::app::AppPaths;
 use crate::threads::TranscriptSegment;
@@ -94,7 +94,8 @@ fn quality_pipelines_meet_baseline() {
 }
 
 fn load_quality_transcriber() -> Box<dyn Transcriber> {
-    let paths = AppPaths::discover().expect("resolve ~/.just-notes");
+    let home = std::env::var_os("HOME").expect("resolve home directory");
+    let paths = AppPaths::from_data_dir(PathBuf::from(home).join(".just-notes"));
     let selection = finalization_transcription_selection(&paths);
     assert!(
         selection.is_installed(),

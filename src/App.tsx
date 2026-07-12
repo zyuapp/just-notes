@@ -15,7 +15,6 @@ import { useSidebarWidth } from "./features/app/useSidebarWidth";
 import { useThreadActions } from "./features/app/useThreadActions";
 import { useThreadSearch } from "./features/app/useThreadSearch";
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./lib/sidebarWidth";
-
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const actions = useJustNotesController(state, dispatch);
@@ -28,7 +27,6 @@ export default function App() {
   const archived = useArchivedThreads(state.archiveOpen);
   const { iconRef, scopeRef, flyToArchive } = useArchiveFlight();
   const { width: sidebarWidth, onResizeStart, onResizeKeyDown, resetWidth } = useSidebarWidth();
-
   const archiveThread = useCallback(
     (threadId: string) => {
       flyToArchive(threadId);
@@ -36,7 +34,6 @@ export default function App() {
     },
     [flyToArchive, threadActions],
   );
-
   const onFinalizationSettled = useCallback(
     () => void actions.refreshThreads(),
     [actions.refreshThreads],
@@ -46,7 +43,6 @@ export default function App() {
     [actions.refreshThreads],
   );
   useAppEvents(dispatch, onFinalizationSettled, onRecordingStarted);
-
   const activeThreadId = getActiveThreadId(state);
   const statusLabel = useMemo(() => getStatusLabel(state), [state]);
   const notice = useMemo(
@@ -128,10 +124,14 @@ export default function App() {
           permissions={state.permissions}
           meetingAccess={state.meetingAccess}
           meetingSettingsBusy={meetingSettingsActions.busy}
+          storageBusy={state.recorderState !== "idle" || state.finalization?.state === "running"}
           onClose={settingsActions.closeSettings}
           onRevealFolder={() => {
             if (state.appInfo) void threadActions.revealPath(state.appInfo.threadsDir);
           }}
+          onChooseTranscriptsFolder={() => void settingsActions.chooseTranscriptsFolder()}
+          onImportLegacyData={() => void settingsActions.importLegacyData()}
+          onUseDefaultTranscriptsFolder={() => void settingsActions.useDefaultTranscriptsFolder()}
           onToggleRawAudio={() => void settingsActions.toggleRawAudio()}
           onToggleMarkdownCopy={() => void settingsActions.toggleMarkdownCopy()}
           onRequestMeetingAccess={() => void meetingSettingsActions.requestAccess()}
@@ -139,10 +139,10 @@ export default function App() {
           onToggleMeetingReminders={() => void meetingSettingsActions.toggleReminders()}
           onSetMeetingReminderMinutes={(minutes) => void meetingSettingsActions.setReminderMinutes(minutes)}
           onToggleMeetingEndReminders={() => void meetingSettingsActions.toggleEndReminders()}
-          onCancelModelDownload={() => void actions.cancelModelDownload()}
-          onStartModelDownload={() => void actions.startModelDownload()}
+          onCancelModelDownload={() => void actions.cancelModelDownload()} onStartModelDownload={() => void actions.startModelDownload()}
           onDeleteModel={() => void actions.deleteModel()}
           onOpenPrivacy={(pane) => void settingsActions.openPrivacySettings(pane)}
+          onOpenExternalUrl={(url) => void settingsActions.openExternalUrl(url)} onOpenLegalDocument={(document) => void settingsActions.openLegalDocument(document)}
         />
       )}
       {state.archiveOpen && (

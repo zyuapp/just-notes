@@ -70,6 +70,40 @@ export function useSettingsController(
     }));
   }, [updateSettings]);
 
+  const storeSelectedSettings = useCallback(
+    async (saved: AppSettings | null) => {
+      if (!saved) return;
+      settingsRef.current = saved;
+      dispatch({ type: "settingsLoaded", settings: saved });
+      await onStorageChanged();
+    },
+    [dispatch, onStorageChanged],
+  );
+
+  const chooseTranscriptsFolder = useCallback(async () => {
+    try {
+      await storeSelectedSettings(await api.settings.chooseTranscriptsFolder());
+    } catch (error) {
+      fail(error);
+    }
+  }, [fail, storeSelectedSettings]);
+
+  const useDefaultTranscriptsFolder = useCallback(async () => {
+    try {
+      await storeSelectedSettings(await api.settings.useDefaultTranscriptsFolder());
+    } catch (error) {
+      fail(error);
+    }
+  }, [fail, storeSelectedSettings]);
+
+  const importLegacyData = useCallback(async () => {
+    try {
+      await storeSelectedSettings(await api.settings.importLegacyData());
+    } catch (error) {
+      fail(error);
+    }
+  }, [fail, storeSelectedSettings]);
+
   const openPrivacySettings = useCallback(
     async (pane: "microphone" | "system-audio" | "calendar" | "notifications") => {
       try {
@@ -81,12 +115,33 @@ export function useSettingsController(
     [fail],
   );
 
+  const openExternalUrl = useCallback(async (url: string) => {
+    try {
+      await api.system.openExternalUrl(url);
+    } catch (error) {
+      fail(error);
+    }
+  }, [fail]);
+
+  const openLegalDocument = useCallback(async (document: "privacy" | "notices") => {
+    try {
+      await api.system.openLegalDocument(document);
+    } catch (error) {
+      fail(error);
+    }
+  }, [fail]);
+
   return {
+    chooseTranscriptsFolder,
     closeSettings,
+    importLegacyData,
+    openExternalUrl,
+    openLegalDocument,
     openPrivacySettings,
     openSettings,
     toggleMarkdownCopy,
     toggleRawAudio,
     updateSettings,
+    useDefaultTranscriptsFolder,
   };
 }

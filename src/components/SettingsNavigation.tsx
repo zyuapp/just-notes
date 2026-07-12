@@ -1,7 +1,12 @@
-import { ArrowLeft, AudioLines, CalendarDays, HardDrive, ShieldCheck } from "lucide-react";
+import { ArrowLeft, AudioLines, CalendarDays, FileText, HardDrive, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type SettingsSectionId = "storage" | "transcription" | "meetings" | "permissions";
+export type SettingsSectionId =
+  | "storage"
+  | "transcription"
+  | "meetings"
+  | "permissions"
+  | "privacy";
 
 type SettingsNavigationProps = {
   activeSection: SettingsSectionId;
@@ -30,6 +35,7 @@ export function SettingsNavigation({
       <SettingsNavButton label="Transcription" id="transcription" icon={<AudioLines size={16} />} activeSection={activeSection} onSelect={onSelect} />
       <SettingsNavButton label="Meetings" id="meetings" icon={<CalendarDays size={16} />} activeSection={activeSection} onSelect={onSelect} />
       <SettingsNavButton label="Permissions" id="permissions" icon={<ShieldCheck size={16} />} activeSection={activeSection} onSelect={onSelect} />
+      <SettingsNavButton label="Privacy & Legal" id="privacy" icon={<FileText size={16} />} activeSection={activeSection} onSelect={onSelect} />
     </nav>
   );
 }

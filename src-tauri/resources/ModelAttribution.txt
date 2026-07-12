@@ -1,0 +1,10 @@
+Parakeet TDT 0.6B v2
+
+Creator: NVIDIA Corporation
+Source: https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+Just Notes downloads an INT8 ONNX conversion packaged for sherpa-onnx. The
+conversion and packaging are changes from NVIDIA's original model distribution.
+NVIDIA does not endorse Just Notes.

@@ -1,8 +1,7 @@
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
-use super::effective_paths;
 use crate::{
-    app::AppPaths,
+    app::{AppPaths, StorageGate},
     ipc::RecordingPayload,
     recording::{self, RecorderState},
     settings::SettingsState,
@@ -18,9 +17,9 @@ pub(crate) async fn start_recording(
     settings: State<'_, SettingsState>,
     thread_id: Option<String>,
 ) -> Result<RecordingPayload, String> {
-    let paths = effective_paths(&paths, &settings);
+    let paths = paths.inner().clone();
     let recorder = recorder.inner().clone();
-    let settings = settings.snapshot();
+    let settings = settings.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         recording::start_recording(app, paths, recorder, settings, thread_id)
     })
@@ -37,9 +36,9 @@ pub(crate) async fn start_fixture_recording(
     settings: State<'_, SettingsState>,
     thread_id: Option<String>,
 ) -> Result<RecordingPayload, String> {
-    let paths = effective_paths(&paths, &settings);
+    let paths = paths.inner().clone();
     let recorder = recorder.inner().clone();
-    let settings = settings.snapshot();
+    let settings = settings.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         recording::start_fixture_recording(app, paths, recorder, settings, thread_id)
     })
@@ -66,11 +65,21 @@ pub(crate) async fn reprocess_thread(
     finalize: State<'_, FinalizeState>,
     thread_id: String,
 ) -> Result<(), String> {
-    let resolved_paths = effective_paths(&paths, &settings);
-    let app_settings = settings.snapshot();
+    let paths = paths.inner().clone();
+    let settings = settings.inner().clone();
     let finalize = finalize.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        recording::reprocess_thread(app, resolved_paths, app_settings, finalize, thread_id)
+        let gate = app.state::<StorageGate>();
+        let _guard = gate.lock()?;
+        let app_settings = settings.snapshot();
+        let resolved_paths = crate::settings::effective_paths(&paths, &app_settings);
+        recording::reprocess_thread(
+            app.clone(),
+            resolved_paths,
+            app_settings,
+            finalize,
+            thread_id,
+        )
     })
     .await
     .map_err(|err| format!("Reprocess task failed: {err}"))?

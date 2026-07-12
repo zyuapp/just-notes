@@ -10,7 +10,6 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "macOSPrivateApi": true,
     "windows": [
       {
         "title": "Just Notes",
@@ -26,12 +25,21 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     }
   },
   "bundle": {
     "active": true,
     "targets": ["app"],
+    "category": "Productivity",
+    "shortDescription": "Local-first live transcription notes",
+    "resources": {
+      "resources/PrivacyInfo.xcprivacy": "PrivacyInfo.xcprivacy",
+      "resources/PrivacyPolicy.md": "Legal/PrivacyPolicy.md",
+      "resources/ModelAttribution.txt": "Legal/ModelAttribution.txt",
+      "resources/ThirdPartyNotices.txt": "Legal/ThirdPartyNotices.txt",
+      "vendor/sherpa-onnx-sys/LICENSE": "Legal/sherpa-onnx-LICENSE.txt"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
