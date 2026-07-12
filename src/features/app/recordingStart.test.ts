@@ -52,35 +52,30 @@ test("recording start dispatches success before refreshing threads", async () =>
   expect(actions[1]).toEqual({ type: "recordingStarted", payload });
 });
 
-test("recording start failure recovers the meeting prompt", async () => {
+test("recording start failure does not refresh threads", async () => {
   const actions: AppAction[] = [];
-  let recovered = false;
   let refreshed = false;
 
   await runRecordingStart({
     dispatch: (action) => actions.push(action),
     start: async () => { throw new Error("Microphone unavailable"); },
     refreshThreads: async () => { refreshed = true; },
-    recoverFailure: async () => { recovered = true; },
   });
 
   expect(actions.map((action) => action.type)).toEqual([
     "recordingStarting",
     "recordingStartFailed",
   ]);
-  expect(recovered).toBe(true);
   expect(refreshed).toBe(false);
 });
 
 test("refresh failure does not turn a successful start into a start failure", async () => {
   const actions: AppAction[] = [];
-  let recovered = false;
 
   await runRecordingStart({
     dispatch: (action) => actions.push(action),
     start: async () => payload,
     refreshThreads: async () => { throw new Error("Refresh failed"); },
-    recoverFailure: async () => { recovered = true; },
   });
 
   expect(actions.map((action) => action.type)).toEqual([
@@ -88,5 +83,4 @@ test("refresh failure does not turn a successful start into a start failure", as
     "recordingStarted",
     "failed",
   ]);
-  expect(recovered).toBe(false);
 });

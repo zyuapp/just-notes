@@ -1,8 +1,9 @@
 use std::{
     collections::{hash_map::DefaultHasher, HashSet},
     hash::{Hash, Hasher},
+    sync::mpsc,
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use tauri::{AppHandle, Manager};
@@ -21,19 +22,37 @@ const LOOK_AHEAD_MS: u64 = 12 * 60 * 60 * 1000;
 const LATE_START_GRACE_MS: u64 = 10 * 60 * 1000;
 
 pub(crate) fn spawn(app: AppHandle, sync_prompt: impl Fn(&AppHandle) + Send + 'static) {
-    thread::spawn(move || loop {
-        tick(&app);
-        sync_prompt(&app);
-        thread::sleep(POLL_INTERVAL);
+    let (wake_sender, wake_receiver) = mpsc::sync_channel(1);
+    calendar::observe_changes(move || {
+        let _ = wake_sender.try_send(());
+    });
+    thread::spawn(move || {
+        let mut read_status = CalendarReadStatus::default();
+        loop {
+            let started_at = Instant::now();
+            report_calendar_transition(read_status.update(&tick(&app)));
+            sync_prompt(&app);
+            let remaining = next_poll_delay(started_at.elapsed());
+            if matches!(
+                wake_receiver.recv_timeout(remaining),
+                Err(mpsc::RecvTimeoutError::Disconnected)
+            ) {
+                thread::sleep(remaining);
+            }
+        }
     });
 }
 
-fn tick(app: &AppHandle) {
+fn next_poll_delay(elapsed: Duration) -> Duration {
+    POLL_INTERVAL.saturating_sub(elapsed)
+}
+
+fn tick(app: &AppHandle) -> Result<(), String> {
     let settings = app.state::<SettingsState>().snapshot();
     let scheduler = app.state::<MeetingSchedulerState>().inner().clone();
     if !settings.meeting_reminders_enabled {
         notifications::remove(&scheduler.reset());
-        return;
+        return Ok(());
     }
 
     let recorder = app.state::<RecorderState>().inner().clone();
@@ -49,27 +68,49 @@ fn tick(app: &AppHandle) {
     }
 
     let Ok(now) = now_ms() else {
-        return;
+        return Ok(());
     };
-    refresh_start_prompts(&settings, &scheduler, now);
-
-    if settings.meeting_end_reminders {
-        if let Some((request_id, meeting)) =
-            active_session_id.and_then(|session_id| scheduler.due_end_prompt(now, session_id))
-        {
-            notifications::show_end_prompt(&request_id, &meeting.title);
-        }
-    }
+    run_calendar_cycle(
+        || {
+            // End reminders depend only on the active recording and local
+            // scheduler state, not on the EventKit refresh result.
+            if settings.meeting_end_reminders {
+                if let Some((request_id, meeting)) = active_session_id
+                    .and_then(|session_id| scheduler.due_end_prompt(now, session_id))
+                {
+                    let retry_scheduler = scheduler.clone();
+                    let retry_request_id = request_id.clone();
+                    notifications::show_end_prompt(&request_id, &meeting.title, move |error| {
+                        eprintln!(
+                            "end reminder {retry_request_id} could not be delivered: {error}"
+                        );
+                        retry_scheduler.retry_end_prompt(&retry_request_id);
+                    });
+                }
+            }
+        },
+        || refresh_start_prompts(&settings, &scheduler, now),
+    )
 }
 
-fn refresh_start_prompts(settings: &AppSettings, scheduler: &MeetingSchedulerState, now: u64) {
-    let Ok(events) = calendar::upcoming_events(
+fn run_calendar_cycle(
+    check_end_reminder: impl FnOnce(),
+    refresh_start_prompts: impl FnOnce() -> Result<(), String>,
+) -> Result<(), String> {
+    check_end_reminder();
+    refresh_start_prompts()
+}
+
+fn refresh_start_prompts(
+    settings: &AppSettings,
+    scheduler: &MeetingSchedulerState,
+    now: u64,
+) -> Result<(), String> {
+    let events = calendar::upcoming_events(
         &settings.meeting_calendar_ids,
         now.saturating_sub(LOOK_BACK_MS),
         now.saturating_add(LOOK_AHEAD_MS),
-    ) else {
-        return;
-    };
+    )?;
     let meetings = events
         .into_iter()
         .filter_map(|event| Meeting::try_from(event).ok())
@@ -95,6 +136,42 @@ fn refresh_start_prompts(settings: &AppSettings, scheduler: &MeetingSchedulerSta
             };
             notifications::show_start_prompt(&request_id, &meeting.title, &timing);
         }
+    }
+    Ok(())
+}
+
+#[derive(Default)]
+struct CalendarReadStatus {
+    error: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum CalendarReadTransition {
+    Failed(String),
+    Recovered,
+}
+
+impl CalendarReadStatus {
+    fn update(&mut self, result: &Result<(), String>) -> Option<CalendarReadTransition> {
+        match result {
+            Ok(()) if self.error.take().is_some() => Some(CalendarReadTransition::Recovered),
+            Ok(()) => None,
+            Err(error) if self.error.as_deref() == Some(error) => None,
+            Err(error) => {
+                self.error = Some(error.clone());
+                Some(CalendarReadTransition::Failed(error.clone()))
+            }
+        }
+    }
+}
+
+fn report_calendar_transition(transition: Option<CalendarReadTransition>) {
+    match transition {
+        Some(CalendarReadTransition::Failed(error)) => {
+            eprintln!("calendar refresh failed: {error}");
+        }
+        Some(CalendarReadTransition::Recovered) => eprintln!("calendar refresh recovered"),
+        None => {}
     }
 }
 

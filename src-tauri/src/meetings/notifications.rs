@@ -52,12 +52,17 @@ pub(super) fn show_start_prompt(request_id: &str, meeting_title: &str, timing: &
     );
 }
 
-pub(super) fn show_end_prompt(request_id: &str, meeting_title: &str) {
-    notifications::show(
+pub(super) fn show_end_prompt(
+    request_id: &str,
+    meeting_title: &str,
+    on_error: impl Fn(String) + Send + Sync + 'static,
+) {
+    notifications::show_with_error_handler(
         request_id,
         "Meeting scheduled to end",
         &format!("{meeting_title} was scheduled to end. Stop recording?"),
         END_CATEGORY,
+        on_error,
     );
 }
 

@@ -170,6 +170,18 @@ impl MeetingSchedulerState {
         }
     }
 
+    pub(super) fn retry_end_prompt(&self, request_id: &str) {
+        let Ok(mut data) = self.0.lock() else {
+            return;
+        };
+        let Some(active) = data.active_meeting.as_mut() else {
+            return;
+        };
+        if active.end_request_id == request_id {
+            active.prompted = false;
+        }
+    }
+
     pub(super) fn matches_active_end_prompt(
         &self,
         request_id: &str,

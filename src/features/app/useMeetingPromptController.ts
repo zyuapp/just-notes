@@ -15,10 +15,6 @@ export function useMeetingPromptController(
         dispatch,
         start: () => api.meetings.startRecording(requestId),
         refreshThreads,
-        recoverFailure: async () => {
-          const meetingPrompt = await api.meetings.getPrompt().catch(() => null);
-          dispatch({ type: "meetingPromptChanged", meetingPrompt });
-        },
       });
     },
     [dispatch, refreshThreads],

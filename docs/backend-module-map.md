@@ -44,7 +44,7 @@ Use this when adding a user preference or changing how the transcripts folder ov
 ## `src-tauri/src/platform`
 
 - `mod.rs`: macOS shell helpers — reveal in Finder, native folder chooser, clipboard copy, and System Settings privacy-pane links.
-- `calendar.rs`: EventKit authorization, calendar listing, and eligible event retrieval.
+- `calendar.rs`: EventKit authorization, database-change observation, calendar listing, and eligible event retrieval; `calendar/worker.rs` serializes synchronous EventKit reads and replaces timed-out workers.
 - `notifications.rs`: UserNotifications permission, categories, delivery, and action callback adapter.
 
 Keep this free of domain knowledge; it only shells out to the OS.
@@ -53,7 +53,7 @@ Keep this free of domain knowledge; it only shells out to the OS.
 
 - `model.rs`: calendar-access payloads and the internal meeting model.
 - `state.rs`: prompt deduplication, current-prompt selection, and the active meeting-recording association.
-- `scheduler.rs`: periodic calendar refresh, start/end prompt timing, and prompt-surface synchronization.
+- `scheduler.rs`: EventKit-change-driven and periodic calendar refresh, start/end prompt timing, refresh-health logging, and prompt-surface synchronization.
 - `actions.rs`: meeting start/stop orchestration into the recording domain for notification, tray, and frontend adapters.
 - `mod.rs`: meeting-context facade used by commands and app setup.
 

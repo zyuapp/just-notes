@@ -8,14 +8,12 @@ type RecordingStartOptions = {
   dispatch: AppDispatch;
   start: () => Promise<RecordingPayload>;
   refreshThreads: (nextSelectedId?: string) => Promise<void>;
-  recoverFailure?: () => Promise<void>;
 };
 
 export async function runRecordingStart({
   dispatch,
   start,
   refreshThreads,
-  recoverFailure,
 }: RecordingStartOptions) {
   dispatch({ type: "recordingStarting" });
   let payload: RecordingPayload;
@@ -23,7 +21,6 @@ export async function runRecordingStart({
     payload = await start();
   } catch (error) {
     dispatch({ type: "recordingStartFailed", message: getApiErrorMessage(error) });
-    await recoverFailure?.();
     return;
   }
   dispatch({ type: "recordingStarted", payload });

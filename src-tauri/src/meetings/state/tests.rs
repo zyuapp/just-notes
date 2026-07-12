@@ -64,6 +64,25 @@ fn end_prompt_is_once_per_due_time_and_keep_rearms_it() {
 }
 
 #[test]
+fn failed_end_notification_rearms_the_same_prompt() {
+    let state = MeetingSchedulerState::default();
+    let meeting = meeting();
+    state.set_active(meeting.clone(), 7, "end-1".to_string());
+
+    assert_eq!(
+        state.due_end_prompt(2_000, 7),
+        Some(("end-1".to_string(), meeting.clone()))
+    );
+    assert_eq!(state.due_end_prompt(2_000, 7), None);
+
+    state.retry_end_prompt("end-1");
+    assert_eq!(
+        state.due_end_prompt(2_000, 7),
+        Some(("end-1".to_string(), meeting))
+    );
+}
+
+#[test]
 fn end_actions_cannot_target_a_different_recording() {
     let state = MeetingSchedulerState::default();
     state.set_active(meeting(), 1, "end-1".to_string());

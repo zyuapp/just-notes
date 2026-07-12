@@ -80,3 +80,54 @@ fn blank_calendar_titles_get_a_safe_fallback() {
     event.title = "  ".to_string();
     assert_eq!(Meeting::try_from(event).unwrap().title, "Calendar meeting");
 }
+
+#[test]
+fn calendar_read_status_reports_changes_without_repeating_the_same_error() {
+    let mut status = CalendarReadStatus::default();
+    let failure = Err("Calendar worker is busy".to_string());
+
+    assert_eq!(
+        status.update(&failure),
+        Some(CalendarReadTransition::Failed(
+            "Calendar worker is busy".to_string()
+        ))
+    );
+    assert_eq!(status.update(&failure), None);
+    assert_eq!(
+        status.update(&Err("Calendar access is denied".to_string())),
+        Some(CalendarReadTransition::Failed(
+            "Calendar access is denied".to_string()
+        ))
+    );
+    assert_eq!(
+        status.update(&Ok(())),
+        Some(CalendarReadTransition::Recovered)
+    );
+    assert_eq!(status.update(&Ok(())), None);
+}
+
+#[test]
+fn poll_cadence_accounts_for_calendar_query_time() {
+    assert_eq!(
+        next_poll_delay(Duration::from_secs(2)),
+        Duration::from_secs(13)
+    );
+    assert_eq!(next_poll_delay(Duration::from_secs(15)), Duration::ZERO);
+    assert_eq!(next_poll_delay(Duration::from_secs(30)), Duration::ZERO);
+}
+
+#[test]
+fn calendar_failure_does_not_skip_the_end_reminder_check() {
+    let checked_end_reminder = std::cell::Cell::new(false);
+
+    let result = run_calendar_cycle(
+        || checked_end_reminder.set(true),
+        || {
+            assert!(checked_end_reminder.get());
+            Err("EventKit unavailable".to_string())
+        },
+    );
+
+    assert_eq!(result, Err("EventKit unavailable".to_string()));
+    assert!(checked_end_reminder.get());
+}
