@@ -14,7 +14,6 @@ export function SettingsPermissionsSection({
 }: SettingsPermissionsSectionProps) {
   return (
     <section id="settings-permissions">
-      <h3>Permissions</h3>
       <PermissionRow
         label="Microphone"
         description={permissionLabel(permissions?.microphone)}

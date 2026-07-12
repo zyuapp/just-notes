@@ -11,6 +11,13 @@ import { SettingsPermissionsSection } from "./SettingsPermissionsSection";
 import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
 import { useDismissOnEscape } from "./useDismissOnEscape";
 
+const SECTION_COPY: Record<SettingsSectionId, { title: string; description: string }> = {
+  storage: { title: "Storage", description: "Choose where recordings live and which files are kept." },
+  transcription: { title: "Transcription", description: "Process every recording locally on this Mac." },
+  meetings: { title: "Meetings", description: "Get a prompt when a calendar meeting is about to begin or end." },
+  permissions: { title: "Permissions", description: "Review the system access Just Notes uses." },
+};
+
 type SettingsViewProps = {
   settings: AppSettings;
   appInfo: AppInfo | null;
@@ -55,6 +62,7 @@ export function SettingsView({
   onOpenPrivacy,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("storage");
+  const activeSectionCopy = SECTION_COPY[activeSection];
   useDismissOnEscape(onClose);
 
   return (
@@ -64,11 +72,11 @@ export function SettingsView({
       <div className="settings-content">
         <div className="settings-panel">
           <header className="settings-titlebar">
-            <h2>Settings</h2>
+            <h2>{activeSectionCopy.title}</h2>
+            <p>{activeSectionCopy.description}</p>
           </header>
 
         {activeSection === "storage" && <section id="settings-storage">
-          <h3>Storage</h3>
           <div className="settings-row">
             <div>
               <strong>Transcripts folder</strong>

@@ -73,7 +73,12 @@
   background: var(--panel);
 }
 
-.settings-panel,
+.settings-panel {
+  width: min(640px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 48px 0 72px;
+}
+
 .archive-panel {
   width: min(760px, calc(100% - 64px));
   margin: 0 auto;
@@ -88,12 +93,32 @@
   margin-bottom: 20px;
 }
 
+.settings-titlebar {
+  height: auto;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 34px;
+}
+
 .settings-titlebar h2,
 .archive-titlebar h2 {
   margin: 0;
   color: var(--text-bright);
   font-size: 20px;
   font-weight: 600;
+}
+
+.settings-titlebar h2 {
+  font-size: 22px;
+  letter-spacing: -0.018em;
+}
+
+.settings-titlebar p {
+  max-width: 520px;
+  margin: 8px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 @media (max-width: 900px) {
