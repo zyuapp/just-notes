@@ -61,9 +61,6 @@ export function TranscriptPanel({
   const hasSegments = (selectedThread?.segments.length ?? 0) > 0;
   const canModify = recorderState === "idle" && summary?.status === "idle";
   const canResume = canModify && hasSegments;
-  const speakers = Array.from(
-    new Set(selectedThread?.segments.map((segment) => segment.speaker) ?? []),
-  );
 
   return (
     <section className="thread-panel" aria-label="Transcript">
@@ -94,13 +91,10 @@ export function TranscriptPanel({
       {selectedThread && (hasSegments || selectedThread.summary.hasAudio) && (
         <TranscriptToolbar
           query={query}
-          speakers={speakers}
-          speakerLabels={selectedThread.speakerLabels}
           canModify={canModify}
           onQueryChange={setQuery}
           onCopy={() => void threadActions.copyTranscript()}
           onArchive={() => onArchiveThread(selectedThread.summary.id)}
-          onRenameSpeaker={(speaker, label) => void threadActions.renameSpeaker(speaker, label)}
           onReprocess={
             selectedThread.summary.hasAudio
               ? () => onReprocess(selectedThread.summary.id)

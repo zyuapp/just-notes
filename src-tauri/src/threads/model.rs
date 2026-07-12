@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ThreadMetadata {
@@ -10,8 +8,6 @@ pub(crate) struct ThreadMetadata {
     pub(crate) status: ThreadStatus,
     #[serde(default)]
     pub(crate) duration_ms: u64,
-    #[serde(default)]
-    pub(crate) speaker_labels: BTreeMap<String, String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +58,5 @@ pub(crate) struct TranscriptSegment {
 pub(crate) struct ThreadDetail {
     pub(crate) summary: ThreadSummary,
     pub(crate) segments: Vec<TranscriptSegment>,
-    pub(crate) speaker_labels: BTreeMap<String, String>,
     pub(crate) transcript_markdown_path: String,
 }

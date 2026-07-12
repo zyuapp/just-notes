@@ -63,31 +63,6 @@ pub(crate) fn delete_thread(paths: &AppPaths, thread_id: &str) -> Result<(), Str
         .map_err(|err| format!("Failed to delete {}: {err}", thread_dir.display()))
 }
 
-pub(crate) fn rename_speaker(
-    paths: &AppPaths,
-    thread_id: &str,
-    speaker: &str,
-    label: &str,
-) -> Result<ThreadDetail, String> {
-    let thread_dir = existing_thread_dir(paths, thread_id)?;
-    ensure_thread_not_busy(&thread_dir)?;
-    let speaker = speaker.to_string();
-    let label = label.trim().to_string();
-    if label.chars().count() > 60 {
-        return Err("Speaker labels must stay under 60 characters".to_string());
-    }
-
-    update_thread_metadata_preserving_activity(&thread_dir, |metadata| {
-        if label.is_empty() || label == speaker {
-            metadata.speaker_labels.remove(&speaker);
-        } else {
-            metadata.speaker_labels.insert(speaker, label);
-        }
-    })?;
-    rerender_markdown_if_present(&thread_dir)?;
-    load_thread_detail(&thread_dir)
-}
-
 pub(crate) fn update_segment_text(
     paths: &AppPaths,
     thread_id: &str,

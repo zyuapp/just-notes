@@ -21,7 +21,6 @@ const summary: ThreadSummary = {
 const detail: ThreadDetail = {
   summary,
   segments: [],
-  speakerLabels: {},
   transcriptMarkdownPath: "/tmp/transcript.md",
 };
 

@@ -135,14 +135,10 @@ pub(crate) fn render_thread_markdown(thread_dir: &Path) -> Result<(), String> {
     ));
 
     for segment in segments {
-        let speaker = metadata
-            .speaker_labels
-            .get(&segment.speaker)
-            .unwrap_or(&segment.speaker);
         markdown.push_str(&format!(
             "[{}] **{}:** {}\n\n",
             format_transcript_time(segment.start_ms),
-            speaker,
+            segment.speaker,
             segment.text
         ));
     }
@@ -161,12 +157,10 @@ pub(crate) fn export_thread_markdown(paths: &AppPaths, thread_id: &str) -> Resul
 
 pub(crate) fn load_thread_detail(thread_dir: &Path) -> Result<ThreadDetail, String> {
     let summary = load_thread_summary(thread_dir)?;
-    let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
     let segments = read_transcript_jsonl(&thread_dir.join("transcript.jsonl"))?;
     Ok(ThreadDetail {
         summary,
         segments,
-        speaker_labels: metadata.speaker_labels,
         transcript_markdown_path: thread_dir.join("transcript.md").display().to_string(),
     })
 }

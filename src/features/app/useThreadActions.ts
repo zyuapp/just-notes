@@ -81,19 +81,6 @@ export function useThreadActions(
     [fail],
   );
 
-  const renameSpeaker = useCallback(
-    async (speaker: string, label: string) => {
-      if (!threadId) return;
-      try {
-        const detail = await api.threads.renameSpeaker(threadId, speaker, label);
-        dispatch({ type: "threadUpdated", detail });
-      } catch (error) {
-        fail(error);
-      }
-    },
-    [dispatch, fail, threadId],
-  );
-
   const updateSegmentText = useCallback(
     async (segmentIndex: number, text: string) => {
       if (!threadId) return;
@@ -110,9 +97,7 @@ export function useThreadActions(
   const copyTranscript = useCallback(async () => {
     if (!selected) return;
     try {
-      await api.system.copyText(
-        transcriptToText(selected.segments, selected.speakerLabels, formatDuration),
-      );
+      await api.system.copyText(transcriptToText(selected.segments, formatDuration));
     } catch (error) {
       fail(error);
     }
@@ -146,7 +131,6 @@ export function useThreadActions(
     copyTranscript,
     deleteArchivedThread,
     exportMarkdown,
-    renameSpeaker,
     renameThread,
     restoreThread,
     revealPath,
