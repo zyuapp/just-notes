@@ -8,9 +8,7 @@ use tauri::AppHandle;
 pub(crate) mod calendar;
 mod folder_access;
 pub(crate) mod notifications;
-pub(crate) use folder_access::{
-    choose_folder, restore_folder_access, FolderAccessState, FolderChoice,
-};
+pub(crate) use folder_access::{choose_folder, FolderChoice};
 
 const APP_KIT_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -130,6 +128,28 @@ where
     receiver
         .recv_timeout(APP_KIT_TIMEOUT)
         .map_err(|_| "Timed out waiting for macOS".to_string())?
+}
+
+pub(super) fn run_on_main_thread_without_timeout<T, F>(
+    app: &AppHandle,
+    operation: F,
+) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    if MainThreadMarker::new().is_some() {
+        return operation();
+    }
+
+    let (sender, receiver) = mpsc::channel();
+    app.run_on_main_thread(move || {
+        let _ = sender.send(operation());
+    })
+    .map_err(|err| format!("Failed to schedule the folder picker on the main thread: {err}"))?;
+    receiver
+        .recv()
+        .map_err(|_| "The folder picker closed unexpectedly".to_string())?
 }
 
 #[cfg(test)]

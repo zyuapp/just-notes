@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "legal:notices": "bun scripts/generate-third-party-notices.ts",
     "bindings:rs": "cd src-tauri && cargo test export_bindings",
     "bindings:rs:check": "scripts/check-bindings-clean.sh",
     "test:fe": "bun test ./src",

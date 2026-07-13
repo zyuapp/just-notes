@@ -13,7 +13,7 @@ import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
 import { useDismissOnEscape } from "./useDismissOnEscape";
 
 const SECTION_COPY: Record<SettingsSectionId, { title: string; description: string }> = {
-  storage: { title: "Storage", description: "Choose where recordings live and which files are kept." },
+  storage: { title: "Storage", description: "See where recordings live and choose which files are kept." },
   transcription: { title: "Transcription", description: "Process every recording locally on this Mac." },
   meetings: { title: "Meetings", description: "Get a prompt when a calendar meeting is about to begin or end." },
   permissions: { title: "Permissions", description: "Review the system access Just Notes uses." },
@@ -28,9 +28,7 @@ type SettingsViewProps = {
   meetingAccess: MeetingAccessPayload | null;
   onClose: () => void;
   onRevealFolder: () => void;
-  onChooseTranscriptsFolder: () => void;
   onImportLegacyData: () => void;
-  onUseDefaultTranscriptsFolder: () => void;
   onToggleRawAudio: () => void;
   onToggleMarkdownCopy: () => void;
   onRequestMeetingAccess: () => void;
@@ -56,9 +54,7 @@ export function SettingsView({
   meetingAccess,
   onClose,
   onRevealFolder,
-  onChooseTranscriptsFolder,
   onImportLegacyData,
-  onUseDefaultTranscriptsFolder,
   onToggleRawAudio,
   onToggleMarkdownCopy,
   onRequestMeetingAccess,
@@ -78,7 +74,6 @@ export function SettingsView({
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("storage");
   const activeSectionCopy = SECTION_COPY[activeSection];
   useDismissOnEscape(onClose);
-
   return (
     <div className="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
       <SettingsNavigation activeSection={activeSection} onSelect={setActiveSection} onClose={onClose} />
@@ -95,8 +90,6 @@ export function SettingsView({
           settings={settings}
           busy={storageBusy}
           onRevealFolder={onRevealFolder}
-          onChooseFolder={onChooseTranscriptsFolder}
-          onUseDefaultFolder={onUseDefaultTranscriptsFolder}
           onImportLegacyData={onImportLegacyData}
           onToggleRawAudio={onToggleRawAudio}
           onToggleMarkdownCopy={onToggleMarkdownCopy}

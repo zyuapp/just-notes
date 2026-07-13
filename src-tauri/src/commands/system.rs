@@ -1,20 +1,14 @@
 use tauri::{AppHandle, Manager, State};
 
-use super::effective_paths;
 use crate::{
     app::AppPaths,
     capture::microphone_permission_status,
     ipc::{AppInfo, PermissionsPayload},
     platform,
-    settings::SettingsState,
 };
 
 #[tauri::command]
-pub(crate) fn get_app_info(
-    paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
-) -> AppInfo {
-    let paths = effective_paths(&paths, &settings);
+pub(crate) fn get_app_info(paths: State<'_, AppPaths>) -> AppInfo {
     AppInfo {
         data_dir: paths.data_dir.display().to_string(),
         threads_dir: paths.threads_dir.display().to_string(),

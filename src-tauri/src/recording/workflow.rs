@@ -12,7 +12,7 @@ use super::{
 use crate::{
     app::{AppPaths, StorageGate},
     capture::{prepare_audio_input, start_audio_capture, PreparedAudioInput, RecordingInputMode},
-    settings::{self, AppSettings, SettingsState},
+    settings::{AppSettings, SettingsState},
     threads::{
         repository::{load_thread_by_id, prepare_work_dir, set_thread_status},
         ThreadStatus,
@@ -64,7 +64,7 @@ pub(super) fn start_recording_with_mode(
     let settings = request.settings_state.snapshot();
     let start = RecordingStart {
         app: request.app.clone(),
-        paths: settings::effective_paths(&request.base_paths, &settings),
+        paths: request.base_paths,
         recorder: request.recorder,
         settings,
         requested_thread_id: request.requested_thread_id,

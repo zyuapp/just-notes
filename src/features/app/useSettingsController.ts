@@ -11,7 +11,7 @@ export type SettingsUpdater = (settings: AppSettings) => AppSettings;
 export function useSettingsController(
   state: AppState,
   dispatch: AppDispatch,
-  onStorageChanged: () => Promise<void>,
+  onSettingsChanged: () => Promise<void>,
 ) {
   const settingsRef = useRef(state.settings);
   const updateQueue = useRef<Promise<void>>(Promise.resolve());
@@ -37,7 +37,6 @@ export function useSettingsController(
     () => dispatch({ type: "settingsOpenChanged", open: false }),
     [dispatch],
   );
-
   const updateSettings = useCallback(
     (update: SettingsUpdater, refreshAfterSave = false) => {
       const operation = updateQueue.current.then(async () => {
@@ -46,14 +45,14 @@ export function useSettingsController(
         const saved = await api.settings.update(update(current));
         settingsRef.current = saved;
         dispatch({ type: "settingsLoaded", settings: saved });
-        if (refreshAfterSave) await onStorageChanged();
+        if (refreshAfterSave) await onSettingsChanged();
       });
       updateQueue.current = operation.catch(() => undefined);
       return operation.catch((error) => {
         fail(error);
       });
     },
-    [dispatch, fail, onStorageChanged],
+    [dispatch, fail, onSettingsChanged],
   );
 
   const toggleRawAudio = useCallback(async () => {
@@ -69,40 +68,6 @@ export function useSettingsController(
       markdownCopy: !settings.markdownCopy,
     }));
   }, [updateSettings]);
-
-  const storeSelectedSettings = useCallback(
-    async (saved: AppSettings | null) => {
-      if (!saved) return;
-      settingsRef.current = saved;
-      dispatch({ type: "settingsLoaded", settings: saved });
-      await onStorageChanged();
-    },
-    [dispatch, onStorageChanged],
-  );
-
-  const chooseTranscriptsFolder = useCallback(async () => {
-    try {
-      await storeSelectedSettings(await api.settings.chooseTranscriptsFolder());
-    } catch (error) {
-      fail(error);
-    }
-  }, [fail, storeSelectedSettings]);
-
-  const useDefaultTranscriptsFolder = useCallback(async () => {
-    try {
-      await storeSelectedSettings(await api.settings.useDefaultTranscriptsFolder());
-    } catch (error) {
-      fail(error);
-    }
-  }, [fail, storeSelectedSettings]);
-
-  const importLegacyData = useCallback(async () => {
-    try {
-      await storeSelectedSettings(await api.settings.importLegacyData());
-    } catch (error) {
-      fail(error);
-    }
-  }, [fail, storeSelectedSettings]);
 
   const openPrivacySettings = useCallback(
     async (pane: "microphone" | "system-audio" | "calendar" | "notifications") => {
@@ -132,9 +97,7 @@ export function useSettingsController(
   }, [fail]);
 
   return {
-    chooseTranscriptsFolder,
     closeSettings,
-    importLegacyData,
     openExternalUrl,
     openLegalDocument,
     openPrivacySettings,
@@ -142,6 +105,5 @@ export function useSettingsController(
     toggleMarkdownCopy,
     toggleRawAudio,
     updateSettings,
-    useDefaultTranscriptsFolder,
   };
 }

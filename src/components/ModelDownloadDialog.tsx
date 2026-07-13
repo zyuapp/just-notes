@@ -1,8 +1,8 @@
 import { Download } from "lucide-react";
-import { type KeyboardEvent, useEffect, useRef } from "react";
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import { downloadActionLabel, downloadConfirmationMessage } from "../lib/transcriptionModel";
 import { useDismissOnEscape } from "./useDismissOnEscape";
+import { useModalFocus } from "./useModalFocus";
 
 type ModelDownloadDialogProps = {
   model: TranscriptionModelStatus;
@@ -12,32 +12,7 @@ type ModelDownloadDialogProps = {
 
 export function ModelDownloadDialog({ model, onCancel, onConfirm }: ModelDownloadDialogProps) {
   useDismissOnEscape(onCancel);
-  const returnFocusRef = useRef(
-    document.activeElement instanceof HTMLElement ? document.activeElement : null,
-  );
-
-  useEffect(() => {
-    const returnFocus = returnFocusRef.current;
-    return () => returnFocus?.focus();
-  }, []);
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Tab") return;
-
-    const actions = Array.from(
-      event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
-    );
-    const first = actions[0];
-    const last = actions[actions.length - 1];
-    if (!first || !last) return;
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
+  const handleKeyDown = useModalFocus();
 
   return (
     <div

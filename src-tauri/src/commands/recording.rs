@@ -75,14 +75,7 @@ pub(crate) async fn reprocess_thread(
         let gate = app.state::<StorageGate>();
         let _guard = gate.lock()?;
         let app_settings = settings.snapshot();
-        let resolved_paths = crate::settings::effective_paths(&paths, &app_settings);
-        recording::reprocess_thread(
-            app.clone(),
-            resolved_paths,
-            app_settings,
-            finalize,
-            thread_id,
-        )
+        recording::reprocess_thread(app.clone(), paths, app_settings, finalize, thread_id)
     })
     .await
     .map_err(|err| format!("Reprocess task failed: {err}"))?

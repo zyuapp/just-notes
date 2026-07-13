@@ -1,8 +1,5 @@
 mod model;
 mod store;
 
-pub(crate) use model::{AppPreferencesUpdate, AppSettings, PersistedSettings};
-pub(crate) use store::{
-    effective_paths, load_persisted_settings, save_persisted_settings, validate_settings,
-    SettingsState,
-};
+pub(crate) use model::AppSettings;
+pub(crate) use store::{load_settings, save_settings, SettingsState};

@@ -1,9 +1,11 @@
 use tauri::{AppHandle, Builder, Emitter, Manager, Wry};
 
 mod app;
+mod app_menu;
 mod capture;
 mod commands;
 mod ipc;
+mod legacy_import;
 mod meeting_surfaces;
 mod meetings;
 mod platform;
@@ -15,10 +17,11 @@ mod transcription;
 mod tray;
 
 use app::{AppPaths, StorageGate};
+use legacy_import::LegacyImportState;
 use meetings::MeetingSchedulerState;
-use platform::FolderAccessState;
 use recording::RecorderState;
 use settings::SettingsState;
+use threads::import::cleanup_stale_import_staging;
 use threads::repository::reset_stale_recording_threads;
 use transcription::{FinalizeState, ModelDownloadState};
 
@@ -30,7 +33,10 @@ pub fn run() {
         .manage(FinalizeState::default())
         .manage(ModelDownloadState::default())
         .manage(StorageGate::default())
+        .manage(LegacyImportState::default())
         .manage(MeetingSchedulerState::default())
+        .menu(app_menu::build)
+        .on_menu_event(app_menu::handle_event)
         .setup(setup_app);
 
     register_commands(builder)
@@ -40,9 +46,10 @@ pub fn run() {
 }
 
 fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
-    let initial_settings = manage_persistent_state(app)?;
+    manage_persistent_state(app)?;
     let paths = app.state::<AppPaths>();
-    reset_stale_recording_threads(&settings::effective_paths(&paths, &initial_settings))?;
+    cleanup_stale_import_staging(&paths)?;
+    reset_stale_recording_threads(&paths)?;
     tray::init_tray(
         app,
         start_recording_from_tray,
@@ -71,35 +78,13 @@ fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
     Ok(())
 }
 
-fn manage_persistent_state(app: &mut tauri::App<Wry>) -> SetupResult<settings::AppSettings> {
+fn manage_persistent_state(app: &mut tauri::App<Wry>) -> SetupResult {
     let paths = AppPaths::from_data_dir(app.path().app_data_dir()?);
     paths.ensure().map_err(std::io::Error::other)?;
-    let access = FolderAccessState::default();
-    let mut persisted = settings::load_persisted_settings(&paths.data_dir);
-    if let Some(bookmark) = persisted.transcripts_bookmark() {
-        match platform::restore_folder_access(app.handle(), bookmark) {
-            Ok(restored) => {
-                persisted.set_transcripts_folder(restored.path.clone(), restored.bookmark.clone());
-                access.install(restored).map_err(std::io::Error::other)?;
-            }
-            Err(err) => {
-                eprintln!("saved transcripts folder permission could not be restored: {err}");
-                let mut initial_settings = persisted.settings().clone();
-                initial_settings.transcripts_dir = None;
-                app.manage(paths);
-                app.manage(SettingsState::from_unavailable_folder(persisted));
-                app.manage(access);
-                return Ok(initial_settings);
-            }
-        }
-        settings::save_persisted_settings(&paths.data_dir, &persisted)
-            .map_err(std::io::Error::other)?;
-    }
-    let initial_settings = persisted.settings().clone();
+    let settings = settings::load_settings(&paths.data_dir);
     app.manage(paths);
-    app.manage(SettingsState::from_persisted(persisted));
-    app.manage(access);
-    Ok(initial_settings)
+    app.manage(SettingsState::new_state(settings));
+    Ok(())
 }
 
 // A recording must be stopped (WAV headers finalized, duration persisted)
@@ -150,9 +135,9 @@ macro_rules! command_handler {
         commands::threads::export_thread_markdown,
         commands::settings::get_settings,
         commands::settings::update_settings,
-        commands::settings::choose_transcripts_folder,
-        commands::settings::import_legacy_data,
-        commands::settings::use_default_transcripts_folder,
+        commands::legacy_import::prepare_legacy_import,
+        commands::legacy_import::confirm_legacy_import,
+        commands::legacy_import::cancel_legacy_import,
         commands::meetings::get_meeting_access_status,
         commands::meetings::request_meeting_access,
         commands::meetings::get_meeting_prompt,

@@ -1,112 +1,81 @@
 use tauri::State;
 
-use super::effective_paths;
 use crate::{
     app::AppPaths,
-    settings::SettingsState,
     threads::{create, edits, repository, ThreadDetail, ThreadSummary},
 };
 
 #[tauri::command]
-pub(crate) fn list_threads(
-    paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
-) -> Result<Vec<ThreadSummary>, String> {
-    repository::list_threads(&effective_paths(&paths, &settings))
+pub(crate) fn list_threads(paths: State<'_, AppPaths>) -> Result<Vec<ThreadSummary>, String> {
+    repository::list_threads(&paths)
 }
 
 #[tauri::command]
-pub(crate) fn create_thread(
-    paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
-) -> Result<ThreadDetail, String> {
-    create::create_thread(&effective_paths(&paths, &settings))
+pub(crate) fn create_thread(paths: State<'_, AppPaths>) -> Result<ThreadDetail, String> {
+    create::create_thread(&paths)
 }
 
 #[tauri::command]
 pub(crate) fn get_thread(
     paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
     thread_id: String,
 ) -> Result<ThreadDetail, String> {
-    repository::load_thread_by_id(&effective_paths(&paths, &settings), &thread_id)
+    repository::load_thread_by_id(&paths, &thread_id)
 }
 
 #[tauri::command]
 pub(crate) fn rename_thread(
     paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
     thread_id: String,
     title: String,
 ) -> Result<ThreadDetail, String> {
-    edits::rename_thread(&effective_paths(&paths, &settings), &thread_id, &title)
+    edits::rename_thread(&paths, &thread_id, &title)
 }
 
 #[tauri::command]
 pub(crate) fn list_archived_threads(
     paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
 ) -> Result<Vec<ThreadSummary>, String> {
-    repository::list_archived_threads(&effective_paths(&paths, &settings))
+    repository::list_archived_threads(&paths)
 }
 
 #[tauri::command]
-pub(crate) fn archive_thread(
-    paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
-    thread_id: String,
-) -> Result<(), String> {
-    edits::archive_thread(&effective_paths(&paths, &settings), &thread_id)
+pub(crate) fn archive_thread(paths: State<'_, AppPaths>, thread_id: String) -> Result<(), String> {
+    edits::archive_thread(&paths, &thread_id)
 }
 
 #[tauri::command]
-pub(crate) fn restore_thread(
-    paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
-    thread_id: String,
-) -> Result<(), String> {
-    edits::restore_thread(&effective_paths(&paths, &settings), &thread_id)
+pub(crate) fn restore_thread(paths: State<'_, AppPaths>, thread_id: String) -> Result<(), String> {
+    edits::restore_thread(&paths, &thread_id)
 }
 
 #[tauri::command]
-pub(crate) fn delete_thread(
-    paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
-    thread_id: String,
-) -> Result<(), String> {
-    edits::delete_thread(&effective_paths(&paths, &settings), &thread_id)
+pub(crate) fn delete_thread(paths: State<'_, AppPaths>, thread_id: String) -> Result<(), String> {
+    edits::delete_thread(&paths, &thread_id)
 }
 
 #[tauri::command]
 pub(crate) fn update_segment_text(
     paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
     thread_id: String,
     segment_index: usize,
     text: String,
 ) -> Result<ThreadDetail, String> {
-    edits::update_segment_text(
-        &effective_paths(&paths, &settings),
-        &thread_id,
-        segment_index,
-        &text,
-    )
+    edits::update_segment_text(&paths, &thread_id, segment_index, &text)
 }
 
 #[tauri::command]
 pub(crate) fn search_threads(
     paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
     query: String,
 ) -> Result<Vec<ThreadSummary>, String> {
-    edits::search_threads(&effective_paths(&paths, &settings), &query)
+    edits::search_threads(&paths, &query)
 }
 
 #[tauri::command]
 pub(crate) fn export_thread_markdown(
     paths: State<'_, AppPaths>,
-    settings: State<'_, SettingsState>,
     thread_id: String,
 ) -> Result<String, String> {
-    repository::export_thread_markdown(&effective_paths(&paths, &settings), &thread_id)
+    repository::export_thread_markdown(&paths, &thread_id)
 }

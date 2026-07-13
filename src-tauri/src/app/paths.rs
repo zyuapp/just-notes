@@ -47,6 +47,10 @@ impl AppPaths {
     pub(crate) fn archived_thread_dir(&self, thread_id: &str) -> PathBuf {
         self.archived_dir.join(thread_id)
     }
+
+    pub(crate) fn legacy_import_staging_dir(&self) -> PathBuf {
+        self.data_dir.join(".legacy-import-staging")
+    }
 }
 
 #[cfg(test)]

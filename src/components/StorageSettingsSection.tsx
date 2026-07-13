@@ -1,5 +1,6 @@
 import type { AppInfo } from "../bindings/AppInfo";
 import type { AppSettings } from "../bindings/AppSettings";
+import { FolderInput } from "lucide-react";
 import { SettingsToggle } from "./SettingsControls";
 
 type StorageSettingsSectionProps = {
@@ -7,8 +8,6 @@ type StorageSettingsSectionProps = {
   settings: AppSettings;
   busy: boolean;
   onRevealFolder: () => void;
-  onChooseFolder: () => void;
-  onUseDefaultFolder: () => void;
   onImportLegacyData: () => void;
   onToggleRawAudio: () => void;
   onToggleMarkdownCopy: () => void;
@@ -23,24 +22,17 @@ export function StorageSettingsSection(props: StorageSettingsSectionProps) {
       </div>
       <div className="settings-row-actions">
         <button type="button" onClick={props.onRevealFolder}>Reveal</button>
-        <button type="button" disabled={props.busy} onClick={props.onChooseFolder}>Change</button>
-        {(props.settings.transcriptsDir || props.settings.transcriptsFolderUnavailable) && (
-          <button type="button" disabled={props.busy} onClick={props.onUseDefaultFolder}>Use Default</button>
-        )}
       </div>
     </div>
-    {props.busy && (
-      <p className="settings-hint">Storage can be changed after recording and transcription finish.</p>
-    )}
-    {props.settings.transcriptsFolderUnavailable && (
-      <p className="settings-hint">The saved custom folder is unavailable. Reconnect it, choose another folder, or use default storage.</p>
-    )}
-    <div className="settings-row">
-      <div>
-        <strong>Data from an earlier version</strong>
-        <p className="settings-hint">Import recordings from the old ~/.just-notes folder once.</p>
+    <div className="legacy-import-card">
+      <div className="legacy-import-card-copy">
+        <div className="legacy-import-card-icon" aria-hidden="true"><FolderInput size={16} /></div>
+        <div>
+          <strong>Recordings from an earlier version</strong>
+          <p>Merge recordings from the previous version. Current recordings and the downloaded transcription model will be preserved.</p>
+        </div>
       </div>
-      <button type="button" disabled={props.busy} onClick={props.onImportLegacyData}>Import…</button>
+      <button type="button" disabled={props.busy} onClick={props.onImportLegacyData}>Import previous recordings…</button>
     </div>
     <SettingsToggle
       label="Save raw audio"

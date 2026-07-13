@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "bun dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "bun run legal:notices && bun run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -38,6 +38,8 @@
       "resources/PrivacyPolicy.md": "Legal/PrivacyPolicy.md",
       "resources/ModelAttribution.txt": "Legal/ModelAttribution.txt",
       "resources/ThirdPartyNotices.txt": "Legal/ThirdPartyNotices.txt",
+      "resources/licenses/onnxruntime-LICENSE.txt": "Legal/onnxruntime-LICENSE.txt",
+      "resources/licenses/onnxruntime-ThirdPartyNotices.txt": "Legal/onnxruntime-ThirdPartyNotices.txt",
       "vendor/sherpa-onnx-sys/LICENSE": "Legal/sherpa-onnx-LICENSE.txt"
     },
     "icon": [

@@ -23,6 +23,11 @@ require_env MAC_APP_COPYRIGHT
 require_env VITE_PRIVACY_POLICY_URL
 require_env VITE_SUPPORT_URL
 
+if [ "${SHERPA_ONNX_LIB_DIR+x}" = x ]; then
+  echo "SHERPA_ONNX_LIB_DIR is not allowed for Mac App Store releases; the release must use the pinned, checksummed native archive" >&2
+  exit 1
+fi
+
 case "$APPLE_TEAM_ID" in
   *[!A-Za-z0-9]*) echo "APPLE_TEAM_ID must contain only letters and digits" >&2; exit 1 ;;
 esac
@@ -53,7 +58,11 @@ generated_config=src-tauri/tauri.appstore.generated.conf.json
 profile="$work_dir/embedded.provisionprofile"
 entitlements="$work_dir/Entitlements.plist"
 output_dir=${MAC_APP_STORE_OUTPUT_DIR:-dist/app-store}
-target=${MAC_APP_STORE_TARGET:-}
+target=aarch64-apple-darwin
+if [ -n "${MAC_APP_STORE_TARGET:-}" ] && [ "$MAC_APP_STORE_TARGET" != "$target" ]; then
+  echo "This release bundles a verified arm64-only transcription runtime; MAC_APP_STORE_TARGET must be $target" >&2
+  exit 1
+fi
 
 mkdir -p "$work_dir" "$output_dir"
 /usr/bin/ditto "$MAC_APP_STORE_PROFILE" "$profile"
@@ -86,11 +95,11 @@ if [ "$profile_team_id" != "$APPLE_TEAM_ID" ]; then
 fi
 
 set -- bun tauri build --bundles app --config "$generated_config"
-target_dir=src-tauri/target/release
-if [ -n "$target" ]; then
-  set -- "$@" --target "$target"
-  target_dir="src-tauri/target/$target/release"
-fi
+set -- "$@" --target "$target"
+target_dir="src-tauri/target/$target/release"
+# Force the native build script to run. It verifies the cached archive and
+# freshly extracts the libraries, binding the release to the legal inventory.
+cargo clean --manifest-path src-tauri/Cargo.toml -p sherpa-onnx-sys --target "$target"
 APPLE_SIGNING_IDENTITY="$MAC_APP_DISTRIBUTION_IDENTITY" "$@"
 
 app="$target_dir/bundle/macos/Just Notes.app"
@@ -106,6 +115,31 @@ if [ ! -f "$app/Contents/Resources/PrivacyInfo.xcprivacy" ]; then
   echo "App bundle is missing Contents/Resources/PrivacyInfo.xcprivacy" >&2
   exit 1
 fi
+notices="$app/Contents/Resources/Legal/ThirdPartyNotices.txt"
+if [ ! -f "$notices" ]; then
+  echo "App bundle is missing generated third-party notices" >&2
+  exit 1
+fi
+if ! /usr/bin/cmp -s src-tauri/resources/ThirdPartyNotices.txt "$notices"; then
+  echo "Bundled third-party notices do not match the generated release inventory" >&2
+  exit 1
+fi
+if { /usr/bin/nm -gU "$app/Contents/MacOS/just-notes" 2>/dev/null; /usr/bin/strings "$app/Contents/MacOS/just-notes"; } | /usr/bin/grep -Eqi 'espeak(_|::|-ng)'; then
+  echo "The release binary unexpectedly contains GPL-licensed espeak-ng code; perform a compatibility review before submission" >&2
+  exit 1
+fi
+privacy_manifest="$app/Contents/Resources/PrivacyInfo.xcprivacy"
+/usr/bin/plutil -lint "$privacy_manifest" >/dev/null
+privacy_api=$(/usr/bin/plutil -extract 'NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPIType' raw "$privacy_manifest")
+privacy_reasons=$(/usr/bin/plutil -extract 'NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPITypeReasons' json -o - "$privacy_manifest")
+if [ "$privacy_api" != "NSPrivacyAccessedAPICategoryFileTimestamp" ]; then
+  echo "Privacy manifest does not declare the file timestamp API category" >&2
+  exit 1
+fi
+case "$privacy_reasons" in
+  *'C617.1'*'3B52.1'*) ;;
+  *) echo "Privacy manifest is missing container or user-selected file reasons" >&2; exit 1 ;;
+esac
 
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$app"
 signed_entitlements="$work_dir/signed-entitlements.plist"

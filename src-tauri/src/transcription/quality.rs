@@ -4,7 +4,8 @@
 //! missed-segment, and hallucination metrics to a committed baseline.
 //!
 //! Fixtures live in `~/.just-notes/quality-fixtures` (see
-//! `scripts/setup-quality-fixtures.sh`); the baseline is
+//! `scripts/setup-quality-fixtures.sh`). The model is read from the sandbox
+//! app-data directory, or `JUST_NOTES_QUALITY_DATA_DIR` when set. The baseline is
 //! `src-tauri/quality/baseline.json`. Run via `bun run test:quality`, and
 //! rerun with `UPDATE_QUALITY_BASELINE=1` to accept improved numbers.
 //!
@@ -24,7 +25,10 @@
 //!   that the energy suppressor removes wholesale. Known recall gap;
 //!   improving it must not resurrect the phantom segments of fixture 9.
 
-use std::{path::PathBuf, sync::atomic::AtomicBool};
+use std::{
+    path::{Path, PathBuf},
+    sync::atomic::AtomicBool,
+};
 
 use crate::app::AppPaths;
 use crate::threads::TranscriptSegment;
@@ -95,7 +99,9 @@ fn quality_pipelines_meet_baseline() {
 
 fn load_quality_transcriber() -> Box<dyn Transcriber> {
     let home = std::env::var_os("HOME").expect("resolve home directory");
-    let paths = AppPaths::from_data_dir(PathBuf::from(home).join(".just-notes"));
+    let configured = std::env::var_os("JUST_NOTES_QUALITY_DATA_DIR").map(PathBuf::from);
+    let data_dir = quality_app_data_dir(Path::new(&home), configured);
+    let paths = AppPaths::from_data_dir(data_dir);
     let selection = finalization_transcription_selection(&paths);
     assert!(
         selection.is_installed(),
@@ -103,6 +109,29 @@ fn load_quality_transcriber() -> Box<dyn Transcriber> {
         selection.model_path.display()
     );
     load_transcriber(&selection).expect("load Parakeet transcriber")
+}
+
+fn quality_app_data_dir(home: &Path, configured: Option<PathBuf>) -> PathBuf {
+    configured.unwrap_or_else(|| {
+        home.join(
+            "Library/Containers/dev.just-notes/Data/Library/Application Support/dev.just-notes",
+        )
+    })
+}
+
+#[test]
+fn quality_model_defaults_to_the_sandbox_app_data_directory() {
+    let home = Path::new("/Users/tester");
+    assert_eq!(
+        quality_app_data_dir(home, None),
+        home.join(
+            "Library/Containers/dev.just-notes/Data/Library/Application Support/dev.just-notes"
+        )
+    );
+    assert_eq!(
+        quality_app_data_dir(home, Some(PathBuf::from("/tmp/quality-data"))),
+        PathBuf::from("/tmp/quality-data")
+    );
 }
 
 /// Both channels through the segmenter and recognizer, sorted, then both
