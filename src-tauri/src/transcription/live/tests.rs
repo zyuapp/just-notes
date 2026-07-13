@@ -39,6 +39,44 @@ fn drops_speech_shorter_than_min_utterance() {
 }
 
 #[test]
+fn pre_roll_does_not_make_a_single_transient_long_enough_to_transcribe() {
+    let mut stream = samples(1_000, 0.0);
+    stream.extend(samples(FRAME_MS, 0.1));
+    stream.extend(samples(700, 0.0));
+
+    assert!(segment(&stream).is_empty());
+}
+
+#[test]
+fn frame_offset_transient_does_not_count_as_sustained_speech() {
+    let mut stream = samples(1_010, 0.0);
+    stream.extend(samples(FRAME_MS, 0.1));
+    stream.extend(samples(700, 0.0));
+
+    assert!(segment(&stream).is_empty());
+}
+
+#[test]
+fn separated_transients_do_not_accumulate_speech_evidence() {
+    let mut stream = samples(1_000, 0.0);
+    stream.extend(samples(FRAME_MS, 0.1));
+    stream.extend(samples(300, 0.0));
+    stream.extend(samples(FRAME_MS, 0.1));
+    stream.extend(samples(700, 0.0));
+
+    assert!(segment(&stream).is_empty());
+}
+
+#[test]
+fn keeps_exactly_three_consecutive_speech_frames_after_pre_roll() {
+    let mut stream = samples(1_000, 0.0);
+    stream.extend(samples(MIN_CONSECUTIVE_SPEECH_MS, 0.1));
+    stream.extend(samples(700, 0.0));
+
+    assert_eq!(segment(&stream).len(), 1);
+}
+
+#[test]
 fn bridges_short_pause_into_a_single_utterance() {
     let mut stream = samples(300, 0.1);
     stream.extend(samples(300, 0.0)); // gap below the redemption window

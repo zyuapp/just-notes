@@ -9,11 +9,10 @@
 //! `src-tauri/quality/baseline.json`. Run via `bun run test:quality`, and
 //! rerun with `UPDATE_QUALITY_BASELINE=1` to accept improved numbers.
 //!
-//! The suppressor chain is guarded from both directions: fixtures 6 and 9
-//! measure phantom segments that must stay removed (precision), while
-//! fixtures 10 and 11 measure genuine quiet mic speech that must stay kept
-//! (recall). A change to gating or suppression has to improve one side
-//! without regressing the other.
+//! The suppressor chain is guarded from both directions: fixtures 6, 9, and 12
+//! measure phantom segments that must stay removed, while fixtures 10 and 11
+//! measure genuine quiet mic speech that must stay kept. A change to gating or
+//! suppression has to improve one side without regressing the other.
 //!
 //! Accepted residuals, recorded as regression floors rather than endorsed
 //! numbers:
@@ -25,10 +24,7 @@
 //!   that the energy suppressor removes wholesale. Known recall gap;
 //!   improving it must not resurrect the phantom segments of fixture 9.
 
-use std::{
-    path::{Path, PathBuf},
-    sync::atomic::AtomicBool,
-};
+use std::{collections::BTreeSet, sync::atomic::AtomicBool};
 
 use crate::app::AppPaths;
 use crate::threads::TranscriptSegment;
@@ -42,19 +38,23 @@ use super::{
 
 mod fixtures;
 mod metrics;
+mod paths;
+#[cfg(test)]
+mod tests;
 
 use fixtures::{discover_fixtures, load_baseline, write_baseline, Baseline, Fixture};
-use metrics::{evaluate, FixtureMetrics};
+use metrics::{evaluate, hallucinated_segments, FixtureMetrics};
 
 const WER_TOLERANCE: f32 = 0.01;
+pub(super) const SUPPORTED_MODE_NAMES: [&str; 2] = ["live", "finalize"];
 
 /// Both pipelines share the recognizer and suppressors; they differ in the
 /// segmenter gate. "live" mirrors the live-to-stop flow that produces the
 /// transcript users keep; "finalize" mirrors manual reprocessing.
 fn modes() -> [(&'static str, SegmenterConfig); 2] {
     [
-        ("live", SegmenterConfig::live()),
-        ("finalize", SegmenterConfig::finalize()),
+        (SUPPORTED_MODE_NAMES[0], SegmenterConfig::live()),
+        (SUPPORTED_MODE_NAMES[1], SegmenterConfig::finalize()),
     ]
 }
 
@@ -71,22 +71,33 @@ fn quality_pipelines_meet_baseline() {
     let mut results = Vec::new();
     for fixture in &fixtures {
         for (mode, config) in modes() {
+            if !fixture.runs_mode(mode) {
+                continue;
+            }
             let segments = transcribe_fixture(&*transcriber, fixture, config)
                 .unwrap_or_else(|err| panic!("fixture {} ({mode}): {err}", fixture.name));
-            results.push((
-                format!("{}@{mode}", fixture.name),
-                evaluate(&fixture.reference, &segments),
-            ));
+            let name = format!("{}@{mode}", fixture.name);
+            print_hallucinations(&name, fixture, &segments);
+            results.push((name, evaluate(&fixture.reference, &segments)));
         }
     }
     print_table(&results);
 
+    let baseline = load_baseline();
     if std::env::var_os("UPDATE_QUALITY_BASELINE").is_some() {
+        if let Some(existing) = &baseline {
+            let missing = missing_baseline_cases(&results, existing);
+            assert!(
+                missing.is_empty(),
+                "refusing to update from incomplete fixtures:\n{}",
+                missing.join("\n")
+            );
+        }
         write_baseline(&results).expect("write quality baseline");
         println!("Baseline updated.");
         return;
     }
-    let baseline = load_baseline().expect(
+    let baseline = baseline.expect(
         "no committed baseline; rerun with UPDATE_QUALITY_BASELINE=1 to record the current numbers",
     );
     let regressions = compare(&results, &baseline);
@@ -97,11 +108,17 @@ fn quality_pipelines_meet_baseline() {
     );
 }
 
+fn print_hallucinations(name: &str, fixture: &Fixture, segments: &[TranscriptSegment]) {
+    for segment in hallucinated_segments(&fixture.reference, segments) {
+        println!(
+            "hallucination {name}: {} {}-{} ms {:?}",
+            segment.source, segment.start_ms, segment.end_ms, segment.text
+        );
+    }
+}
+
 fn load_quality_transcriber() -> Box<dyn Transcriber> {
-    let home = std::env::var_os("HOME").expect("resolve home directory");
-    let configured = std::env::var_os("JUST_NOTES_QUALITY_DATA_DIR").map(PathBuf::from);
-    let data_dir = quality_app_data_dir(Path::new(&home), configured);
-    let paths = AppPaths::from_data_dir(data_dir);
+    let paths = AppPaths::from_data_dir(paths::quality_app_data_dir_from_env());
     let selection = finalization_transcription_selection(&paths);
     assert!(
         selection.is_installed(),
@@ -109,29 +126,6 @@ fn load_quality_transcriber() -> Box<dyn Transcriber> {
         selection.model_path.display()
     );
     load_transcriber(&selection).expect("load Parakeet transcriber")
-}
-
-fn quality_app_data_dir(home: &Path, configured: Option<PathBuf>) -> PathBuf {
-    configured.unwrap_or_else(|| {
-        home.join(
-            "Library/Containers/dev.just-notes/Data/Library/Application Support/dev.just-notes",
-        )
-    })
-}
-
-#[test]
-fn quality_model_defaults_to_the_sandbox_app_data_directory() {
-    let home = Path::new("/Users/tester");
-    assert_eq!(
-        quality_app_data_dir(home, None),
-        home.join(
-            "Library/Containers/dev.just-notes/Data/Library/Application Support/dev.just-notes"
-        )
-    );
-    assert_eq!(
-        quality_app_data_dir(home, Some(PathBuf::from("/tmp/quality-data"))),
-        PathBuf::from("/tmp/quality-data")
-    );
 }
 
 /// Both channels through the segmenter and recognizer, sorted, then both
@@ -223,5 +217,23 @@ fn compare(results: &[(String, FixtureMetrics)], baseline: &Baseline) -> Vec<Str
             ));
         }
     }
+    regressions.extend(missing_baseline_cases(results, baseline));
     regressions
+}
+
+fn missing_baseline_cases(
+    results: &[(String, FixtureMetrics)],
+    baseline: &Baseline,
+) -> Vec<String> {
+    let result_names = results
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect::<BTreeSet<_>>();
+    baseline
+        .keys()
+        .filter(|name| !result_names.contains(name.as_str()))
+        .map(|name| {
+            format!("{name}: baseline case was not discovered; rerun `bun run test:quality:setup`")
+        })
+        .collect()
 }

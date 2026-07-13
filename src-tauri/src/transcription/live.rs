@@ -5,18 +5,17 @@ use super::{rms, Transcriber};
 const FRAME_MS: u64 = 20;
 const REDEMPTION_MS: u64 = 600;
 const MAX_UTTERANCE_MS: u64 = 24_000;
-/// Audio kept from just before the gate opens, so quiet word onsets
-/// (unvoiced consonants, soft first syllables) reach the recognizer.
+/// Pre-gate audio retained so quiet word onsets reach the recognizer.
 const PRE_ROLL_MS: u64 = 240;
-/// Trailing sub-gate audio kept after the last speech frame, so word decays
-/// are not amputated at the gate.
+/// Trailing sub-gate audio retained so word decays are not amputated.
 const TAIL_KEEP_MS: u64 = 160;
-/// When the duration cap force-cuts, prefer the most recent quiet frame
-/// within this window so the boundary does not land inside a word.
+/// Force-cut lookback used to avoid splitting in the middle of a word.
 const FORCE_CUT_LOOKBACK_MS: u64 = 2_000;
-/// Peak frame RMS below which an utterance counts as faint. The gate sits
-/// near the noise floor to favor recall, so faint non-speech audio reaches
-/// the recognizer; filler-only decodes of it are dropped as hallucinations.
+/// A 20 ms click can straddle two analysis frames. Requiring three consecutive
+/// gate-positive frames rejects that transient regardless of frame phase while
+/// preserving clipped one-word replies.
+const MIN_CONSECUTIVE_SPEECH_MS: u64 = FRAME_MS * 3;
+/// Peak frame RMS below which an utterance counts as faint.
 pub(crate) const QUIET_CONFIRMATION_RMS: f32 = 0.02;
 /// Multiple of the tracked noise floor a frame must exceed to count as
 /// speech under the adaptive gate.
@@ -25,23 +24,13 @@ const NOISE_FLOOR_GATE_RATIO: f32 = 2.5;
 const NOISE_FLOOR_SMOOTHING: f32 = 0.02;
 
 mod config;
+mod evidence;
+mod utterance;
 pub(crate) use config::SegmenterConfig;
+pub(crate) use utterance::Utterance;
 
-/// A closed run of speech plus the absolute sample index of its first sample.
-pub(crate) struct Utterance {
-    pub(crate) start_index: u64,
-    pub(crate) sample_rate: u32,
-    pub(crate) samples: Vec<f32>,
-}
-
-struct ActiveUtterance {
-    start_index: u64,
-    samples: Vec<f32>,
-    trailing_silence_frames: usize,
-    /// Sample offset just past the most recent sub-gate frame; the preferred
-    /// cut point when the duration cap forces a split.
-    last_quiet_offset: Option<usize>,
-}
+use evidence::SpeechEvidence;
+use utterance::ActiveUtterance;
 
 /// Splits a mono stream into bounded speech utterances. Silence closes an
 /// utterance after a redemption window that bridges short pauses, and a hard
@@ -55,6 +44,7 @@ pub(crate) struct LiveSegmenter {
     noise_floor: f32,
     redemption_frames: usize,
     min_samples: usize,
+    min_consecutive_speech_samples: usize,
     max_samples: usize,
     pre_roll_max: usize,
     tail_keep_samples: usize,
@@ -77,6 +67,7 @@ impl LiveSegmenter {
             noise_floor: config.speech_rms,
             redemption_frames: (samples_for_ms(sample_rate, REDEMPTION_MS) / frame_len).max(1),
             min_samples: samples_for_ms(sample_rate, config.min_utterance_ms),
+            min_consecutive_speech_samples: samples_for_ms(sample_rate, MIN_CONSECUTIVE_SPEECH_MS),
             max_samples: samples_for_ms(sample_rate, MAX_UTTERANCE_MS).max(frame_len),
             pre_roll_max: samples_for_ms(sample_rate, PRE_ROLL_MS),
             tail_keep_samples: samples_for_ms(sample_rate, TAIL_KEEP_MS),
@@ -137,10 +128,12 @@ impl LiveSegmenter {
         let active = self.active.as_mut().expect("active utterance present");
         active.samples.extend_from_slice(&self.frame);
         if is_speech {
+            active.evidence.observe_speech(self.frame_len);
             active.trailing_silence_frames = 0;
         } else {
             active.trailing_silence_frames += 1;
             active.last_quiet_offset = Some(active.samples.len());
+            active.evidence.observe_quiet();
         }
         let close_now = active.trailing_silence_frames >= self.redemption_frames;
         let cap_hit = active.samples.len() >= self.max_samples;
@@ -177,6 +170,7 @@ impl LiveSegmenter {
         self.active = Some(ActiveUtterance {
             start_index,
             samples,
+            evidence: SpeechEvidence::started(self.frame_len),
             trailing_silence_frames: 0,
             last_quiet_offset: None,
         });
@@ -204,15 +198,21 @@ impl LiveSegmenter {
         };
 
         let remainder = active.samples.split_off(offset);
-        out.push(Utterance {
-            start_index: active.start_index,
-            sample_rate: self.sample_rate,
-            samples: active.samples,
-        });
+        let remainder_evidence = active.evidence.split_at_last_quiet();
+        if active.samples.len() >= self.min_samples
+            && active.evidence.longest_run() >= self.min_consecutive_speech_samples
+        {
+            out.push(Utterance {
+                start_index: active.start_index,
+                sample_rate: self.sample_rate,
+                samples: active.samples,
+            });
+        }
         if !remainder.is_empty() {
             self.active = Some(ActiveUtterance {
                 start_index: active.start_index + offset as u64,
                 samples: remainder,
+                evidence: remainder_evidence,
                 trailing_silence_frames: 0,
                 last_quiet_offset: None,
             });
@@ -221,14 +221,16 @@ impl LiveSegmenter {
 
     fn close(&self, mut active: ActiveUtterance, out: &mut Vec<Utterance>) {
         let trailing = active.trailing_silence_frames * self.frame_len;
-        let speech_len = active.samples.len().saturating_sub(trailing);
-        if speech_len < self.min_samples {
+        let content_len = active.samples.len().saturating_sub(trailing);
+        if content_len < self.min_samples
+            || active.evidence.longest_run() < self.min_consecutive_speech_samples
+        {
             return;
         }
         // Keep a short silence tail so the final word's decay stays intact.
         active
             .samples
-            .truncate(speech_len + trailing.min(self.tail_keep_samples));
+            .truncate(content_len + trailing.min(self.tail_keep_samples));
         out.push(Utterance {
             start_index: active.start_index,
             sample_rate: self.sample_rate,

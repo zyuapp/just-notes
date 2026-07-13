@@ -46,14 +46,7 @@ pub(super) fn evaluate(
             })
         })
         .count();
-    let hallucinated_segments = hypothesis
-        .iter()
-        .filter(|hypothesis_segment| {
-            !reference.iter().any(|reference_segment| {
-                same_source_overlap(reference_segment, hypothesis_segment, SEGMENT_MATCH_PAD_MS)
-            })
-        })
-        .count();
+    let hallucinated_segments = hallucinated_segments(reference, hypothesis).len();
 
     FixtureMetrics {
         wer: if reference_words == 0 {
@@ -66,6 +59,20 @@ pub(super) fn evaluate(
         reference_segments: reference.len(),
         hallucinated_segments,
     }
+}
+
+pub(super) fn hallucinated_segments<'a>(
+    reference: &[ReferenceSegment],
+    hypothesis: &'a [TranscriptSegment],
+) -> Vec<&'a TranscriptSegment> {
+    hypothesis
+        .iter()
+        .filter(|hypothesis_segment| {
+            !reference.iter().any(|reference_segment| {
+                same_source_overlap(reference_segment, hypothesis_segment, SEGMENT_MATCH_PAD_MS)
+            })
+        })
+        .collect()
 }
 
 fn source_words<'a>(segments: impl Iterator<Item = (u64, &'a str)>) -> Vec<String> {
