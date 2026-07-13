@@ -65,7 +65,3 @@
   align-items: center;
   gap: 9px;
 }
-
-.meeting-prompt-actions .ui-button-primary {
-  min-width: 108px;
-}

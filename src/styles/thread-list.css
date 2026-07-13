@@ -49,15 +49,16 @@
 
 .thread-row {
   display: flex;
+  width: 100%;
+  min-width: 0;
   gap: 7px;
-  align-items: baseline;
+  align-items: center;
 }
 
 .thread-dot {
   width: 7px;
   height: 7px;
   flex: 0 0 auto;
-  align-self: center;
   border-radius: 50%;
 }
 
@@ -100,7 +101,11 @@
 .thread-time {
   flex: 0 0 auto;
   color: var(--text-subtle);
-  font: 10.5px var(--mono);
+  font-family: var(--font);
+  font-size: var(--type-caption);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .thread-snippet {

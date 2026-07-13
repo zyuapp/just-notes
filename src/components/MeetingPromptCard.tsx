@@ -35,7 +35,7 @@ export function MeetingPromptCard({ prompt, onStart, onDismiss }: MeetingPromptC
         <Button variant="quiet" onClick={onDismiss}>
           Dismiss
         </Button>
-        <Button variant="primary" onClick={onStart}>
+        <Button onClick={onStart}>
           Start recording
         </Button>
       </div>

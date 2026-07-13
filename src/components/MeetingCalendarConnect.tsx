@@ -26,11 +26,7 @@ export function MeetingCalendarConnect({
             Just Notes reads meeting titles and times so it can ask when recording should start and
             stop.
           </p>
-          <Button
-            variant="primary"
-            onClick={denied ? onOpenSettings : onConnect}
-            disabled={busy}
-          >
+          <Button onClick={denied ? onOpenSettings : onConnect} disabled={busy}>
             {denied ? "Open System Settings" : "Connect calendars"}
           </Button>
         </div>
