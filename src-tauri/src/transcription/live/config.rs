@@ -4,7 +4,8 @@ pub(crate) struct SegmenterConfig {
     /// Frame RMS at or above which a 20 ms frame counts as speech; with
     /// `adaptive_gate` this is the gate's lower bound instead.
     pub(crate) speech_rms: f32,
-    /// Shortest run worth transcribing; briefer speech islands are dropped.
+    /// Shortest candidate audio span worth transcribing. A separate gated-frame
+    /// minimum prevents pre-roll alone from satisfying this duration.
     pub(crate) min_utterance_ms: u64,
     /// Gate at a multiple of the tracked noise floor. A fixed gate cannot
     /// serve both silent rooms (quiet speech needs a low gate) and noisy
