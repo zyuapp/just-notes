@@ -6,11 +6,14 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use super::metrics::FixtureMetrics;
+use super::{metrics::FixtureMetrics, SUPPORTED_MODE_NAMES};
+
+type FixtureModes = Option<Vec<String>>;
 
 #[derive(Deserialize)]
 struct ReferenceFile {
     segments: Vec<ReferenceSegment>,
+    modes: FixtureModes,
 }
 
 #[derive(Deserialize)]
@@ -26,6 +29,31 @@ pub(super) struct Fixture {
     pub(super) mic_path: PathBuf,
     pub(super) system_path: PathBuf,
     pub(super) reference: Vec<ReferenceSegment>,
+    modes: FixtureModes,
+}
+
+impl Fixture {
+    pub(super) fn runs_mode(&self, mode: &str) -> bool {
+        self.modes.as_ref().map_or(true, |modes| {
+            modes.iter().any(|candidate| candidate == mode)
+        })
+    }
+}
+
+pub(super) fn validate_modes(modes: FixtureModes) -> Result<FixtureModes, String> {
+    let Some(modes) = modes else {
+        return Ok(None);
+    };
+    if modes.is_empty() {
+        return Err("fixture modes must not be empty".to_string());
+    }
+    if let Some(mode) = modes
+        .iter()
+        .find(|mode| !SUPPORTED_MODE_NAMES.contains(&mode.as_str()))
+    {
+        return Err(format!("unsupported fixture mode {mode:?}"));
+    }
+    Ok(Some(modes))
 }
 
 /// Fixture directories under the fixtures root, sorted by name. A directory
@@ -53,6 +81,8 @@ pub(super) fn discover_fixtures() -> Vec<Fixture> {
                 .unwrap_or_else(|err| panic!("read {}: {err}", reference_path.display()));
             let parsed: ReferenceFile = serde_json::from_str(&raw)
                 .unwrap_or_else(|err| panic!("parse {}: {err}", reference_path.display()));
+            let modes = validate_modes(parsed.modes)
+                .unwrap_or_else(|err| panic!("parse {}: {err}", reference_path.display()));
             Some(Fixture {
                 name: dir
                     .file_name()
@@ -62,6 +92,7 @@ pub(super) fn discover_fixtures() -> Vec<Fixture> {
                 mic_path: dir.join("mic.wav"),
                 system_path: dir.join("system.wav"),
                 reference: parsed.segments,
+                modes,
             })
         })
         .collect()

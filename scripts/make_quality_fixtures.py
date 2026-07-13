@@ -107,9 +107,39 @@ def shaped_noise(duration_ms, rms, seed):
     )
 
 
+def colored_noise(duration_ms, rms, seed):
+    """Stationary colored noise at a deterministic RMS.
+
+    Unlike `shaped_noise`, this has no speech-cadence envelope. It is used to
+    reproduce a quiet microphone floor plus one short transient without
+    accidentally adding other gate-opening events.
+    """
+    rng = random.Random(seed)
+    total = RATE * duration_ms // 1000
+    raw = []
+    level = 0.0
+    for _ in range(total):
+        level = 0.92 * level + 0.08 * rng.gauss(0.0, 1.0)
+        raw.append(level)
+    scale = rms / (sum(value * value for value in raw) / total) ** 0.5
+    return array(
+        "h",
+        (max(-32768, min(32767, int(value * scale * 32767))) for value in raw),
+    )
+
+
 def overlay(base, noise):
     for index in range(min(len(base), len(noise))):
         base[index] = max(-32768, min(32767, base[index] + noise[index]))
+
+
+def overlay_at(base, noise, start_ms):
+    start = RATE * start_ms // 1000
+    for index, value in enumerate(noise):
+        target = start + index
+        if target >= len(base):
+            break
+        base[target] = max(-32768, min(32767, base[target] + value))
 
 
 def high_frequency_noise(duration_ms, rms, seed, carrier_hz=11_000):
@@ -175,7 +205,7 @@ def mix_bleed(mic, system, gain, delay_ms):
         mic[target] = max(-32768, min(32767, mixed))
 
 
-def write_fixture(out_dir, name, mic, system=None):
+def write_fixture(out_dir, name, mic, system=None, modes=None):
     fixture_dir = out_dir / name
     fixture_dir.mkdir(parents=True, exist_ok=True)
     segments = list(mic.segments)
@@ -187,7 +217,10 @@ def write_fixture(out_dir, name, mic, system=None):
         segments += system.segments
     write_wav(fixture_dir / "mic.wav", mic.samples)
     segments.sort(key=lambda segment: (segment["start_ms"], segment["source"]))
-    (fixture_dir / "reference.json").write_text(json.dumps({"segments": segments}, indent=1) + "\n")
+    reference = {"segments": segments}
+    if modes is not None:
+        reference["modes"] = modes
+    (fixture_dir / "reference.json").write_text(json.dumps(reference, indent=1) + "\n")
     print(f"  {name}: {mic.duration_ms() / 1000:.1f}s, {len(segments)} reference segments")
 
 
@@ -320,6 +353,26 @@ def main():
     sentence, sentence_text = a[6]
     place_clip(mic, scaled(sentence, QUIET_GAIN), positions[3], sentence_text)
     write_fixture(out_dir, "11-quiet-replies-over-bleed", mic, system)
+
+    # A system-silent gap between real turns with no mic speech. One 20 ms
+    # colored-noise transient rises just above the adaptive gate (~0.0085 RMS)
+    # but stays far below the confident-speech level. A segmenter that lets its
+    # 240 ms pre-roll satisfy the duration check sends the non-speech utterance
+    # to Parakeet, which decodes it as a filler. Nearby system speech then
+    # prevents the isolation suppressor from removing it.
+    system = monologue(b[:2], gap_ms=4000, source="system")
+    transient_ms = math.ceil((system.segments[0]["end_ms"] + 1500) / 20) * 20
+    mic = Track()
+    mic.samples = colored_noise(system.duration_ms(), 0.0028, NOISE_SEED + 4)
+    overlay_at(
+        mic.samples,
+        colored_noise(20, 0.0085, NOISE_SEED + 5),
+        transient_ms,
+    )
+    # This is a live-only fixture: its measured mic floor intentionally sits
+    # above the finalization path's fixed gate, where it would be continuous
+    # speech evidence rather than an isolated transient.
+    write_fixture(out_dir, "12-transient-mic-spike", mic, system, modes=["live"])
     print("Done.")
 
 
