@@ -10,8 +10,8 @@
 
 .settings-panel h3 {
   margin: 0 0 8px;
-  color: var(--text-3);
-  font-size: 10.5px;
+  color: var(--text-subtle);
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -20,7 +20,7 @@
 .settings-panel section > .settings-row:first-of-type,
 .settings-panel section > .calendar-connect:first-of-type,
 .settings-panel section > .settings-hint:first-of-type {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border-default);
 }
 
 .settings-row {
@@ -30,34 +30,34 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
   padding: 7px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .settings-row strong {
   display: block;
-  color: var(--text);
-  font-size: 13px;
+  color: var(--text-primary);
+  font-size: var(--type-body);
   font-weight: 500;
 }
 
 .settings-path,
 .settings-hint {
   margin: 2px 0 0;
-  color: var(--text-2);
-  font-size: 11.5px;
+  color: var(--text-muted);
+  font-size: var(--type-control);
   line-height: 1.45;
 }
 
 .settings-path {
   overflow-wrap: anywhere;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 
 .settings-legal-copy {
   padding: 12px 0 18px;
-  border-top: 1px solid var(--line);
-  color: var(--text-2);
+  border-top: 1px solid var(--border-default);
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -76,32 +76,12 @@
   gap: 6px;
 }
 
-.settings-row-actions button {
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--raised);
-  color: var(--text);
-  font-size: 12px;
+.settings-legal-actions {
+  margin: 12px 0 26px;
 }
 
-.settings-row-actions button:hover {
-  color: var(--text-bright);
-}
-
-.settings-row-actions button:disabled,
+.settings-row-actions .ui-button:disabled,
 .settings-segmented button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
-}
-
-.settings-row-actions button.settings-danger {
-  color: #e7a4a7;
-}
-
-.settings-row-actions button.settings-danger:hover,
-.settings-row-actions button.settings-danger.armed {
-  border-color: transparent;
-  background: var(--red-soft);
 }

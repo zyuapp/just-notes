@@ -1,6 +1,7 @@
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import { downloadPercent } from "../lib/transcriptionModel";
+import { Button } from "./Button";
 import { DownloadingLabel } from "./DownloadingLabel";
 import { useConfirmAction } from "./useConfirmAction";
 
@@ -74,30 +75,31 @@ function ModelAction({
   if (!model) return null;
   if (model.installed) {
     return (
-      <button
-        type="button"
-        className={confirmDelete.armed ? "settings-danger armed" : "settings-danger"}
+      <Button
+        size="compact"
+        variant="danger"
+        className={confirmDelete.armed ? "armed" : undefined}
         onClick={confirmDelete.trigger}
         onBlur={confirmDelete.reset}
       >
         {confirmDelete.armed ? "Confirm delete" : "Delete"}
-      </button>
+      </Button>
     );
   }
   if (model.canCancel) {
     return (
-      <button type="button" onClick={onCancelModelDownload}>
+      <Button size="compact" onClick={onCancelModelDownload}>
         Cancel
-      </button>
+      </Button>
     );
   }
   if (model.canDownload) {
     return (
-      <button type="button" onClick={onStartModelDownload}>
+      <Button size="compact" onClick={onStartModelDownload}>
         {model.downloadState === "failed" || model.downloadState === "cancelled"
           ? "Retry"
           : "Download"}
-      </button>
+      </Button>
     );
   }
   return null;

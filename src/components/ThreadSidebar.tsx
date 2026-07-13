@@ -1,6 +1,8 @@
-import { Archive, Plus, Search, Settings } from "lucide-react";
+import { Archive, Plus, Settings } from "lucide-react";
 import { type RefObject, useState } from "react";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
+import { Button } from "./Button";
+import { SearchField } from "./SearchField";
 import { ThreadContextMenu } from "./ThreadContextMenu";
 import { ThreadList } from "./ThreadList";
 
@@ -52,26 +54,22 @@ export function ThreadSidebar({
           <BrandMark />
           <span>Just Notes</span>
         </div>
-        <button
-          type="button"
-          className="icon-button"
+        <Button
+          variant="icon"
           onClick={onCreateThread}
           aria-label="New thread"
+          title="New thread"
         >
           <Plus size={15} aria-hidden="true" />
-        </button>
+        </Button>
       </header>
 
-      <label className="thread-search">
-        <Search size={13} aria-hidden="true" />
-        <input
-          type="search"
-          value={searchQuery}
-          placeholder="Search recordings"
-          onChange={(event) => onSearchChange(event.target.value)}
-          aria-label="Search recordings"
-        />
-      </label>
+      <SearchField
+        className="thread-search"
+        value={searchQuery}
+        placeholder="Search recordings"
+        onChange={onSearchChange}
+      />
 
       <ThreadList
         activeThreadId={activeThreadId}
@@ -83,24 +81,23 @@ export function ThreadSidebar({
       />
 
       <footer className="sidebar-foot">
-        <button
+        <Button
           ref={iconRef}
-          type="button"
-          className="icon-button"
+          variant="icon"
           onClick={onOpenArchive}
           aria-label="Archived recordings"
           title="Archived recordings"
         >
           <Archive size={15} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="icon-button"
+        </Button>
+        <Button
+          variant="icon"
           onClick={onOpenSettings}
           aria-label="Settings"
+          title="Settings"
         >
           <Settings size={15} aria-hidden="true" />
-        </button>
+        </Button>
       </footer>
 
       {menu && (

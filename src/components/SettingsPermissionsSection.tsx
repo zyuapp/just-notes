@@ -1,4 +1,5 @@
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
+import { Button } from "./Button";
 import { permissionLabel } from "./SettingsControls";
 
 type PrivacyPane = "microphone" | "system-audio" | "calendar" | "notifications";
@@ -38,7 +39,7 @@ function PermissionRow({ label, description, onOpen }: PermissionRowProps) {
         <p className="settings-hint">{description}</p>
       </div>
       <div className="settings-row-actions">
-        <button type="button" onClick={onOpen}>Open System Settings</button>
+        <Button size="compact" onClick={onOpen}>Open System Settings</Button>
       </div>
     </div>
   );

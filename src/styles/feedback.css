@@ -8,11 +8,11 @@
   margin: 0;
   overflow: auto;
   padding: 10px 12px;
-  border: 1px solid rgba(229, 72, 77, 0.4);
+  border: 1px solid var(--danger-border);
   border-radius: 8px;
-  background: #2a1416;
+  background: var(--error-surface);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
-  color: #ffc7c4;
+  color: var(--error-text);
   font: 11.5px var(--mono);
   white-space: pre-wrap;
 }

@@ -1,4 +1,6 @@
 @import "./base.css";
+@import "./ui-controls.css";
+@import "./modal.css";
 @import "./layout.css";
 @import "./sidebar.css";
 @import "./thread-list.css";
@@ -15,6 +17,5 @@
 @import "./meeting-prompt.css";
 @import "./archive.css";
 @import "./feedback.css";
-@import "./model-download-dialog.css";
 @import "./legacy-import.css";
 @import "./legacy-import-card.css";

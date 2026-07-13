@@ -1,5 +1,6 @@
 import type { AppSettings } from "../bindings/AppSettings";
 import type { MeetingAccessPayload } from "../bindings/MeetingAccessPayload";
+import { Button } from "./Button";
 import { SettingsToggle } from "./SettingsControls";
 
 type MeetingSettingsConnectedProps = {
@@ -104,8 +105,8 @@ export function MeetingSettingsConnected({
             <p className="settings-hint">Allow notifications so meeting prompts can appear.</p>
           </div>
           <div className="settings-row-actions">
-            <button
-              type="button"
+            <Button
+              size="compact"
               disabled={busy}
               onClick={access.notificationAuthorization === "denied"
                 ? () => onOpenPrivacy("notifications")
@@ -114,7 +115,7 @@ export function MeetingSettingsConnected({
               {access.notificationAuthorization === "denied"
                 ? "Open System Settings"
                 : "Allow notifications"}
-            </button>
+            </Button>
           </div>
         </div>
       </section>

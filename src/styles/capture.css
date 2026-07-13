@@ -5,14 +5,14 @@
   height: 52px;
   flex: 0 0 auto;
   padding: 0 16px;
-  border-top: 1px solid var(--line);
-  background: var(--sidebar);
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-sidebar);
   transition: background 0.35s ease;
 }
 
 .capture-bar.recording {
-  background: var(--sidebar);
-  border-top-color: rgba(229, 72, 77, 0.3);
+  background: var(--surface-sidebar);
+  border-top-color: var(--danger-border);
 }
 
 .record-button {
@@ -22,16 +22,16 @@
   height: 30px;
   flex: 0 0 auto;
   padding: 0 14px;
-  border: 1px solid rgba(208, 92, 97, 0.55);
+  border: 1px solid var(--danger-border);
   border-radius: 15px;
-  color: var(--text-bright);
+  color: var(--text-strong);
   cursor: pointer;
-  font-size: 12.5px;
+  font-size: var(--type-control);
   font-weight: 600;
   transition: background 0.15s ease;
 }
 
-.record-button:hover:not(:disabled) { background: var(--red-soft); }
+.record-button:hover:not(:disabled) { background: var(--danger-soft); }
 
 .record-button:disabled {
   cursor: not-allowed;
@@ -39,39 +39,30 @@
 }
 
 .record-button:focus-visible {
-  outline-color: rgba(255, 255, 255, 0.6);
+  outline-color: var(--focus-ring);
 }
-
-.capture-secondary {
-  display: inline-flex; align-items: center; height: 30px;
-  flex: 0 0 auto;
-  padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 7px;
-  background: var(--raised); color: var(--text); cursor: pointer; font-size: 12px;
-}
-
-.capture-secondary:hover { color: var(--text-bright); }
 
 .record-glyph {
   width: 9px;
   height: 9px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: var(--red);
+  background: var(--danger);
 }
 
 .capture-bar.recording .record-button {
-  background: var(--red);
-  border-color: var(--red);
+  background: var(--danger);
+  border-color: var(--danger);
   box-shadow: none;
 }
 
 .capture-bar.recording .record-button:hover:not(:disabled) {
-  background: #d13d42;
+  background: var(--danger-hover);
 }
 
 .capture-bar.recording .record-glyph {
   border-radius: 2px;
-  background: #fff;
+  background: var(--action-primary-bg);
   animation: record-glyph-breathe 1.6s ease-in-out infinite;
 }
 
@@ -79,8 +70,8 @@
 
 .capture-elapsed {
   flex: 0 0 auto;
-  color: var(--text-bright);
-  font: 500 12.5px var(--mono);
+  color: var(--text-strong);
+  font: 500 var(--type-control) var(--mono);
 }
 
 .capture-meters {
@@ -96,8 +87,8 @@
 }
 
 .capture-meter b {
-  color: var(--text-3);
-  font-size: 9.5px;
+  color: var(--text-subtle);
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -113,7 +104,7 @@
 .capture-meter-bars span {
   width: 3px;
   border-radius: 1px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--surface-hover);
 }
 
 .capture-meter-bars span:nth-child(odd) {
@@ -125,26 +116,26 @@
 }
 
 .capture-meter-bars span.on {
-  background: var(--text-2);
+  background: var(--text-muted);
 }
 
 .capture-meter:first-child .capture-meter-bars span.on {
-  background: var(--text-2);
+  background: var(--text-muted);
 }
 
 .capture-status {
   margin-left: auto;
   min-width: 0;
   overflow: hidden;
-  color: var(--text-3);
-  font-size: 11.5px;
+  color: var(--text-subtle);
+  font-size: var(--type-control);
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .capture-bar.recording .capture-status {
-  color: rgba(240, 138, 134, 0.9);
+  color: var(--danger-text);
 }
 
 .fixture-link {

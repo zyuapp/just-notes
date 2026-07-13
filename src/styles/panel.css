@@ -3,7 +3,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  background: var(--panel);
+  background: var(--surface-panel);
 }
 
 .panel-head {
@@ -12,7 +12,7 @@
   align-items: center;
   flex: 0 0 auto;
   padding: 0 20px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .eyebrow {
@@ -20,8 +20,8 @@
   align-items: center;
   gap: 6px;
   margin: 0 0 0 auto;
-  color: var(--text-2);
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: var(--type-caption);
   font-weight: 450;
   font-variant-numeric: tabular-nums;
 }
@@ -37,11 +37,11 @@
   flex: 0 0 auto;
   margin-left: 0;
   border-radius: 50%;
-  background: var(--text-2);
+  background: var(--text-muted);
 }
 
 .status-dot.live {
-  background: var(--red);
+  background: var(--danger);
   animation: status-dot-breathe 1.6s ease-in-out infinite;
 }
 
@@ -55,7 +55,7 @@
   flex: 1;
   margin: 0;
   min-width: 0;
-  color: var(--text-bright);
+  color: var(--text-strong);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -80,10 +80,10 @@
   width: min(560px, calc(100% - 260px));
   padding: 0;
   border: 0;
-  border-bottom: 1px solid var(--text-2);
+  border-bottom: 1px solid var(--text-muted);
   outline: none;
   background: transparent;
-  color: var(--text-bright);
+  color: var(--text-strong);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -92,7 +92,7 @@
 
 @media (max-width: 900px) {
   .eyebrow {
-    font-size: 10.5px;
+    font-size: var(--type-caption);
   }
 
   .thread-title-input {

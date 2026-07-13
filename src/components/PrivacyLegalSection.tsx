@@ -1,3 +1,5 @@
+import { Button } from "./Button";
+
 type PrivacyLegalSectionProps = {
   onOpenExternalUrl: (url: string) => void;
   onOpenLegalDocument: (document: "privacy" | "notices") => void;
@@ -32,17 +34,17 @@ export function PrivacyLegalSection({
       </div>
       <div className="settings-row-actions settings-legal-actions">
         {PRIVACY_POLICY_URL && (
-          <button type="button" onClick={() => onOpenExternalUrl(PRIVACY_POLICY_URL)}>
+          <Button size="compact" onClick={() => onOpenExternalUrl(PRIVACY_POLICY_URL)}>
             Privacy Policy
-          </button>
+          </Button>
         )}
-        <button type="button" onClick={() => onOpenLegalDocument("privacy")}>
+        <Button size="compact" onClick={() => onOpenLegalDocument("privacy")}>
           Offline Policy
-        </button>
+        </Button>
         {SUPPORT_URL && (
-          <button type="button" onClick={() => onOpenExternalUrl(SUPPORT_URL)}>
+          <Button size="compact" onClick={() => onOpenExternalUrl(SUPPORT_URL)}>
             Support
-          </button>
+          </Button>
         )}
       </div>
 
@@ -55,9 +57,11 @@ export function PrivacyLegalSection({
         <p className="settings-hint">
           Model source: huggingface.co/nvidia/parakeet-tdt-0.6b-v2
         </p>
-        <button type="button" onClick={() => onOpenLegalDocument("notices")}>
-          Open Third-Party Notices
-        </button>
+        <div className="settings-row-actions settings-legal-actions">
+          <Button size="compact" onClick={() => onOpenLegalDocument("notices")}>
+            Open Third-Party Notices
+          </Button>
+        </div>
       </div>
     </section>
   );
