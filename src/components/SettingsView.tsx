@@ -10,7 +10,7 @@ import { SettingsNavigation, type SettingsSectionId } from "./SettingsNavigation
 import { SettingsPermissionsSection } from "./SettingsPermissionsSection";
 import { StorageSettingsSection } from "./StorageSettingsSection";
 import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
-import { useDismissOnEscape } from "./useDismissOnEscape";
+import { FullscreenView } from "./FullscreenView";
 
 const SECTION_COPY: Record<SettingsSectionId, { title: string; description: string }> = {
   storage: { title: "Storage", description: "See where recordings live and choose which files are kept." },
@@ -73,19 +73,23 @@ export function SettingsView({
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("storage");
   const activeSectionCopy = SECTION_COPY[activeSection];
-  useDismissOnEscape(onClose);
   return (
-    <div className="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
-      <SettingsNavigation activeSection={activeSection} onSelect={setActiveSection} onClose={onClose} />
-
-      <div className="settings-content">
-        <div className="settings-panel">
-          <header className="settings-titlebar">
-            <h2>{activeSectionCopy.title}</h2>
-            <p>{activeSectionCopy.description}</p>
-          </header>
-
-        {activeSection === "storage" && <StorageSettingsSection
+    <FullscreenView
+      ariaLabel="Settings"
+      navigation={
+        <SettingsNavigation
+          activeSection={activeSection}
+          onSelect={setActiveSection}
+          onClose={onClose}
+        />
+      }
+      title={activeSectionCopy.title}
+      description={activeSectionCopy.description}
+      panelClassName="settings-panel"
+      onClose={onClose}
+    >
+      {activeSection === "storage" && (
+        <StorageSettingsSection
           appInfo={appInfo}
           settings={settings}
           busy={storageBusy}
@@ -93,18 +97,22 @@ export function SettingsView({
           onImportLegacyData={onImportLegacyData}
           onToggleRawAudio={onToggleRawAudio}
           onToggleMarkdownCopy={onToggleMarkdownCopy}
-        />}
+        />
+      )}
 
-        {activeSection === "transcription" && <div id="settings-transcription">
+      {activeSection === "transcription" && (
+        <div id="settings-transcription">
           <TranscriptionSettingsSection
             transcriptionStatus={transcriptionStatus}
             onStartModelDownload={onStartModelDownload}
             onCancelModelDownload={onCancelModelDownload}
             onDeleteModel={onDeleteModel}
           />
-        </div>}
+        </div>
+      )}
 
-        {activeSection === "meetings" && <div id="settings-meetings">
+      {activeSection === "meetings" && (
+        <div id="settings-meetings">
           <MeetingSettingsSection
             settings={settings}
             access={meetingAccess}
@@ -116,19 +124,18 @@ export function SettingsView({
             onOpenPrivacy={onOpenPrivacy}
             busy={meetingSettingsBusy}
           />
-        </div>}
-
-          {activeSection === "permissions" && (
-            <SettingsPermissionsSection permissions={permissions} onOpenPrivacy={onOpenPrivacy} />
-          )}
-          {activeSection === "privacy" && (
-            <PrivacyLegalSection
-              onOpenExternalUrl={onOpenExternalUrl}
-              onOpenLegalDocument={onOpenLegalDocument}
-            />
-          )}
         </div>
-      </div>
-    </div>
+      )}
+
+      {activeSection === "permissions" && (
+        <SettingsPermissionsSection permissions={permissions} onOpenPrivacy={onOpenPrivacy} />
+      )}
+      {activeSection === "privacy" && (
+        <PrivacyLegalSection
+          onOpenExternalUrl={onOpenExternalUrl}
+          onOpenLegalDocument={onOpenLegalDocument}
+        />
+      )}
+    </FullscreenView>
   );
 }

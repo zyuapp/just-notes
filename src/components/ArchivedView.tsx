@@ -2,8 +2,9 @@ import { Archive, ArchiveRestore, ArrowLeft, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
 import { formatThreadDate } from "../lib/format";
+import { Button } from "./Button";
+import { FullscreenView } from "./FullscreenView";
 import { useConfirmAction } from "./useConfirmAction";
-import { useDismissOnEscape } from "./useDismissOnEscape";
 
 type ArchivedViewProps = {
   items: ThreadSummary[] | null;
@@ -23,7 +24,6 @@ export function ArchivedView({
   onDeletePermanently,
 }: ArchivedViewProps) {
   const [busy, setBusy] = useState(false);
-  useDismissOnEscape(onClose);
 
   // Reload after a mutation so the list reflects what actually happened, even
   // when the action reported an error through the app toast. The busy flag
@@ -41,54 +41,57 @@ export function ArchivedView({
   };
 
   return (
-    <div className="archive-overlay" role="dialog" aria-modal="true" aria-label="Archived recordings">
-      <nav className="archive-nav" aria-label="Archive navigation">
-        <button
-          type="button"
-          className="archive-nav-item archive-nav-back"
-          onClick={onClose}
-          aria-label="Back to notes"
-          title="Back to notes"
-        >
-          <ArrowLeft size={16} aria-hidden="true" />
-        </button>
-        <div className="archive-nav-title">Archived</div>
-        <div className="archive-nav-item active">
-          <Archive size={16} aria-hidden="true" />
-          <span>Recordings</span>
-        </div>
-      </nav>
-      <div className="archive-content">
-        <div className="archive-panel">
-        <header className="archive-titlebar">
-          <h2>Archived recordings</h2>
-        </header>
+    <FullscreenView
+      ariaLabel="Archive"
+      navigation={<ArchiveNavigation onClose={onClose} />}
+      title="Archive"
+      description="Restore recordings to your library or permanently delete the ones you no longer need."
+      onClose={onClose}
+    >
+      {error && <p className="archive-error">{error}</p>}
 
-          {error && <p className="archive-error">{error}</p>}
+      {items === null ? (
+        <p className="archive-empty">Loading…</p>
+      ) : items.length === 0 ? (
+        <p className="archive-empty">
+          No archived recordings. Recordings you archive will appear here until you restore or
+          permanently delete them.
+        </p>
+      ) : (
+        <ul className="archive-list">
+          {items.map((item) => (
+            <ArchivedRow
+              key={item.id}
+              thread={item}
+              disabled={busy}
+              onRestore={() => void runAction(() => onRestore(item.id))}
+              onDelete={() => void runAction(() => onDeletePermanently(item.id))}
+            />
+          ))}
+        </ul>
+      )}
+    </FullscreenView>
+  );
+}
 
-          {items === null ? (
-          <p className="archive-empty">Loading…</p>
-        ) : items.length === 0 ? (
-          <p className="archive-empty">
-            No archived recordings. Archived threads are kept out of your transcripts folder until
-            you restore or permanently delete them.
-          </p>
-        ) : (
-          <ul className="archive-list">
-            {items.map((item) => (
-              <ArchivedRow
-                key={item.id}
-                thread={item}
-                disabled={busy}
-                onRestore={() => void runAction(() => onRestore(item.id))}
-                onDelete={() => void runAction(() => onDeletePermanently(item.id))}
-              />
-            ))}
-          </ul>
-          )}
-        </div>
+function ArchiveNavigation({ onClose }: { onClose: () => void }) {
+  return (
+    <nav className="archive-nav fullscreen-nav" aria-label="Archive navigation">
+      <button
+        type="button"
+        className="archive-nav-item fullscreen-nav-item fullscreen-nav-back"
+        onClick={onClose}
+        aria-label="Back to notes"
+        title="Back to notes"
+      >
+        <ArrowLeft size={16} aria-hidden="true" />
+      </button>
+      <div className="archive-nav-title fullscreen-nav-title">Archive</div>
+      <div className="archive-nav-item fullscreen-nav-item active">
+        <Archive size={16} aria-hidden="true" />
+        <span>Recordings</span>
       </div>
-    </div>
+    </nav>
   );
 }
 
@@ -109,20 +112,25 @@ function ArchivedRow({ thread, disabled, onRestore, onDelete }: ArchivedRowProps
         <span className="archive-row-meta">{formatThreadDate(thread.createdAtMs)}</span>
       </div>
       <div className="archive-row-actions">
-        <button type="button" className="archive-restore" onClick={onRestore} disabled={disabled}>
-          <ArchiveRestore size={14} aria-hidden="true" />
-          <span>Restore</span>
-        </button>
-        <button
-          type="button"
-          className={confirmDelete.armed ? "archive-delete armed" : "archive-delete"}
+        <Button
+          size="compact"
+          leadingIcon={<ArchiveRestore size={14} />}
+          onClick={onRestore}
+          disabled={disabled}
+        >
+          Restore
+        </Button>
+        <Button
+          size="compact"
+          variant="danger"
+          leadingIcon={<Trash2 size={14} />}
+          className={confirmDelete.armed ? "armed" : undefined}
           onClick={confirmDelete.trigger}
           onBlur={confirmDelete.reset}
           disabled={disabled}
         >
-          <Trash2 size={14} aria-hidden="true" />
-          <span>{confirmDelete.armed ? "Confirm delete" : "Delete permanently"}</span>
-        </button>
+          {confirmDelete.armed ? "Confirm delete" : "Delete permanently"}
+        </Button>
       </div>
     </li>
   );

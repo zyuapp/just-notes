@@ -1,4 +1,5 @@
 import { TriangleAlert } from "lucide-react";
+import { Button } from "./Button";
 
 export type Notice = {
   message: string;
@@ -18,9 +19,9 @@ export function NoticeBar({ notice }: NoticeBarProps) {
       <TriangleAlert size={18} aria-hidden="true" />
       <span>{notice.message}</span>
       {notice.actionLabel && notice.onAction && (
-        <button type="button" onClick={notice.onAction}>
+        <Button size="compact" onClick={notice.onAction}>
           {notice.actionLabel}
-        </button>
+        </Button>
       )}
     </div>
   );

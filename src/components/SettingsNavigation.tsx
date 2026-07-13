@@ -20,17 +20,17 @@ export function SettingsNavigation({
   onClose,
 }: SettingsNavigationProps) {
   return (
-    <nav className="settings-nav" aria-label="Settings sections">
+    <nav className="settings-nav fullscreen-nav" aria-label="Settings sections">
       <button
         type="button"
-        className="settings-nav-item settings-nav-back"
+        className="settings-nav-item fullscreen-nav-item fullscreen-nav-back"
         onClick={onClose}
         aria-label="Back to notes"
         title="Back to notes"
       >
         <ArrowLeft size={16} aria-hidden="true" />
       </button>
-      <div className="settings-nav-title">Settings</div>
+      <div className="settings-nav-title fullscreen-nav-title">Settings</div>
       <SettingsNavButton label="Storage" id="storage" icon={<HardDrive size={16} />} activeSection={activeSection} onSelect={onSelect} />
       <SettingsNavButton label="Transcription" id="transcription" icon={<AudioLines size={16} />} activeSection={activeSection} onSelect={onSelect} />
       <SettingsNavButton label="Meetings" id="meetings" icon={<CalendarDays size={16} />} activeSection={activeSection} onSelect={onSelect} />
@@ -53,7 +53,11 @@ function SettingsNavButton({ label, id, icon, activeSection, onSelect }: Setting
   return (
     <button
       type="button"
-      className={active ? "settings-nav-item active" : "settings-nav-item"}
+      className={
+        active
+          ? "settings-nav-item fullscreen-nav-item active"
+          : "settings-nav-item fullscreen-nav-item"
+      }
       onClick={() => onSelect(id)}
       aria-current={active ? "page" : undefined}
     >

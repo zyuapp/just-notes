@@ -6,6 +6,7 @@ import type { ThreadDetail } from "../bindings/ThreadDetail";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
+import type { RecordButtonControl } from "../features/app/recordButtonState";
 import type { ThreadActions } from "../features/app/useThreadActions";
 import { formatCompactDuration, formatThreadDate } from "../lib/format";
 import { CaptureBar } from "./CaptureBar";
@@ -26,18 +27,14 @@ type TranscriptPanelProps = {
   selectedThread: ThreadDetail | null;
   liveSegments: TranscriptSegment[];
   meetingPrompt: MeetingPromptPayload | null;
-  statusLabel: string;
+  recordButtonControl: RecordButtonControl;
   transcriptionStatus: TranscriptionStatusPayload | null;
   threadActions: ThreadActions;
   onArchiveThread: (threadId: string) => void;
   onReprocess: (threadId: string) => void;
-  onCancelModelDownload: () => void;
-  onStartModelDownload: () => void;
   onStartFixtureRecording: () => void;
-  onStartRecording: () => void;
   onStartMeetingRecording: (requestId: string) => void;
   onDismissMeetingPrompt: (requestId: string) => void;
-  onStopRecording: () => void;
 };
 
 export function TranscriptPanel({
@@ -50,25 +47,20 @@ export function TranscriptPanel({
   selectedThread,
   liveSegments,
   meetingPrompt,
-  statusLabel,
+  recordButtonControl,
   transcriptionStatus,
   threadActions,
   onArchiveThread,
   onReprocess,
-  onCancelModelDownload,
-  onStartModelDownload,
   onStartFixtureRecording,
-  onStartRecording,
   onStartMeetingRecording,
   onDismissMeetingPrompt,
-  onStopRecording,
 }: TranscriptPanelProps) {
   const [query, setQuery] = useState("");
   const isRecording = recorderState === "recording";
   const summary = selectedThread?.summary ?? null;
   const hasSegments = (selectedThread?.segments.length ?? 0) > 0;
   const canModify = recorderState === "idle" && summary?.status === "idle";
-  const canResume = canModify && hasSegments;
 
   return (
     <section className="thread-panel" aria-label="Transcript">
@@ -136,13 +128,8 @@ export function TranscriptPanel({
         finalization={finalization}
         transcriptionStatus={transcriptionStatus}
         selectedThreadId={summary?.id ?? null}
-        resumeSelected={canResume}
-        statusLabel={statusLabel}
+        recordButtonControl={recordButtonControl}
         fixtureMode={fixtureMode}
-        onCancelModelDownload={onCancelModelDownload}
-        onStartModelDownload={onStartModelDownload}
-        onStartRecording={onStartRecording}
-        onStopRecording={onStopRecording}
         onStartFixtureRecording={onStartFixtureRecording}
       />
       <ErrorToast message={error} />

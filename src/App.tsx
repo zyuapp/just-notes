@@ -8,7 +8,8 @@ import { TranscriptPanel } from "./components/TranscriptPanel";
 import { useArchiveFlight } from "./components/useArchiveFlight";
 import { buildNotice } from "./features/app/buildNotice";
 import { openLegacyImportWorkflow } from "./features/app/legacyImportOpening";
-import { appReducer, getActiveThreadId, getStatusLabel, initialAppState } from "./features/app/state";
+import { buildRecordButtonControl } from "./features/app/recordButtonState";
+import { appReducer, getActiveThreadId, initialAppState } from "./features/app/state";
 import { useAppEvents } from "./features/app/useAppEvents";
 import { useArchivedThreads } from "./features/app/useArchivedThreads";
 import { useJustNotesController } from "./features/app/useJustNotesController";
@@ -55,7 +56,7 @@ export default function App() {
   }, [legacyImport.open, settingsActions.closeSettings]);
   useAppEvents(dispatch, onFinalizationSettled, onRecordingStarted, openLegacyImport);
   const activeThreadId = getActiveThreadId(state);
-  const statusLabel = useMemo(() => getStatusLabel(state), [state]);
+  const recordButtonControl = buildRecordButtonControl(state, actions);
   const notice = useMemo(
     () =>
       buildNotice(
@@ -113,18 +114,14 @@ export default function App() {
         selectedThread={state.selectedThread}
         liveSegments={state.selectedThreadId === state.recordingThreadId ? state.liveSegments : []}
         meetingPrompt={state.meetingPrompt}
-        statusLabel={statusLabel}
+        recordButtonControl={recordButtonControl}
         transcriptionStatus={state.transcriptionStatus}
         threadActions={threadActions}
         onArchiveThread={archiveThread}
         onReprocess={(threadId) => void actions.reprocessThread(threadId)}
-        onCancelModelDownload={actions.cancelModelDownload}
-        onStartModelDownload={actions.startModelDownload}
         onStartFixtureRecording={actions.startFixtureRecording}
-        onStartRecording={actions.startRecording}
         onStartMeetingRecording={(id) => void meetingPromptActions.startMeetingRecording(id)}
         onDismissMeetingPrompt={(id) => void meetingPromptActions.dismissMeetingPrompt(id)}
-        onStopRecording={actions.stopRecording}
       />
       <AppSettingsOverlay state={state} actions={actions} meetingSettings={meetingSettingsActions}
         settings={settingsActions} threads={threadActions} onImportLegacyData={openLegacyImport} />

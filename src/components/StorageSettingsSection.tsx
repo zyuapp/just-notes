@@ -1,6 +1,7 @@
 import type { AppInfo } from "../bindings/AppInfo";
 import type { AppSettings } from "../bindings/AppSettings";
 import { FolderInput } from "lucide-react";
+import { Button } from "./Button";
 import { SettingsToggle } from "./SettingsControls";
 
 type StorageSettingsSectionProps = {
@@ -21,7 +22,7 @@ export function StorageSettingsSection(props: StorageSettingsSectionProps) {
         <p className="settings-path">{props.appInfo?.threadsDir ?? "…"}</p>
       </div>
       <div className="settings-row-actions">
-        <button type="button" onClick={props.onRevealFolder}>Reveal</button>
+        <Button size="compact" onClick={props.onRevealFolder}>Reveal</Button>
       </div>
     </div>
     <div className="legacy-import-card">
@@ -32,7 +33,9 @@ export function StorageSettingsSection(props: StorageSettingsSectionProps) {
           <p>Merge recordings from the previous version. Current recordings and the downloaded transcription model will be preserved.</p>
         </div>
       </div>
-      <button type="button" disabled={props.busy} onClick={props.onImportLegacyData}>Import previous recordings…</button>
+      <Button disabled={props.busy} onClick={props.onImportLegacyData}>
+        Import previous recordings…
+      </Button>
     </div>
     <SettingsToggle
       label="Save raw audio"

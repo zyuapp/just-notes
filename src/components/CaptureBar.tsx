@@ -1,15 +1,11 @@
 import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
-import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
+import type { RecordButtonControl } from "../features/app/recordButtonState";
 import { formatDuration } from "../lib/format";
-import {
-  downloadActionLabel,
-  downloadPercent,
-  isModelDownloadActive,
-} from "../lib/transcriptionModel";
 import { CaptureMeter } from "./CaptureMeter";
+import { Button } from "./Button";
 import { DownloadingLabel } from "./DownloadingLabel";
 
 type CaptureBarProps = {
@@ -18,13 +14,8 @@ type CaptureBarProps = {
   finalization: FinalizationStatusPayload | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
   selectedThreadId: string | null;
-  resumeSelected: boolean;
-  statusLabel: string;
+  recordButtonControl: RecordButtonControl;
   fixtureMode: boolean;
-  onCancelModelDownload: () => void;
-  onStartModelDownload: () => void;
-  onStartRecording: () => void;
-  onStopRecording: () => void;
   onStartFixtureRecording: () => void;
 };
 
@@ -34,17 +25,11 @@ export function CaptureBar({
   finalization,
   transcriptionStatus,
   selectedThreadId,
-  resumeSelected,
-  statusLabel,
+  recordButtonControl,
   fixtureMode,
-  onCancelModelDownload,
-  onStartModelDownload,
-  onStartRecording,
-  onStopRecording,
   onStartFixtureRecording,
 }: CaptureBarProps) {
   const isRecording = recorderState === "recording";
-  const busy = recorderState === "starting" || recorderState === "stopping";
   const capturing = isRecording || recorderState === "stopping";
   const finalizationForThread =
     finalization && finalization.threadId === selectedThreadId ? finalization : null;
@@ -57,40 +42,29 @@ export function CaptureBar({
   const status =
     finalizationForThread?.message ??
     (capturing ? "Recording — transcript ready when you stop" : idleStatus);
-  const selectedModel = transcriptionStatus?.availableModels.find((model) => model.selected);
-  const missingSelectedModel =
-    recorderState === "idle" && Boolean(transcriptionStatus && !transcriptionStatus.ready);
-  const activeDownload = Boolean(selectedModel && isModelDownloadActive(selectedModel));
-  const recordButtonLabel = buttonLabel(
-    isRecording,
-    busy,
-    statusLabel,
-    selectedModel,
-    resumeSelected,
-  );
-  const recordButtonAction =
-    missingSelectedModel && selectedModel?.canDownload
-      ? onStartModelDownload
-      : isRecording
-        ? onStopRecording
-        : onStartRecording;
 
   return (
     <footer className={isRecording ? "capture-bar recording" : "capture-bar"}>
       <button
         type="button"
         className="record-button"
-        onClick={recordButtonAction}
-        disabled={busy || (missingSelectedModel && !selectedModel?.canDownload)}
-        aria-label={statusLabel}
+        onClick={recordButtonControl.onClick}
+        disabled={recordButtonControl.disabled}
+        aria-label={recordButtonControl.ariaLabel}
       >
         <span className="record-glyph" aria-hidden="true" />
-        <span>{recordButtonLabel}</span>
+        <span>
+          {recordButtonControl.progressPercent != null ? (
+            <DownloadingLabel percent={recordButtonControl.progressPercent} />
+          ) : (
+            recordButtonControl.label
+          )}
+        </span>
       </button>
-      {activeDownload && selectedModel?.canCancel && (
-        <button type="button" className="capture-secondary" onClick={onCancelModelDownload}>
+      {recordButtonControl.onCancelDownload && (
+        <Button onClick={recordButtonControl.onCancelDownload}>
           Cancel
-        </button>
+        </Button>
       )}
       {capturing && <time className="capture-elapsed">{formatDuration(meters.elapsedMs)}</time>}
       {capturing && (
@@ -112,23 +86,4 @@ export function CaptureBar({
       )}
     </footer>
   );
-}
-
-function buttonLabel(
-  isRecording: boolean,
-  busy: boolean,
-  statusLabel: string,
-  selectedModel: TranscriptionModelStatus | undefined,
-  resumeSelected: boolean,
-) {
-  if (isRecording) return "Stop";
-  if (busy) return `${statusLabel}…`;
-  if (!selectedModel?.installed && selectedModel?.downloadable) {
-    if (selectedModel.downloadState === "downloading") {
-      return <DownloadingLabel percent={downloadPercent(selectedModel)} />;
-    }
-    if (selectedModel.downloadState === "installing") return "Installing";
-    return downloadActionLabel(selectedModel);
-  }
-  return resumeSelected ? "Resume" : "Record";
 }

@@ -1,4 +1,5 @@
 import { CalendarDays, ShieldCheck } from "lucide-react";
+import { Button } from "./Button";
 
 type MeetingCalendarConnectProps = {
   denied: boolean;
@@ -25,14 +26,9 @@ export function MeetingCalendarConnect({
             Just Notes reads meeting titles and times so it can ask when recording should start and
             stop.
           </p>
-          <button
-            type="button"
-            className="calendar-connect-button"
-            onClick={denied ? onOpenSettings : onConnect}
-            disabled={busy}
-          >
+          <Button onClick={denied ? onOpenSettings : onConnect} disabled={busy}>
             {denied ? "Open System Settings" : "Connect calendars"}
-          </button>
+          </Button>
         </div>
       </div>
       <div className="calendar-privacy-note">

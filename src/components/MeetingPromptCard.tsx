@@ -2,6 +2,7 @@ import { CalendarClock } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { MeetingPromptPayload } from "../bindings/MeetingPromptPayload";
 import { formatMeetingTiming, formatTimeOfDay } from "../lib/format";
+import { Button } from "./Button";
 
 type MeetingPromptCardProps = {
   prompt: MeetingPromptPayload;
@@ -31,12 +32,12 @@ export function MeetingPromptCard({ prompt, onStart, onDismiss }: MeetingPromptC
         <strong>{prompt.title}</strong>
       </div>
       <div className="meeting-prompt-actions">
-        <button type="button" className="meeting-prompt-dismiss" onClick={onDismiss}>
+        <Button variant="quiet" onClick={onDismiss}>
           Dismiss
-        </button>
-        <button type="button" className="meeting-prompt-start" onClick={onStart}>
+        </Button>
+        <Button onClick={onStart}>
           Start recording
-        </button>
+        </Button>
       </div>
     </aside>
   );

@@ -17,7 +17,8 @@
   width: 32px;
   height: 19px;
   border-radius: 10px;
-  background: var(--line-strong);
+  border: 1px solid var(--border-emphasis);
+  background: var(--toggle-off);
   transition: background 0.15s ease;
 }
 
@@ -29,21 +30,22 @@
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--text-primary);
   transition: transform 0.15s ease;
 }
 
 .settings-switch input:checked + .settings-knob {
-  background: var(--text-2);
+  border-color: var(--toggle-on);
+  background: var(--toggle-on);
 }
 
 .settings-switch input:checked + .settings-knob::after {
   transform: translateX(13px);
-  background: var(--app-bg);
+  background: var(--surface-app);
 }
 
 .settings-switch input:focus-visible + .settings-knob {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -59,18 +61,18 @@
   display: inline-flex;
   flex: 0 0 auto;
   overflow: hidden;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--border-strong);
   border-radius: 7px;
-  background: var(--raised);
+  background: var(--surface-raised);
 }
 
 .settings-segmented button {
   height: 28px;
   padding: 0 10px;
   border: 0;
-  border-right: 1px solid var(--line-strong);
+  border-right: 1px solid var(--border-strong);
   background: transparent;
-  color: var(--text-3);
+  color: var(--text-subtle);
   cursor: pointer;
   font-size: 12px;
 }
@@ -80,6 +82,6 @@
 }
 
 .settings-segmented button.selected {
-  background: var(--blue-soft);
-  color: var(--text-bright);
+  background: var(--surface-hover);
+  color: var(--text-strong);
 }
