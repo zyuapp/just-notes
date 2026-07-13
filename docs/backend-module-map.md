@@ -8,12 +8,13 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 
 ## `src-tauri/src/commands`
 
-- `mod.rs`: shared effective-path resolution from base paths plus settings.
+- `mod.rs`: command adapter module declarations.
 - `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, segment edit, search, markdown export).
 - `recording.rs`: start/stop/fixture recording commands and finalization cancel.
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
-- `settings.rs`: settings read/update and the native folder picker.
-- `system.rs`: app info, permission status, Finder reveal, clipboard, and privacy-settings deep links.
+- `settings.rs`: user-preference read/update commands.
+- `legacy_import.rs`: thin two-phase adapter that resolves Tauri state, delegates to the import workflow, and maps domain results to IPC DTOs.
+- `system.rs`: app info, permission status, Finder reveal, clipboard, and privacy-settings deep links through public AppKit APIs.
 - `meetings.rs`: calendar/notification permission status, access requests, and current meeting-prompt actions.
 
 Commands here stay thin: they resolve state handles and delegate to the owning domain. This module exists so `lib.rs` stays a small adapter.
@@ -22,13 +23,23 @@ Commands here stay thin: they resolve state handles and delegate to the owning d
 
 Thin adapter that synchronizes the current meeting prompt to frontend events and the menu-bar item, and translates native meeting-start outcomes into recording events or failure notifications. Meeting eligibility and prompt lifecycle remain in the `meetings` context.
 
+## `src-tauri/src/legacy_import.rs`
+
+Application workflow service for temporary legacy-folder authorization, preview-session lifetime, recording/finalization exclusion, and delegation to the thread merge domain.
+
+## `src-tauri/src/app_menu.rs`
+
+Native application-menu adapter. It builds the standard macOS menus and emits the frontend request for **File → Import Previous Recordings…**.
+
 ## `src-tauri/src/recording_payload.rs`
 
 Neutral adapter that converts the recording domain's start result into the IPC payload shared by commands, tray actions, and meeting surfaces. Keeping this conversion outside those sibling adapters prevents them from depending on one another.
 
 ## `src-tauri/src/app`
 
-- `paths.rs`: discovers and stores app filesystem paths, including the active and archived thread directories.
+- `paths.rs`: constructs the container-relative app filesystem layout, including active and archived thread directories.
+- `migration.rs`: discovers an external active-recordings folder referenced by an older release's settings.
+- `storage_gate.rs`: neutral coordination gate that prevents import and recording operations from mutating the thread store concurrently.
 - `time.rs`: shared wall-clock helpers.
 - `mod.rs`: exports the app context API.
 
@@ -36,14 +47,14 @@ Use this when changing where Just Notes stores data, threads, fixtures, or share
 
 ## `src-tauri/src/settings`
 
-- `store.rs`: persisted user settings (`settings.json`): transcripts folder override, raw-audio toggle, markdown-copy toggle; settings state handle and effective-path resolution.
+- `store.rs`: persisted user preferences (`settings.json`), including raw-audio, Markdown-copy, and meeting reminder options.
 - `mod.rs`: exports the settings API.
 
-Use this when adding a user preference or changing how the transcripts folder override works.
+Use this when adding or changing a user preference.
 
 ## `src-tauri/src/platform`
 
-- `mod.rs`: macOS shell helpers — reveal in Finder, native folder chooser, clipboard copy, and System Settings privacy-pane links.
+- `mod.rs`: public AppKit/Foundation helpers — Finder reveal, native folder chooser with session-scoped access, clipboard copy, and System Settings privacy-pane links.
 - `calendar.rs`: EventKit authorization, database-change observation, calendar listing, and eligible event retrieval; `calendar/worker.rs` serializes synchronous EventKit reads and replaces timed-out workers.
 - `notifications.rs`: UserNotifications permission, categories, delivery, and action callback adapter.
 
@@ -81,6 +92,7 @@ Use this when frontend/backend payload shape changes are needed.
 - `edits/fs_move.rs`: filesystem move of a thread directory between the active and archive locations.
 - `artifacts.rs`: `RecordingAudioPaths` — on-disk locations of a thread's raw `mic.wav`/`system.wav`, plus existence checks and removal.
 - `transcript_store.rs`: transcript JSONL append/read/count/replace behavior, snippet extraction, and atomic text writes.
+- `import/`: legacy recording validation, exact duplicate detection, conflict-safe merge planning, staged installation, metadata ID rewriting, and rollback.
 - `mod.rs`: exports the thread domain API.
 
 Use this when changing thread persistence, transcript ordering, markdown output, or thread metadata behavior.

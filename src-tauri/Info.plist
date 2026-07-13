@@ -8,5 +8,7 @@
   <string>Just Notes captures system audio locally so it can transcribe meetings and playback into your notes.</string>
   <key>NSCalendarsFullAccessUsageDescription</key>
   <string>Just Notes reads meeting titles and times to remind you when to start and stop recording. It never changes calendar events.</string>
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
 </dict>
 </plist>

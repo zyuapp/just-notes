@@ -1,10 +1,15 @@
 use std::{
-    collections::{hash_map::DefaultHasher, HashSet},
+    collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     sync::mpsc,
     thread,
     time::{Duration, Instant},
 };
+
+mod prompts;
+#[cfg(test)]
+use prompts::start_prompt_is_due;
+use prompts::{reconcile_start_prompts, start_action_is_timely};
 
 use tauri::{AppHandle, Manager};
 
@@ -19,7 +24,6 @@ use crate::{
 const POLL_INTERVAL: Duration = Duration::from_secs(15);
 const LOOK_BACK_MS: u64 = 15 * 60 * 1000;
 const LOOK_AHEAD_MS: u64 = 12 * 60 * 60 * 1000;
-const LATE_START_GRACE_MS: u64 = 10 * 60 * 1000;
 
 pub(crate) fn spawn(app: AppHandle, sync_prompt: impl Fn(&AppHandle) + Send + 'static) {
     let (wake_sender, wake_receiver) = mpsc::sync_channel(1);
@@ -55,17 +59,7 @@ fn tick(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    let recorder = app.state::<RecorderState>().inner().clone();
-    let active_session_id = recorder.active_session_id();
-    if active_session_id.is_none() {
-        if let Some(request_id) = scheduler.clear_active() {
-            notifications::remove(&[request_id]);
-        }
-    } else if let Some(request_id) =
-        active_session_id.and_then(|session_id| scheduler.clear_if_session_differs(session_id))
-    {
-        notifications::remove(&[request_id]);
-    }
+    let active_session_id = reconcile_active_recording(app, &scheduler);
 
     let Ok(now) = now_ms() else {
         return Ok(());
@@ -111,32 +105,7 @@ fn refresh_start_prompts(
         now.saturating_sub(LOOK_BACK_MS),
         now.saturating_add(LOOK_AHEAD_MS),
     )?;
-    let meetings = events
-        .into_iter()
-        .filter_map(|event| Meeting::try_from(event).ok())
-        .collect::<Vec<_>>();
-    let valid_ids = meetings
-        .iter()
-        .filter(|meeting| start_action_is_timely(meeting, now))
-        .map(|meeting| meeting.id.clone())
-        .collect::<HashSet<_>>();
-    notifications::remove(&scheduler.reconcile_start_prompts(&valid_ids));
-
-    for meeting in meetings {
-        if !start_prompt_is_due(&meeting, now, settings.meeting_reminder_minutes) {
-            continue;
-        }
-        let request_id = notification_id("start", &meeting.id);
-        if scheduler.register_start_prompt(request_id.clone(), meeting.clone()) {
-            let lead = settings.meeting_reminder_minutes;
-            let timing = if now >= meeting.start_at_ms {
-                "now".to_string()
-            } else {
-                format!("in {lead} minutes")
-            };
-            notifications::show_start_prompt(&request_id, &meeting.title, &timing);
-        }
-    }
+    reconcile_start_prompts(scheduler, settings, events, now);
     Ok(())
 }
 
@@ -175,6 +144,18 @@ fn report_calendar_transition(transition: Option<CalendarReadTransition>) {
     }
 }
 
+fn reconcile_active_recording(app: &AppHandle, scheduler: &MeetingSchedulerState) -> Option<u64> {
+    let active_session_id = app.state::<RecorderState>().inner().active_session_id();
+    let stale_request = match active_session_id {
+        Some(session_id) => scheduler.clear_if_session_differs(session_id),
+        None => scheduler.clear_active(),
+    };
+    if let Some(request_id) = stale_request {
+        notifications::remove(&[request_id]);
+    }
+    active_session_id
+}
+
 pub(super) fn meeting_is_current(settings: &AppSettings, meeting: &Meeting) -> bool {
     if !settings.meeting_reminders_enabled
         || !settings.meeting_calendar_ids.contains(&meeting.calendar_id)
@@ -199,16 +180,6 @@ pub(super) fn meeting_is_current(settings: &AppSettings, meeting: &Meeting) -> b
             .any(|current| current.id == meeting.id)
     })
     .unwrap_or(false)
-}
-
-fn start_action_is_timely(meeting: &Meeting, now_ms: u64) -> bool {
-    now_ms < meeting.start_at_ms.saturating_add(LATE_START_GRACE_MS)
-}
-
-fn start_prompt_is_due(meeting: &Meeting, now_ms: u64, lead_minutes: u16) -> bool {
-    let lead_ms = u64::from(lead_minutes) * 60 * 1000;
-    now_ms >= meeting.start_at_ms.saturating_sub(lead_ms)
-        && now_ms < meeting.start_at_ms.saturating_add(LATE_START_GRACE_MS)
 }
 
 pub(super) fn notification_id(kind: &str, meeting_id: &str) -> String {

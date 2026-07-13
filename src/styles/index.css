@@ -15,3 +15,6 @@
 @import "./meeting-prompt.css";
 @import "./archive.css";
 @import "./feedback.css";
+@import "./model-download-dialog.css";
+@import "./legacy-import.css";
+@import "./legacy-import-card.css";

@@ -54,6 +54,22 @@
   font-size: 11px;
 }
 
+.settings-legal-copy {
+  padding: 12px 0 18px;
+  border-top: 1px solid var(--line);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.settings-legal-copy p {
+  margin: 0 0 10px;
+}
+
+.settings-legal-copy p:last-child {
+  margin-bottom: 0;
+}
+
 .settings-row-actions {
   display: inline-flex;
   flex: 0 0 auto;

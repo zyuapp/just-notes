@@ -12,6 +12,29 @@ pub(crate) struct AppInfo {
     pub(crate) fixture_mode: bool,
 }
 
+#[derive(Clone, serde::Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) struct LegacyImportPreview {
+    pub(crate) active_recordings: usize,
+    pub(crate) archived_recordings: usize,
+    pub(crate) duplicates: usize,
+    pub(crate) conflicts: usize,
+    pub(crate) bytes_to_copy: u64,
+    pub(crate) source_path: String,
+}
+
+#[derive(serde::Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) struct LegacyImportResult {
+    pub(crate) imported: usize,
+    pub(crate) active_recordings: usize,
+    pub(crate) archived_recordings: usize,
+    pub(crate) duplicates: usize,
+    pub(crate) conflicts: usize,
+}
+
 #[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]

@@ -4,7 +4,8 @@
 //! missed-segment, and hallucination metrics to a committed baseline.
 //!
 //! Fixtures live in `~/.just-notes/quality-fixtures` (see
-//! `scripts/setup-quality-fixtures.sh`); the baseline is
+//! `scripts/setup-quality-fixtures.sh`). The model is read from the sandbox
+//! app-data directory, or `JUST_NOTES_QUALITY_DATA_DIR` when set. The baseline is
 //! `src-tauri/quality/baseline.json`. Run via `bun run test:quality`, and
 //! rerun with `UPDATE_QUALITY_BASELINE=1` to accept improved numbers.
 //!
@@ -37,6 +38,7 @@ use super::{
 
 mod fixtures;
 mod metrics;
+mod paths;
 #[cfg(test)]
 mod tests;
 
@@ -116,7 +118,7 @@ fn print_hallucinations(name: &str, fixture: &Fixture, segments: &[TranscriptSeg
 }
 
 fn load_quality_transcriber() -> Box<dyn Transcriber> {
-    let paths = AppPaths::discover().expect("resolve ~/.just-notes");
+    let paths = AppPaths::from_data_dir(paths::quality_app_data_dir_from_env());
     let selection = finalization_transcription_selection(&paths);
     assert!(
         selection.is_installed(),

@@ -1,0 +1,82 @@
+.model-download-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 5, 6, 0.6);
+  backdrop-filter: blur(3px);
+}
+
+.model-download-dialog {
+  display: grid;
+  width: min(430px, 100%);
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 2px 14px;
+  padding: 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--raised);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.5);
+}
+
+.model-download-dialog-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--blue-soft);
+  color: var(--text-bright);
+}
+
+.model-download-dialog-copy h2 {
+  margin: 1px 0 6px;
+  color: var(--text-bright);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.model-download-dialog-copy p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.model-download-dialog-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.model-download-dialog-actions button {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.model-download-dialog-cancel {
+  background: var(--panel);
+  color: var(--text-2);
+}
+
+.model-download-dialog-cancel:hover {
+  color: var(--text-bright);
+}
+
+.model-download-dialog-confirm {
+  background: var(--text-bright);
+  color: var(--app-bg);
+}
+
+.model-download-dialog-confirm:hover {
+  background: #fff;
+}

@@ -6,7 +6,7 @@ export function buildNotice(
   state: AppState,
   openSettings: () => void,
   openPrivacy: (pane: "microphone" | "system-audio") => Promise<void>,
-  startModelDownload: () => Promise<void>,
+  startModelDownload: () => void,
 ): Notice | null {
   if (state.permissions && ["denied", "restricted"].includes(state.permissions.microphone)) {
     return {
@@ -19,7 +19,7 @@ export function buildNotice(
     const selectedModel = state.transcriptionStatus.availableModels.find((model) => model.selected);
     return {
       message: "Install the selected local transcription model before recording.",
-      actionLabel: selectedModel?.canDownload ? downloadActionLabel() : "Model status",
+      actionLabel: selectedModel?.canDownload ? downloadActionLabel(selectedModel) : "Model status",
       onAction: selectedModel?.canDownload ? () => void startModelDownload() : openSettings,
     };
   }

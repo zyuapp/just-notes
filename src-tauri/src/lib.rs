@@ -1,9 +1,11 @@
 use tauri::{AppHandle, Builder, Emitter, Manager, Wry};
 
 mod app;
+mod app_menu;
 mod capture;
 mod commands;
 mod ipc;
+mod legacy_import;
 mod meeting_surfaces;
 mod meetings;
 mod platform;
@@ -14,63 +16,75 @@ mod threads;
 mod transcription;
 mod tray;
 
-use app::AppPaths;
+use app::{AppPaths, StorageGate};
+use legacy_import::LegacyImportState;
 use meetings::MeetingSchedulerState;
 use recording::RecorderState;
 use settings::SettingsState;
+use threads::import::cleanup_stale_import_staging;
 use threads::repository::reset_stale_recording_threads;
 use transcription::{FinalizeState, ModelDownloadState};
 
-pub fn run() {
-    let paths = AppPaths::discover().expect("failed to locate Just Notes data directory");
-    let initial_settings = settings::load_settings(&paths.data_dir);
+type SetupResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
+pub fn run() {
     let builder = Builder::default()
-        .manage(paths)
         .manage(RecorderState::default())
-        .manage(SettingsState::new(initial_settings))
         .manage(FinalizeState::default())
         .manage(ModelDownloadState::default())
+        .manage(StorageGate::default())
+        .manage(LegacyImportState::default())
         .manage(MeetingSchedulerState::default())
-        .setup(|app| {
-            let paths = app.state::<AppPaths>();
-            let settings = app.state::<SettingsState>().snapshot();
-            reset_stale_recording_threads(&settings::effective_paths(&paths, &settings))?;
-            tray::init_tray(
-                app,
-                start_recording_from_tray,
-                stop_recording_from_tray,
-                meeting_surfaces::start_native_meeting,
-            )?;
-            let action_app = app.handle().clone();
-            platform::notifications::initialize(
-                meetings::notification_categories(),
-                move |response| {
-                    meetings::handle_notification_action(
-                        action_app.clone(),
-                        response,
-                        meeting_surfaces::start_native_meeting_now,
-                        |app| {
-                            meeting_surfaces::sync_current(app);
-                        },
-                    );
-                },
-            );
-            meetings::spawn_scheduler(app.handle().clone(), |app| {
-                meeting_surfaces::sync_current(app);
-            });
-            // The minWidth/minHeight from tauri.conf.json is not enforced on
-            // macOS; the layout needs at least this much room.
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_min_size(Some(tauri::LogicalSize::new(900.0, 620.0)));
-            }
-            Ok(())
-        });
+        .menu(app_menu::build)
+        .on_menu_event(app_menu::handle_event)
+        .setup(setup_app);
 
     register_commands(builder)
         .build(tauri::generate_context!())
         .expect("error while building Just Notes")
         .run(handle_run_event);
+}
+
+fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
+    manage_persistent_state(app)?;
+    let paths = app.state::<AppPaths>();
+    cleanup_stale_import_staging(&paths)?;
+    reset_stale_recording_threads(&paths)?;
+    tray::init_tray(
+        app,
+        start_recording_from_tray,
+        stop_recording_from_tray,
+        meeting_surfaces::start_native_meeting,
+    )?;
+    let action_app = app.handle().clone();
+    platform::notifications::initialize(meetings::notification_categories(), move |response| {
+        meetings::handle_notification_action(
+            action_app.clone(),
+            response,
+            meeting_surfaces::start_native_meeting_now,
+            |app| {
+                meeting_surfaces::sync_current(app);
+            },
+        );
+    });
+    meetings::spawn_scheduler(app.handle().clone(), |app| {
+        meeting_surfaces::sync_current(app);
+    });
+    // The minWidth/minHeight from tauri.conf.json is not enforced on
+    // macOS; the layout needs at least this much room.
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_min_size(Some(tauri::LogicalSize::new(900.0, 620.0)));
+    }
+    Ok(())
+}
+
+fn manage_persistent_state(app: &mut tauri::App<Wry>) -> SetupResult {
+    let paths = AppPaths::from_data_dir(app.path().app_data_dir()?);
+    paths.ensure().map_err(std::io::Error::other)?;
+    let settings = settings::load_settings(&paths.data_dir);
+    app.manage(paths);
+    app.manage(SettingsState::new_state(settings));
+    Ok(())
 }
 
 // A recording must be stopped (WAV headers finalized, duration persisted)
@@ -94,9 +108,9 @@ fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
     }
 }
 
-#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
-fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
-    builder.invoke_handler(tauri::generate_handler![
+macro_rules! command_handler {
+    ($builder:expr $(, $extra:path)*) => {
+        $builder.invoke_handler(tauri::generate_handler![
         commands::system::get_app_info,
         commands::transcription::get_transcription_status,
         commands::transcription::start_transcription_model_download,
@@ -106,6 +120,8 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::system::reveal_in_finder,
         commands::system::copy_text_to_clipboard,
         commands::system::open_privacy_settings,
+        commands::system::open_external_url,
+        commands::system::open_legal_document,
         commands::threads::list_threads,
         commands::threads::create_thread,
         commands::threads::get_thread,
@@ -119,56 +135,31 @@ fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
         commands::threads::export_thread_markdown,
         commands::settings::get_settings,
         commands::settings::update_settings,
-        commands::settings::pick_folder,
+        commands::legacy_import::prepare_legacy_import,
+        commands::legacy_import::confirm_legacy_import,
+        commands::legacy_import::cancel_legacy_import,
         commands::meetings::get_meeting_access_status,
         commands::meetings::request_meeting_access,
         commands::meetings::get_meeting_prompt,
         commands::meetings::start_meeting_recording,
         commands::meetings::dismiss_meeting_prompt,
         commands::recording::start_recording,
-        commands::recording::start_fixture_recording,
         commands::recording::stop_recording,
         commands::recording::reprocess_thread,
-        commands::recording::cancel_finalization
-    ])
+        commands::recording::cancel_finalization,
+        $($extra),*
+        ])
+    };
+}
+
+#[cfg(any(debug_assertions, feature = "qa-fixtures"))]
+fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
+    command_handler!(builder, commands::recording::start_fixture_recording)
 }
 
 #[cfg(not(any(debug_assertions, feature = "qa-fixtures")))]
 fn register_commands(builder: Builder<Wry>) -> Builder<Wry> {
-    builder.invoke_handler(tauri::generate_handler![
-        commands::system::get_app_info,
-        commands::transcription::get_transcription_status,
-        commands::transcription::start_transcription_model_download,
-        commands::transcription::cancel_transcription_model_download,
-        commands::transcription::delete_transcription_model,
-        commands::system::get_permissions_status,
-        commands::system::reveal_in_finder,
-        commands::system::copy_text_to_clipboard,
-        commands::system::open_privacy_settings,
-        commands::threads::list_threads,
-        commands::threads::create_thread,
-        commands::threads::get_thread,
-        commands::threads::rename_thread,
-        commands::threads::list_archived_threads,
-        commands::threads::archive_thread,
-        commands::threads::restore_thread,
-        commands::threads::delete_thread,
-        commands::threads::update_segment_text,
-        commands::threads::search_threads,
-        commands::threads::export_thread_markdown,
-        commands::settings::get_settings,
-        commands::settings::update_settings,
-        commands::settings::pick_folder,
-        commands::meetings::get_meeting_access_status,
-        commands::meetings::request_meeting_access,
-        commands::meetings::get_meeting_prompt,
-        commands::meetings::start_meeting_recording,
-        commands::meetings::dismiss_meeting_prompt,
-        commands::recording::start_recording,
-        commands::recording::stop_recording,
-        commands::recording::reprocess_thread,
-        commands::recording::cancel_finalization
-    ])
+    command_handler!(builder)
 }
 
 // The tray starts a fresh thread: it has no window selection to record into.
@@ -177,10 +168,15 @@ fn start_recording_from_tray(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let paths = app.state::<AppPaths>();
-        let settings = app.state::<SettingsState>().snapshot();
-        let effective = settings::effective_paths(&paths, &settings);
+        let settings = app.state::<SettingsState>().inner().clone();
         let recorder = app.state::<RecorderState>().inner().clone();
-        match recording::start_recording(app.clone(), effective, recorder, settings, None) {
+        match recording::start_recording(
+            app.clone(),
+            paths.inner().clone(),
+            recorder,
+            settings,
+            None,
+        ) {
             Ok(started) => {
                 let payload = recording_payload::from_started(started);
                 let _ = app.emit("recording-started", &payload);

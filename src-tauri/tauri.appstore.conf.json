@@ -1,0 +1,14 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "copyright": "APP_STORE_COPYRIGHT",
+    "macOS": {
+      "bundleVersion": "APP_STORE_BUILD_NUMBER",
+      "entitlements": "./.appstore/Entitlements.plist",
+      "signingIdentity": "APP_STORE_SIGNING_IDENTITY",
+      "files": {
+        "embedded.provisionprofile": "./.appstore/embedded.provisionprofile"
+      }
+    }
+  }
+}

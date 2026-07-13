@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { TranscriptionModelStatus } from "../bindings/TranscriptionModelStatus";
-import { downloadActionLabel, downloadPercent, isModelDownloadActive } from "./transcriptionModel";
+import {
+  downloadActionLabel,
+  downloadConfirmationMessage,
+  downloadPercent,
+  isModelDownloadActive,
+} from "./transcriptionModel";
 
 function model(overrides: Partial<TranscriptionModelStatus>): TranscriptionModelStatus {
   return {
@@ -38,6 +43,15 @@ describe("downloadPercent", () => {
 describe("downloadActionLabel", () => {
   test("labels the Parakeet download", () => {
     expect(downloadActionLabel()).toBe("Download Parakeet");
+    expect(downloadActionLabel(model({ displaySize: "460 MB" }))).toBe(
+      "Download Parakeet · 460 MB",
+    );
+  });
+
+  test("builds a size-aware download consent message", () => {
+    expect(downloadConfirmationMessage(model({ displaySize: "460 MB" }))).toBe(
+      "Local transcription requires a one-time 460 MB download. Audio stays on this Mac.",
+    );
   });
 });
 

@@ -9,6 +9,8 @@ use super::{
     ThreadDetail, ThreadMetadata, ThreadStatus,
 };
 
+type ThreadDirectory = (String, PathBuf);
+
 pub(crate) fn create_thread(paths: &AppPaths) -> Result<ThreadDetail, String> {
     create_thread_with_title(paths, "Untitled thread")
 }
@@ -45,7 +47,7 @@ pub(crate) fn discard_failed_thread(thread_dir: &std::path::Path) {
     let _ = fs::remove_dir_all(thread_dir);
 }
 
-fn create_unique_thread_dir(paths: &AppPaths, now: u64) -> Result<(String, PathBuf), String> {
+fn create_unique_thread_dir(paths: &AppPaths, now: u64) -> Result<ThreadDirectory, String> {
     for attempt in 0..1_000 {
         let id = if attempt == 0 {
             format!("thread-{now}")

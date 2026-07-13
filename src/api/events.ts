@@ -47,4 +47,8 @@ export const eventsApi = {
   onFinalizationStatus(handler: EventHandler<FinalizationStatusPayload>): Promise<UnlistenFn> {
     return listenToEvent("finalization-status", handler);
   },
+
+  onLegacyImportRequested(handler: () => void): Promise<UnlistenFn> {
+    return listenToEvent("legacy-import-requested", handler);
+  },
 };

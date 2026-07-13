@@ -11,7 +11,7 @@ use crate::{
     app::{now_ms, AppPaths},
     platform::notifications::NotificationResponseAction,
     recording::{self, RecorderState},
-    settings::{self, SettingsState},
+    settings::SettingsState,
 };
 
 const END_REMINDER_DELAY: Duration = Duration::from_secs(10 * 60);
@@ -52,7 +52,6 @@ pub(crate) fn start_meeting_recording(
     let paths = app.state::<AppPaths>();
     let settings_state = app.state::<SettingsState>();
     let app_settings = settings_state.snapshot();
-    let effective_paths = settings::effective_paths(&paths, &app_settings);
     let recorder = app.state::<RecorderState>().inner().clone();
     orchestrate_start(
         &scheduler,
@@ -61,9 +60,9 @@ pub(crate) fn start_meeting_recording(
         |meeting| {
             recording::start_scheduled_recording(
                 app.clone(),
-                effective_paths,
+                paths.inner().clone(),
                 recorder.clone(),
-                app_settings.clone(),
+                settings_state.inner().clone(),
                 meeting.title.clone(),
             )
         },

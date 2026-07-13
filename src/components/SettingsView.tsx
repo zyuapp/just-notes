@@ -4,18 +4,20 @@ import type { AppSettings } from "../bindings/AppSettings";
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
 import type { MeetingAccessPayload } from "../bindings/MeetingAccessPayload";
 import { MeetingSettingsSection } from "./MeetingSettingsSection";
+import { PrivacyLegalSection } from "./PrivacyLegalSection";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
-import { SettingsToggle } from "./SettingsControls";
 import { SettingsNavigation, type SettingsSectionId } from "./SettingsNavigation";
 import { SettingsPermissionsSection } from "./SettingsPermissionsSection";
+import { StorageSettingsSection } from "./StorageSettingsSection";
 import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
 import { useDismissOnEscape } from "./useDismissOnEscape";
 
 const SECTION_COPY: Record<SettingsSectionId, { title: string; description: string }> = {
-  storage: { title: "Storage", description: "Choose where recordings live and which files are kept." },
+  storage: { title: "Storage", description: "See where recordings live and choose which files are kept." },
   transcription: { title: "Transcription", description: "Process every recording locally on this Mac." },
   meetings: { title: "Meetings", description: "Get a prompt when a calendar meeting is about to begin or end." },
   permissions: { title: "Permissions", description: "Review the system access Just Notes uses." },
+  privacy: { title: "Privacy & Legal", description: "See how local data and third-party software are handled." },
 };
 
 type SettingsViewProps = {
@@ -26,6 +28,7 @@ type SettingsViewProps = {
   meetingAccess: MeetingAccessPayload | null;
   onClose: () => void;
   onRevealFolder: () => void;
+  onImportLegacyData: () => void;
   onToggleRawAudio: () => void;
   onToggleMarkdownCopy: () => void;
   onRequestMeetingAccess: () => void;
@@ -34,10 +37,13 @@ type SettingsViewProps = {
   onSetMeetingReminderMinutes: (minutes: number) => void;
   onToggleMeetingEndReminders: () => void;
   meetingSettingsBusy: boolean;
+  storageBusy: boolean;
   onStartModelDownload: () => void;
   onCancelModelDownload: () => void;
   onDeleteModel: () => void;
   onOpenPrivacy: (pane: "microphone" | "system-audio" | "calendar" | "notifications") => void;
+  onOpenExternalUrl: (url: string) => void;
+  onOpenLegalDocument: (document: "privacy" | "notices") => void;
 };
 
 export function SettingsView({
@@ -48,6 +54,7 @@ export function SettingsView({
   meetingAccess,
   onClose,
   onRevealFolder,
+  onImportLegacyData,
   onToggleRawAudio,
   onToggleMarkdownCopy,
   onRequestMeetingAccess,
@@ -56,15 +63,17 @@ export function SettingsView({
   onSetMeetingReminderMinutes,
   onToggleMeetingEndReminders,
   meetingSettingsBusy,
+  storageBusy,
   onStartModelDownload,
   onCancelModelDownload,
   onDeleteModel,
   onOpenPrivacy,
+  onOpenExternalUrl,
+  onOpenLegalDocument,
 }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("storage");
   const activeSectionCopy = SECTION_COPY[activeSection];
   useDismissOnEscape(onClose);
-
   return (
     <div className="settings-overlay" role="dialog" aria-modal="true" aria-label="Settings">
       <SettingsNavigation activeSection={activeSection} onSelect={setActiveSection} onClose={onClose} />
@@ -76,29 +85,15 @@ export function SettingsView({
             <p>{activeSectionCopy.description}</p>
           </header>
 
-        {activeSection === "storage" && <section id="settings-storage">
-          <div className="settings-row">
-            <div>
-              <strong>Transcripts folder</strong>
-              <p className="settings-path">{appInfo?.threadsDir ?? "…"}</p>
-            </div>
-            <div className="settings-row-actions">
-              <button type="button" onClick={onRevealFolder}>Reveal</button>
-            </div>
-          </div>
-          <SettingsToggle
-            label="Save raw audio"
-            description="Keep mic.wav and system.wav after the transcript is polished."
-            checked={settings.saveRawAudio}
-            onToggle={onToggleRawAudio}
-          />
-          <SettingsToggle
-            label="Create Markdown copies"
-            description="Write a transcript.md beside every recording when it finishes."
-            checked={settings.markdownCopy}
-            onToggle={onToggleMarkdownCopy}
-          />
-        </section>}
+        {activeSection === "storage" && <StorageSettingsSection
+          appInfo={appInfo}
+          settings={settings}
+          busy={storageBusy}
+          onRevealFolder={onRevealFolder}
+          onImportLegacyData={onImportLegacyData}
+          onToggleRawAudio={onToggleRawAudio}
+          onToggleMarkdownCopy={onToggleMarkdownCopy}
+        />}
 
         {activeSection === "transcription" && <div id="settings-transcription">
           <TranscriptionSettingsSection
@@ -125,6 +120,12 @@ export function SettingsView({
 
           {activeSection === "permissions" && (
             <SettingsPermissionsSection permissions={permissions} onOpenPrivacy={onOpenPrivacy} />
+          )}
+          {activeSection === "privacy" && (
+            <PrivacyLegalSection
+              onOpenExternalUrl={onOpenExternalUrl}
+              onOpenLegalDocument={onOpenLegalDocument}
+            />
           )}
         </div>
       </div>

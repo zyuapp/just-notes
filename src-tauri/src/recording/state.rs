@@ -100,6 +100,10 @@ impl RecorderState {
             .unwrap_or(false)
     }
 
+    pub(crate) fn is_busy(&self) -> bool {
+        self.is_starting.load(Ordering::SeqCst) || self.is_active()
+    }
+
     pub(crate) fn active_session_id(&self) -> Option<u64> {
         self.session
             .lock()

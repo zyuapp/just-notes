@@ -11,7 +11,7 @@ export type SettingsUpdater = (settings: AppSettings) => AppSettings;
 export function useSettingsController(
   state: AppState,
   dispatch: AppDispatch,
-  onStorageChanged: () => Promise<void>,
+  onSettingsChanged: () => Promise<void>,
 ) {
   const settingsRef = useRef(state.settings);
   const updateQueue = useRef<Promise<void>>(Promise.resolve());
@@ -37,7 +37,6 @@ export function useSettingsController(
     () => dispatch({ type: "settingsOpenChanged", open: false }),
     [dispatch],
   );
-
   const updateSettings = useCallback(
     (update: SettingsUpdater, refreshAfterSave = false) => {
       const operation = updateQueue.current.then(async () => {
@@ -46,14 +45,14 @@ export function useSettingsController(
         const saved = await api.settings.update(update(current));
         settingsRef.current = saved;
         dispatch({ type: "settingsLoaded", settings: saved });
-        if (refreshAfterSave) await onStorageChanged();
+        if (refreshAfterSave) await onSettingsChanged();
       });
       updateQueue.current = operation.catch(() => undefined);
       return operation.catch((error) => {
         fail(error);
       });
     },
-    [dispatch, fail, onStorageChanged],
+    [dispatch, fail, onSettingsChanged],
   );
 
   const toggleRawAudio = useCallback(async () => {
@@ -81,8 +80,26 @@ export function useSettingsController(
     [fail],
   );
 
+  const openExternalUrl = useCallback(async (url: string) => {
+    try {
+      await api.system.openExternalUrl(url);
+    } catch (error) {
+      fail(error);
+    }
+  }, [fail]);
+
+  const openLegalDocument = useCallback(async (document: "privacy" | "notices") => {
+    try {
+      await api.system.openLegalDocument(document);
+    } catch (error) {
+      fail(error);
+    }
+  }, [fail]);
+
   return {
     closeSettings,
+    openExternalUrl,
+    openLegalDocument,
     openPrivacySettings,
     openSettings,
     toggleMarkdownCopy,
