@@ -1,5 +1,5 @@
 use crate::threads::TranscriptSegment;
-use crate::transcription::{resample_to_rate, samples_to_ms};
+use crate::transcription::{resample_to_rate, samples_to_ms, suppress_unconfirmed_mic_fillers};
 
 use super::{Transcriber, Utterance};
 
@@ -20,11 +20,19 @@ pub(crate) fn transcribe_live_utterance(
 ) -> Result<Vec<TranscriptSegment>, String> {
     let samples_16k = resample_to_rate(&utterance.samples, utterance.sample_rate, 16_000);
     let start_ms = samples_to_ms(utterance.start_index, utterance.sample_rate) + offset_ms;
-    let mut segments =
-        transcriber.transcribe_segments(&samples_16k, "", role.source, role.speaker)?;
+    let segments = transcriber.transcribe_segments(&samples_16k, "", role.source, role.speaker)?;
+    let mut segments = suppress_unconfirmed_mic_fillers(
+        segments,
+        &utterance.samples,
+        utterance.sample_rate,
+        role.source,
+    );
     for segment in &mut segments {
         segment.start_ms += start_ms;
         segment.end_ms += start_ms;
     }
     Ok(segments)
 }
+
+#[cfg(test)]
+mod tests;

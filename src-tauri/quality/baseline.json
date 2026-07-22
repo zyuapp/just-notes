@@ -34,6 +34,16 @@
     "missed_segments": 0,
     "hallucinated_segments": 0
   },
+  "13-faint-mic-hum-near-speech@finalize": {
+    "wer": 0.01923077,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
+  "13-faint-mic-hum-near-speech@live": {
+    "wer": 0.0,
+    "missed_segments": 0,
+    "hallucinated_segments": 0
+  },
   "2-quiet-speaker@finalize": {
     "wer": 0.011764706,
     "missed_segments": 0,

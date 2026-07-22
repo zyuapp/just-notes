@@ -26,6 +26,7 @@ pub(crate) fn suppress_system_dominated_mic_segments(
     segments: Vec<TranscriptSegment>,
     mic_path: &Path,
     system_path: &Path,
+    audio_offset_ms: u64,
 ) -> Result<Vec<TranscriptSegment>, String> {
     if !mic_path.is_file() || !system_path.is_file() {
         return Ok(segments);
@@ -37,6 +38,7 @@ pub(crate) fn suppress_system_dominated_mic_segments(
         segments,
         &mic_profile,
         &system_profile,
+        audio_offset_ms,
     ))
 }
 
@@ -44,10 +46,11 @@ fn suppress_system_dominated_mic_segments_with_profiles(
     segments: Vec<TranscriptSegment>,
     mic_profile: &ChannelProfile,
     system_profile: &ChannelProfile,
+    audio_offset_ms: u64,
 ) -> Vec<TranscriptSegment> {
     let system_spans = segments
         .iter()
-        .filter(|segment| segment.source == "system")
+        .filter(|segment| segment.source == "system" && segment.start_ms >= audio_offset_ms)
         .map(|segment| (segment.start_ms, segment.end_ms))
         .collect::<Vec<_>>();
 
@@ -55,8 +58,15 @@ fn suppress_system_dominated_mic_segments_with_profiles(
         .into_iter()
         .filter(|segment| {
             segment.source != "mic"
+                || segment.start_ms < audio_offset_ms
                 || !overlaps_any_system_segment(segment, &system_spans)
-                || !mic_segment_is_system_bleed(segment, &system_spans, mic_profile, system_profile)
+                || !mic_segment_is_system_bleed(
+                    segment,
+                    &system_spans,
+                    mic_profile,
+                    system_profile,
+                    audio_offset_ms,
+                )
         })
         .collect()
 }
@@ -73,9 +83,12 @@ fn mic_segment_is_system_bleed(
     system_spans: &[(u64, u64)],
     mic_profile: &ChannelProfile,
     system_profile: &ChannelProfile,
+    audio_offset_ms: u64,
 ) -> bool {
-    let mic_rms = mic_profile.rms(segment.start_ms, segment.end_ms);
-    let system_rms = system_profile.rms(segment.start_ms, segment.end_ms);
+    let local_start_ms = segment.start_ms - audio_offset_ms;
+    let local_end_ms = segment.end_ms.saturating_sub(audio_offset_ms);
+    let mic_rms = mic_profile.rms(local_start_ms, local_end_ms);
+    let system_rms = system_profile.rms(local_start_ms, local_end_ms);
     if !mic_audio_is_system_dominated(mic_rms, system_rms) {
         return false;
     }
@@ -100,8 +113,7 @@ fn mic_segment_is_system_bleed(
     // hallucinated "mm-hmm" runs a few hundred ms) carry too few envelope
     // frames to judge on their own span, so the correlation window is widened
     // around them to keep the evidence requirement met.
-    let (start_ms, end_ms) =
-        correlation_window(segment.start_ms, segment.end_ms, ECHO_MIN_WINDOW_MS);
+    let (start_ms, end_ms) = correlation_window(local_start_ms, local_end_ms, ECHO_MIN_WINDOW_MS);
     let correlation = max_envelope_correlation(
         mic_profile,
         system_profile,
