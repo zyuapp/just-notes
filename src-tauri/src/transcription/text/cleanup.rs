@@ -5,10 +5,10 @@ use super::words::normalized_words;
 /// utterances whose audio never reaches a confident speech level, so loud
 /// real backchannels ("yeah", "okay") are unaffected.
 pub(crate) fn is_probable_filler_text(text: &str) -> bool {
-    const FILLER_WORDS: [&str; 25] = [
-        "mm", "mmm", "hmm", "hm", "mhm", "mmhmm", "uh", "um", "uhhuh", "huh", "oh", "ah", "okay",
-        "ok", "yeah", "yes", "yep", "yup", "cool", "right", "sure", "alright", "thank", "thanks",
-        "you",
+    const FILLER_WORDS: [&str; 28] = [
+        "mm", "mmm", "hmm", "hm", "mhm", "mhmm", "mmhm", "mmhmm", "mmmhmm", "uh", "um", "uhhuh",
+        "huh", "oh", "ah", "okay", "ok", "yeah", "yes", "yep", "yup", "cool", "right", "sure",
+        "alright", "thank", "thanks", "you",
     ];
     let words = normalized_words(text);
     !words.is_empty()
@@ -60,15 +60,31 @@ mod tests {
 
     #[test]
     fn filler_only_text_is_flagged() {
-        assert!(is_probable_filler_text("Mm-hmm."));
-        assert!(is_probable_filler_text("Okay."));
-        assert!(is_probable_filler_text("Thank you."));
+        for text in [
+            "Mm-hmm.",
+            "Mmm-hmm.",
+            "Mm hm",
+            "Uh-huh.",
+            "Okay.",
+            "Yeah!",
+            "Okay, yeah.",
+            "Thank you.",
+        ] {
+            assert!(is_probable_filler_text(text), "did not flag {text:?}");
+        }
     }
 
     #[test]
     fn real_speech_is_not_flagged_as_filler() {
-        assert!(!is_probable_filler_text("Yeah, let me check the logs."));
-        assert!(!is_probable_filler_text("No."));
-        assert!(!is_probable_filler_text(""));
+        for text in [
+            "Yeah, let me check the logs.",
+            "Okay, I will send it.",
+            "No.",
+            "You should retry.",
+            "Thank you for the review.",
+            "",
+        ] {
+            assert!(!is_probable_filler_text(text), "falsely flagged {text:?}");
+        }
     }
 }

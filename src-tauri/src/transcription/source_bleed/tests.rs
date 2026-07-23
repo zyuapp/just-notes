@@ -55,10 +55,34 @@ fn drops_quiet_mic_segment_that_echoes_system_audio() {
     let system = ChannelProfile::from_envelope(&system_env);
     let segments = vec![segment("system", 0, 1_000), segment("mic", 0, 1_000)];
 
-    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system);
+    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 0);
 
     assert_eq!(kept.len(), 1);
     assert_eq!(kept[0].source, "system");
+}
+
+#[test]
+fn resumed_session_preserves_history_and_localizes_current_audio() {
+    let system_env = system_envelope();
+    let mic = ChannelProfile::from_envelope(&scaled(&system_env, 0.3));
+    let system = ChannelProfile::from_envelope(&system_env);
+    let segments = vec![
+        segment("system", 0, 1_000),
+        segment("mic", 0, 1_000),
+        segment("system", 60_000, 61_000),
+        segment("mic", 60_000, 61_000),
+    ];
+
+    let kept =
+        suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 60_000);
+
+    assert_eq!(kept.len(), 3);
+    assert!(kept
+        .iter()
+        .any(|segment| segment.source == "mic" && segment.start_ms == 0));
+    assert!(!kept
+        .iter()
+        .any(|segment| segment.source == "mic" && segment.start_ms == 60_000));
 }
 
 // The signature of speaker bleed decoding as a phantom backchannel: a short
@@ -72,7 +96,7 @@ fn drops_short_quiet_echo_using_surrounding_audio() {
     let system = ChannelProfile::from_envelope(&system_env);
     let segments = vec![segment("system", 0, 1_000), segment("mic", 300, 700)];
 
-    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system);
+    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 0);
 
     assert_eq!(kept.len(), 1);
     assert_eq!(kept[0].source, "system");
@@ -84,7 +108,7 @@ fn keeps_quiet_mic_speech_that_does_not_track_system_audio() {
     let system = ChannelProfile::from_envelope(&system_envelope());
     let segments = vec![segment("system", 0, 1_000), segment("mic", 0, 1_000)];
 
-    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system);
+    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 0);
 
     assert_eq!(kept.len(), 2);
 }
@@ -97,7 +121,7 @@ fn keeps_mic_segment_when_energy_is_competitive() {
     let segments = vec![segment("system", 0, 1_000), segment("mic", 0, 1_000)];
 
     assert_eq!(
-        suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system).len(),
+        suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 0).len(),
         2
     );
 }
@@ -109,7 +133,7 @@ fn keeps_mic_segment_without_nearby_system_transcript() {
     let segments = vec![segment("mic", 0, 1_000)];
 
     assert_eq!(
-        suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system).len(),
+        suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 0).len(),
         1
     );
 }
@@ -124,7 +148,7 @@ fn keeps_short_quiet_mic_segment_despite_chance_envelope_match() {
     let system = ChannelProfile::from_envelope(&system_envelope());
     let segments = vec![segment("system", 0, 1_000), segment("mic", 0, 150)];
 
-    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system);
+    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 0);
 
     assert_eq!(kept.len(), 2);
 }
@@ -168,7 +192,7 @@ fn drops_low_correlation_segments_under_extreme_system_dominance() {
         );
     }
 
-    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system);
+    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 0);
 
     assert_eq!(kept.len(), 3);
     assert!(kept.iter().all(|segment| segment.source == "system"));
@@ -187,7 +211,7 @@ fn keeps_extremely_faint_mic_speech_without_sustained_system_speech() {
     );
     let segments = vec![segment("system", 0, 7_000), segment("mic", 0, 10_000)];
 
-    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system);
+    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 0);
 
     assert_eq!(kept.len(), 2);
 }
@@ -201,50 +225,9 @@ fn keeps_quiet_mic_speech_above_extreme_dominance_cutoff() {
     let mic = profile_with_ratio(&system, 0, 4_000, 0.16, FRAMES);
     let segments = vec![segment("system", 0, 4_000), segment("mic", 0, 4_000)];
 
-    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system);
+    let kept = suppress_system_dominated_mic_segments_with_profiles(segments, &mic, &system, 0);
 
     assert_eq!(kept.len(), 2);
 }
 
-#[test]
-fn correlation_is_high_for_scaled_echo() {
-    let system_env = system_envelope();
-    let mic = ChannelProfile::from_envelope(&scaled(&system_env, 0.3));
-    let system = ChannelProfile::from_envelope(&system_env);
-
-    let correlation = max_envelope_correlation(&mic, &system, 0, 1_000, ECHO_MAX_LAG_MS);
-
-    assert!(
-        correlation >= ECHO_CORRELATION_THRESHOLD,
-        "got {correlation}"
-    );
-}
-
-#[test]
-fn correlation_is_low_for_distinct_speech() {
-    let mic = ChannelProfile::from_envelope(&ramp_envelope());
-    let system = ChannelProfile::from_envelope(&system_envelope());
-
-    let correlation = max_envelope_correlation(&mic, &system, 0, 1_000, ECHO_MAX_LAG_MS);
-
-    assert!(
-        correlation < ECHO_CORRELATION_THRESHOLD,
-        "got {correlation}"
-    );
-}
-
-#[test]
-fn correlation_finds_delayed_echo() {
-    let system_env = system_envelope();
-    let mut mic_env = vec![0.0f32; 3];
-    mic_env.extend(scaled(&system_env, 0.3));
-    let mic = ChannelProfile::from_envelope(&mic_env);
-    let system = ChannelProfile::from_envelope(&system_env);
-
-    let correlation = max_envelope_correlation(&mic, &system, 0, 1_000, ECHO_MAX_LAG_MS);
-
-    assert!(
-        correlation >= ECHO_CORRELATION_THRESHOLD,
-        "got {correlation}"
-    );
-}
+mod correlation;

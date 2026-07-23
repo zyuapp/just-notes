@@ -24,6 +24,7 @@ BLEED_DELAY_MS = 100
 ROOM_TONE_RMS = 0.004
 NOISE_FLOOR_RMS = 0.002
 NOISE_SEED = 42
+FAINT_HUM_RMS = 0.006
 
 
 def load_speakers(corpus_dir):
@@ -107,7 +108,7 @@ def shaped_noise(duration_ms, rms, seed):
     )
 
 
-def colored_noise(duration_ms, rms, seed):
+def colored_noise(duration_ms, rms, seed, smoothing=0.92):
     """Stationary colored noise at a deterministic RMS.
 
     Unlike `shaped_noise`, this has no speech-cadence envelope. It is used to
@@ -119,7 +120,7 @@ def colored_noise(duration_ms, rms, seed):
     raw = []
     level = 0.0
     for _ in range(total):
-        level = 0.92 * level + 0.08 * rng.gauss(0.0, 1.0)
+        level = smoothing * level + (1.0 - smoothing) * rng.gauss(0.0, 1.0)
         raw.append(level)
     scale = rms / (sum(value * value for value in raw) / total) ** 0.5
     return array(
@@ -160,6 +161,19 @@ def high_frequency_noise(duration_ms, rms, seed, carrier_hz=11_000):
     return array(
         "h",
         (max(-32768, min(32767, int(value * scale * 32767))) for value in raw),
+    )
+
+
+def sine_tone(duration_ms, rms, frequency_hz):
+    """A deterministic narrowband mic hum with no speech content."""
+    total = RATE * duration_ms // 1000
+    amplitude = rms * math.sqrt(2) * 32767
+    return array(
+        "h",
+        (
+            int(amplitude * math.sin(2 * math.pi * frequency_hz * index / RATE))
+            for index in range(total)
+        ),
     )
 
 
@@ -373,6 +387,21 @@ def main():
     # above the finalization path's fixed gate, where it would be continuous
     # speech evidence rather than an isolated transient.
     write_fixture(out_dir, "12-transient-mic-spike", mic, system, modes=["live"])
+
+    # The user is silent between active system turns, but two 300 ms low-level
+    # hums cross the recall-biased live gate. Parakeet decodes these non-speech
+    # islands as short fillers ("Uh"/"Um"). Their proximity to real system
+    # speech reproduced the bug where the old isolation rule kept both.
+    system = monologue(b, gap_ms=1000, source="system")
+    mic = Track()
+    mic.samples = colored_noise(
+        system.duration_ms(), NOISE_FLOOR_RMS, 1, smoothing=0.94
+    )
+    hum = sine_tone(300, FAINT_HUM_RMS, 140)
+    for segment in system.segments[:2]:
+        position = math.ceil((segment["end_ms"] + 185) / 20) * 20
+        overlay_at(mic.samples, hum, position)
+    write_fixture(out_dir, "13-faint-mic-hum-near-speech", mic, system)
     print("Done.")
 
 

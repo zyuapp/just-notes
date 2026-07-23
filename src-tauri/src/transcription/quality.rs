@@ -9,10 +9,10 @@
 //! `src-tauri/quality/baseline.json`. Run via `bun run test:quality`, and
 //! rerun with `UPDATE_QUALITY_BASELINE=1` to accept improved numbers.
 //!
-//! The suppressor chain is guarded from both directions: fixtures 6, 9, and 12
-//! measure phantom segments that must stay removed, while fixtures 10 and 11
-//! measure genuine quiet mic speech that must stay kept. A change to gating or
-//! suppression has to improve one side without regressing the other.
+//! The suppressor chain is guarded from both directions: fixtures 6, 9, 12,
+//! and 13 measure phantom segments that must stay removed, while fixtures 10
+//! and 11 measure genuine quiet mic speech that must stay kept. A change to
+//! gating or suppression has to improve one side without regressing the other.
 //!
 //! Accepted residuals, recorded as regression floors rather than endorsed
 //! numbers:
@@ -32,7 +32,7 @@ use crate::threads::TranscriptSegment;
 use super::{
     finalize_audio::transcribe_wav_channel, load_transcriber,
     models::finalization_transcription_selection, suppress_cross_channel_bleed,
-    suppress_isolated_faint_fillers, suppress_system_dominated_mic_segments, ChannelRole,
+    suppress_faint_mic_fillers, suppress_system_dominated_mic_segments, ChannelRole,
     SegmenterConfig, Transcriber,
 };
 
@@ -128,9 +128,9 @@ fn load_quality_transcriber() -> Box<dyn Transcriber> {
     load_transcriber(&selection).expect("load Parakeet transcriber")
 }
 
-/// Both channels through the segmenter and recognizer, sorted, then both
-/// bleed suppressors — the shape of `finalize::run_finalization` and of the
-/// live worker followed by the stop-time polish.
+/// Both channels through the segmenter and recognizer, sorted, then the text,
+/// audio-bleed, and faint-filler suppressors — the shape of
+/// `finalize::run_finalization` and of the live worker followed by stop polish.
 fn transcribe_fixture(
     transcriber: &dyn Transcriber,
     fixture: &Fixture,
@@ -164,9 +164,13 @@ fn transcribe_fixture(
             .then_with(|| left.source.cmp(&right.source))
     });
     let segments = suppress_cross_channel_bleed(segments);
-    let segments =
-        suppress_system_dominated_mic_segments(segments, &fixture.mic_path, &fixture.system_path)?;
-    suppress_isolated_faint_fillers(segments, &fixture.mic_path, &fixture.system_path)
+    let segments = suppress_system_dominated_mic_segments(
+        segments,
+        &fixture.mic_path,
+        &fixture.system_path,
+        0,
+    )?;
+    suppress_faint_mic_fillers(segments, &fixture.mic_path, 0)
 }
 
 fn print_table(results: &[(String, FixtureMetrics)]) {

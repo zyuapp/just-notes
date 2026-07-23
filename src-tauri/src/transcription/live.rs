@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use super::{rms, Transcriber};
+use super::{faint_fillers::CONFIDENT_SPEECH_RMS, rms, Transcriber};
 
 const FRAME_MS: u64 = 20;
 const REDEMPTION_MS: u64 = 600;
@@ -15,8 +15,6 @@ const FORCE_CUT_LOOKBACK_MS: u64 = 2_000;
 /// gate-positive frames rejects that transient regardless of frame phase while
 /// preserving clipped one-word replies.
 const MIN_CONSECUTIVE_SPEECH_MS: u64 = FRAME_MS * 3;
-/// Peak frame RMS below which an utterance counts as faint.
-pub(crate) const QUIET_CONFIRMATION_RMS: f32 = 0.02;
 /// Multiple of the tracked noise floor a frame must exceed to count as
 /// speech under the adaptive gate.
 const NOISE_FLOOR_GATE_RATIO: f32 = 2.5;
@@ -147,8 +145,7 @@ impl LiveSegmenter {
 
     fn gate(&self) -> f32 {
         if self.adaptive_gate {
-            (self.noise_floor * NOISE_FLOOR_GATE_RATIO)
-                .clamp(self.speech_rms, QUIET_CONFIRMATION_RMS)
+            (self.noise_floor * NOISE_FLOOR_GATE_RATIO).clamp(self.speech_rms, CONFIDENT_SPEECH_RMS)
         } else {
             self.speech_rms
         }
