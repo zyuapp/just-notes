@@ -1,5 +1,6 @@
 use tauri::AppHandle;
 
+use super::RecorderState;
 use crate::{
     app::AppPaths,
     settings::AppSettings,
@@ -15,17 +16,29 @@ use crate::{
 // latency before treating the audio as covering less than the whole thread.
 const RESUME_AUDIO_TOLERANCE_MS: u64 = 5_000;
 
+pub(crate) struct ReprocessRequest {
+    pub(crate) app: AppHandle,
+    pub(crate) paths: AppPaths,
+    pub(crate) recorder: RecorderState,
+    pub(crate) settings: AppSettings,
+    pub(crate) finalize: FinalizeState,
+    pub(crate) thread_id: String,
+}
+
 /// Re-runs the authoritative finalization pass on a thread's saved audio:
 /// re-transcribes the WAVs, suppresses cross-channel bleed, and replaces the
 /// live transcript. Available only when the raw audio was kept and the thread
 /// is idle and single-session.
-pub(crate) fn reprocess_thread(
-    app: AppHandle,
-    paths: AppPaths,
-    settings: AppSettings,
-    finalize: FinalizeState,
-    thread_id: String,
-) -> Result<(), String> {
+pub(crate) fn reprocess_thread(request: ReprocessRequest) -> Result<(), String> {
+    let ReprocessRequest {
+        app,
+        paths,
+        recorder,
+        settings,
+        finalize,
+        thread_id,
+    } = request;
+    let _operation_guard = recorder.lock_operation()?;
     let thread = load_thread_by_id(&paths, &thread_id)?;
     if thread.summary.status.is_busy() {
         return Err("This thread is busy; stop recording or wait for it to finish.".to_string());

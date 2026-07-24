@@ -1,7 +1,7 @@
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use crate::{
-    app::{AppPaths, StorageGate},
+    app::AppPaths,
     ipc::RecordingPayload,
     recording::{self, RecorderState},
     recording_payload,
@@ -61,21 +61,30 @@ pub(crate) async fn stop_recording(
 }
 
 #[tauri::command]
+// Tauri injects each managed state and command argument independently.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn reprocess_thread(
     app: AppHandle,
     paths: State<'_, AppPaths>,
+    recorder: State<'_, RecorderState>,
     settings: State<'_, SettingsState>,
     finalize: State<'_, FinalizeState>,
     thread_id: String,
 ) -> Result<(), String> {
     let paths = paths.inner().clone();
+    let recorder = recorder.inner().clone();
     let settings = settings.inner().clone();
     let finalize = finalize.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let gate = app.state::<StorageGate>();
-        let _guard = gate.lock()?;
         let app_settings = settings.snapshot();
-        recording::reprocess_thread(app.clone(), paths, app_settings, finalize, thread_id)
+        recording::reprocess_thread(recording::ReprocessRequest {
+            app,
+            paths,
+            recorder,
+            settings: app_settings,
+            finalize,
+            thread_id,
+        })
     })
     .await
     .map_err(|err| format!("Reprocess task failed: {err}"))?

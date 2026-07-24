@@ -48,8 +48,17 @@ impl AppPaths {
         self.archived_dir.join(thread_id)
     }
 
-    pub(crate) fn legacy_import_staging_dir(&self) -> PathBuf {
-        self.data_dir.join(".legacy-import-staging")
+    /// Removes copies left by an import interrupted before this feature was retired.
+    pub(crate) fn cleanup_abandoned_import_staging(&self) -> Result<(), String> {
+        let staging = self.data_dir.join(".legacy-import-staging");
+        match fs::remove_dir_all(&staging) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!(
+                "Failed to clear abandoned import staging at {}: {error}",
+                staging.display()
+            )),
+        }
     }
 }
 

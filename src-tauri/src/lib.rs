@@ -5,7 +5,6 @@ mod app_menu;
 mod capture;
 mod commands;
 mod ipc;
-mod legacy_import;
 mod meeting_surfaces;
 mod meetings;
 mod platform;
@@ -16,12 +15,10 @@ mod threads;
 mod transcription;
 mod tray;
 
-use app::{AppPaths, StorageGate};
-use legacy_import::LegacyImportState;
+use app::AppPaths;
 use meetings::MeetingSchedulerState;
 use recording::RecorderState;
 use settings::SettingsState;
-use threads::import::cleanup_stale_import_staging;
 use threads::repository::reset_stale_recording_threads;
 use transcription::{FinalizeState, ModelDownloadState};
 
@@ -32,11 +29,8 @@ pub fn run() {
         .manage(RecorderState::default())
         .manage(FinalizeState::default())
         .manage(ModelDownloadState::default())
-        .manage(StorageGate::default())
-        .manage(LegacyImportState::default())
         .manage(MeetingSchedulerState::default())
         .menu(app_menu::build)
-        .on_menu_event(app_menu::handle_event)
         .setup(setup_app);
 
     register_commands(builder)
@@ -48,7 +42,7 @@ pub fn run() {
 fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
     manage_persistent_state(app)?;
     let paths = app.state::<AppPaths>();
-    cleanup_stale_import_staging(&paths)?;
+    paths.cleanup_abandoned_import_staging()?;
     reset_stale_recording_threads(&paths)?;
     tray::init_tray(
         app,
@@ -135,9 +129,6 @@ macro_rules! command_handler {
         commands::threads::export_thread_markdown,
         commands::settings::get_settings,
         commands::settings::update_settings,
-        commands::legacy_import::prepare_legacy_import,
-        commands::legacy_import::confirm_legacy_import,
-        commands::legacy_import::cancel_legacy_import,
         commands::meetings::get_meeting_access_status,
         commands::meetings::request_meeting_access,
         commands::meetings::get_meeting_prompt,

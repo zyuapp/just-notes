@@ -4,13 +4,11 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 `meeting_surfaces` is a small adapter that projects the meetings domain's current prompt into frontend events and the menu bar without making the domain depend on either surface.
 
-`legacy_import` is an application workflow service. It owns the temporary folder grants and preview session, coordinates import against recording/finalization activity, and delegates recording validation and installation to `threads`.
-
 ## Bounded Contexts
 
 ### App
 
-`app` owns application paths, filesystem locations, storage-operation coordination, and discovery of the legacy unsandboxed data layout. It builds the internal layout from Tauri's platform-provided app data directory so Mac App Store builds remain inside their sandbox container. Other contexts can depend on `AppPaths`, but thread merge policy belongs to `threads`.
+`app` owns application paths and filesystem locations. It builds the internal layout from Tauri's platform-provided app data directory so Mac App Store builds remain inside their sandbox container. Other contexts can depend on `AppPaths`.
 
 ### Settings
 
@@ -18,7 +16,7 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Platform
 
-`platform` owns public macOS integration: Finder reveal, the AppKit folder chooser and security-scoped URL lifetime, clipboard copy, System Settings deep links, EventKit access, and native actionable notifications. It must not depend on any domain module.
+`platform` owns public macOS integration: Finder reveal, clipboard copy, System Settings deep links, EventKit access, and native actionable notifications. It must not depend on any domain module.
 
 ### Meetings
 
@@ -34,7 +32,7 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Threads
 
-`threads` owns the note-thread domain: thread metadata, summaries, details, transcript segments, transcript JSONL storage, markdown rendering, user edits (rename, delete, segment text, search), stale-status cleanup, and merge import of legacy recordings. The importer skips exact duplicates, preserves ID conflicts as separate copies, and rolls back newly installed items on failure. It does not know how audio is captured or transcribed; it only persists and presents thread data.
+`threads` owns the note-thread domain: thread metadata, summaries, details, transcript segments, transcript JSONL storage, markdown rendering, user edits (rename, delete, segment text, search), and stale-status cleanup. It does not know how audio is captured or transcribed; it only persists and presents thread data.
 
 ### Capture
 
@@ -46,17 +44,15 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Recording
 
-`recording` owns recording-session orchestration. It starts and stops capture, streams raw audio to disk, emits meter updates, selects or creates a thread, persists duration, starts and stops live transcription, kicks off on-demand re-transcription, and updates the tray. It coordinates contexts, but it should avoid owning low-level capture, transcription, or thread persistence details.
+`recording` owns recording-session orchestration and serializes recording operations that mutate the thread store. It starts and stops capture, streams raw audio to disk, emits meter updates, selects or creates a thread, persists duration, starts and stops live transcription, kicks off on-demand re-transcription, and updates the tray. It coordinates contexts, but it should avoid owning low-level capture, transcription, or thread persistence details.
 
 ## Dependency Direction
 
 The intended direction is:
 
-`lib.rs` -> `commands`, `legacy_import`, `meetings`, `recording`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
+`lib.rs` -> `commands`, `meetings`, `recording`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
 
 `commands` -> any domain it adapts, but no business logic of its own
-
-`legacy_import` -> `app`, `platform`, `recording`, `threads`, `transcription`
 
 `recording` -> `capture`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
 
