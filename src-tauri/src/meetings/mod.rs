@@ -48,8 +48,12 @@ pub(crate) fn access_status() -> MeetingAccess {
     }
 }
 
-pub(crate) fn request_access(app: &AppHandle) -> Result<MeetingAccess, String> {
+pub(crate) fn request_calendar_access(app: &AppHandle) -> Result<MeetingAccess, String> {
     calendar::request_access(app)?;
+    Ok(access_status())
+}
+
+pub(crate) fn request_notification_access(app: &AppHandle) -> Result<MeetingAccess, String> {
     platform_notifications::request_access(app)?;
     Ok(access_status())
 }

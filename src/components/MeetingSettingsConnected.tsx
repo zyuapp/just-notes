@@ -38,7 +38,7 @@ export function MeetingSettingsConnected(props: MeetingSettingsConnectedProps) {
             onClick={
               access.notificationAuthorization === "denied"
                 ? () => props.onOpenPrivacy("notifications")
-                : props.onRequestAccess
+                : props.onRequestNotificationAccess
             }
           >
             {access.notificationAuthorization === "denied"

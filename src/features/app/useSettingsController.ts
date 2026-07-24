@@ -29,10 +29,6 @@ export function useSettingsController(
       .getPermissions()
       .then((permissions) => dispatch({ type: "permissionsLoaded", permissions }))
       .catch(() => undefined);
-    api.meetings
-      .getAccessStatus()
-      .then((meetingAccess) => dispatch({ type: "meetingAccessLoaded", meetingAccess }))
-      .catch(() => undefined);
   }, [dispatch]);
 
   // Opening only flips the flag; whoever renders the overlay keeps its data

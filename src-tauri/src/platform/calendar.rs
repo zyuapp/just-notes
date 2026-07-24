@@ -11,6 +11,8 @@ use objc2_event_kit::{
 use objc2_foundation::{NSError, NSNotification, NSNotificationCenter};
 use tauri::AppHandle;
 
+use super::permission_request_result;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct CalendarInfo {
     pub(crate) id: String,
@@ -57,13 +59,10 @@ pub(crate) fn request_access(app: &AppHandle) -> Result<(), String> {
 fn request_access_on_main(sender: mpsc::Sender<Result<(), String>>) {
     let store = unsafe { EKEventStore::new() };
     let store_until_completion = store.clone();
-    let completion = RcBlock::new(move |granted: Bool, _error: *mut NSError| {
+    let completion = RcBlock::new(move |_granted: Bool, error: *mut NSError| {
         let _keep_store_alive = &store_until_completion;
-        let result = if granted.as_bool() {
-            Ok(())
-        } else {
-            Err("Calendar access was not granted".to_string())
-        };
+        let error = unsafe { error.as_ref() }.map(|error| error.localizedDescription().to_string());
+        let result = permission_request_result("Calendar", error);
         let _ = sender.send(result);
     });
     unsafe {

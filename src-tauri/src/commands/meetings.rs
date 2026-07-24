@@ -43,12 +43,27 @@ pub(crate) fn dismiss_meeting_prompt(
 }
 
 #[tauri::command]
-pub(crate) async fn request_meeting_access(app: AppHandle) -> Result<MeetingAccessPayload, String> {
+pub(crate) async fn request_meeting_calendar_access(
+    app: AppHandle,
+) -> Result<MeetingAccessPayload, String> {
     let request_app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || meetings::request_access(&request_app))
+    tauri::async_runtime::spawn_blocking(move || meetings::request_calendar_access(&request_app))
         .await
         .map_err(|err| format!("Calendar permission task failed: {err}"))?
         .map(to_payload)
+}
+
+#[tauri::command]
+pub(crate) async fn request_meeting_notification_access(
+    app: AppHandle,
+) -> Result<MeetingAccessPayload, String> {
+    let request_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        meetings::request_notification_access(&request_app)
+    })
+    .await
+    .map_err(|err| format!("Notification permission task failed: {err}"))?
+    .map(to_payload)
 }
 
 fn to_payload(access: meetings::MeetingAccess) -> MeetingAccessPayload {

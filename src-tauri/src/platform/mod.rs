@@ -10,6 +10,13 @@ pub(crate) mod notifications;
 
 const APP_KIT_TIMEOUT: Duration = Duration::from_secs(120);
 
+fn permission_request_result(permission: &str, error: Option<String>) -> Result<(), String> {
+    match error {
+        Some(error) => Err(format!("Failed to request {permission} access: {error}")),
+        None => Ok(()),
+    }
+}
+
 pub(crate) fn reveal_in_finder(app: &AppHandle, path: &str) -> Result<(), String> {
     if path.is_empty() {
         return Err("Cannot reveal an empty path in Finder".to_string());
@@ -130,7 +137,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::privacy_settings_url;
+    use super::{permission_request_result, privacy_settings_url};
 
     #[test]
     fn maps_known_privacy_panes() {
@@ -145,6 +152,20 @@ mod tests {
         assert_eq!(
             privacy_settings_url("unsupported"),
             "x-apple.systempreferences:com.apple.preference.security"
+        );
+    }
+
+    #[test]
+    fn completed_permission_decisions_are_not_errors() {
+        assert_eq!(permission_request_result("Calendar", None), Ok(()));
+        assert_eq!(permission_request_result("notification", None), Ok(()));
+    }
+
+    #[test]
+    fn native_permission_errors_keep_the_permission_name() {
+        assert_eq!(
+            permission_request_result("Calendar", Some("EventKit failed".to_string())),
+            Err("Failed to request Calendar access: EventKit failed".to_string())
         );
     }
 }

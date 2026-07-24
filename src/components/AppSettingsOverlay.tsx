@@ -37,7 +37,8 @@ export function AppSettingsOverlay({
       meeting={{
         pendingCalendarIds: meetingSettings.pendingCalendarIds,
         requestingAccess: meetingSettings.requestingAccess,
-        onRequestAccess: () => void meetingSettings.requestAccess(),
+        onRequestCalendarAccess: () => void meetingSettings.requestCalendarAccess(),
+        onRequestNotificationAccess: () => void meetingSettings.requestNotificationAccess(),
         onToggleCalendar: (id) => void meetingSettings.toggleCalendar(id),
         onToggleReminders: () => void meetingSettings.toggleReminders(),
         onSetReminderMinutes: (minutes) => void meetingSettings.setReminderMinutes(minutes),
