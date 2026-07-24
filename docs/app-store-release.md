@@ -41,8 +41,6 @@ bun run app:store:package
 
 The script checks that the profile matches the configured bundle ID and Team ID, builds with the Mac App Distribution identity, verifies the sandboxed app signature and privacy manifest, and creates an installer-signed `.pkg` using `productbuild`. It does not upload anything.
 
-Users upgrading from an earlier unsandboxed build can choose **File → Import Previous Recordings…** or use the migration card in **Settings → Storage**. The native picker opens in the home folder with hidden files visible so `.just-notes` is selectable. The app previews and merges active and archived recordings, skips exact duplicates, preserves ID conflicts as separate copies, and leaves current settings, models, and engine data unchanged. It receives read-only access to selected legacy folders only for the preview/import session; all current data remains in the app container, and users cannot redirect transcript storage.
-
 ## App Store Connect completion
 
 Before submission, complete the product description, category, screenshots, age rating, pricing, territories, support and privacy URLs, App Privacy answers, and review notes. The review notes should explain the user-confirmed model download, its displayed size, local audio processing, Calendar use, and where to exercise each permission-dependent feature.

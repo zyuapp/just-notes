@@ -11,7 +11,6 @@ type Props = {
   meetingSettings: ReturnType<typeof useMeetingSettingsController>;
   settings: SettingsActions;
   threads: ReturnType<typeof useThreadActions>;
-  onImportLegacyData: () => void;
 };
 
 export function AppSettingsOverlay({
@@ -20,7 +19,6 @@ export function AppSettingsOverlay({
   meetingSettings,
   settings,
   threads,
-  onImportLegacyData,
 }: Props) {
   if (!state.settingsOpen || !state.settings) return null;
   return <SettingsView
@@ -30,12 +28,10 @@ export function AppSettingsOverlay({
     permissions={state.permissions}
     meetingAccess={state.meetingAccess}
     meetingSettingsBusy={meetingSettings.busy}
-    storageBusy={state.recorderState !== "idle" || state.finalization?.state === "running"}
     onClose={settings.closeSettings}
     onRevealFolder={() => {
       if (state.appInfo) void threads.revealPath(state.appInfo.threadsDir);
     }}
-    onImportLegacyData={onImportLegacyData}
     onToggleRawAudio={() => void settings.toggleRawAudio()}
     onToggleMarkdownCopy={() => void settings.toggleMarkdownCopy()}
     onRequestMeetingAccess={() => void meetingSettings.requestAccess()}

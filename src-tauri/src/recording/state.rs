@@ -2,7 +2,7 @@ use std::{
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc, Mutex,
+        Arc, Mutex, MutexGuard,
     },
     thread::JoinHandle,
     time::Instant,
@@ -20,6 +20,7 @@ use crate::{
 #[derive(Clone, Default)]
 pub(crate) struct RecorderState {
     session: Arc<Mutex<Option<RecorderSession>>>,
+    operation: Arc<Mutex<()>>,
     is_starting: Arc<AtomicBool>,
     next_session_id: Arc<AtomicU64>,
 }
@@ -46,6 +47,12 @@ pub(super) struct RecorderSession {
 }
 
 impl RecorderState {
+    pub(super) fn lock_operation(&self) -> Result<MutexGuard<'_, ()>, String> {
+        self.operation
+            .lock()
+            .map_err(|_| "Recording operation lock was poisoned".to_string())
+    }
+
     pub(super) fn begin_starting(&self) -> Result<StartingGuard<'_>, String> {
         if self.is_starting.swap(true, Ordering::SeqCst) {
             return Err("Audio startup is already in progress".to_string());
@@ -98,10 +105,6 @@ impl RecorderState {
             .lock()
             .map(|session| session.is_some())
             .unwrap_or(false)
-    }
-
-    pub(crate) fn is_busy(&self) -> bool {
-        self.is_starting.load(Ordering::SeqCst) || self.is_active()
     }
 
     pub(crate) fn active_session_id(&self) -> Option<u64> {

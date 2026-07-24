@@ -11,7 +11,6 @@ export function useAppEvents(
   dispatch: AppDispatch,
   onFinalizationSettled: (threadId: string) => void,
   onRecordingStarted: (threadId: string) => void,
-  onLegacyImportRequested: () => void,
 ) {
   useEffect(() => {
     const promptHydration = createMeetingPromptHydration((meetingPrompt) => {
@@ -43,7 +42,6 @@ export function useAppEvents(
           onFinalizationSettled(payload.threadId);
         }
       }),
-      api.events.onLegacyImportRequested(onLegacyImportRequested),
     ];
 
     return () => {
@@ -52,5 +50,5 @@ export function useAppEvents(
         subscription.then((dispose) => dispose()).catch(() => undefined);
       }
     };
-  }, [dispatch, onFinalizationSettled, onLegacyImportRequested, onRecordingStarted]);
+  }, [dispatch, onFinalizationSettled, onRecordingStarted]);
 }

@@ -28,7 +28,6 @@ type SettingsViewProps = {
   meetingAccess: MeetingAccessPayload | null;
   onClose: () => void;
   onRevealFolder: () => void;
-  onImportLegacyData: () => void;
   onToggleRawAudio: () => void;
   onToggleMarkdownCopy: () => void;
   onRequestMeetingAccess: () => void;
@@ -37,7 +36,6 @@ type SettingsViewProps = {
   onSetMeetingReminderMinutes: (minutes: number) => void;
   onToggleMeetingEndReminders: () => void;
   meetingSettingsBusy: boolean;
-  storageBusy: boolean;
   onStartModelDownload: () => void;
   onCancelModelDownload: () => void;
   onDeleteModel: () => void;
@@ -54,7 +52,6 @@ export function SettingsView({
   meetingAccess,
   onClose,
   onRevealFolder,
-  onImportLegacyData,
   onToggleRawAudio,
   onToggleMarkdownCopy,
   onRequestMeetingAccess,
@@ -63,7 +60,6 @@ export function SettingsView({
   onSetMeetingReminderMinutes,
   onToggleMeetingEndReminders,
   meetingSettingsBusy,
-  storageBusy,
   onStartModelDownload,
   onCancelModelDownload,
   onDeleteModel,
@@ -92,9 +88,7 @@ export function SettingsView({
         <StorageSettingsSection
           appInfo={appInfo}
           settings={settings}
-          busy={storageBusy}
           onRevealFolder={onRevealFolder}
-          onImportLegacyData={onImportLegacyData}
           onToggleRawAudio={onToggleRawAudio}
           onToggleMarkdownCopy={onToggleMarkdownCopy}
         />

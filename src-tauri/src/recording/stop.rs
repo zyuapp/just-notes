@@ -1,10 +1,9 @@
 use std::{path::Path, sync::atomic::Ordering};
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
 use super::state::{RecorderSession, RecorderState};
 use crate::{
-    app::StorageGate,
     capture::stop_audio_capture,
     threads::{
         repository::{
@@ -19,8 +18,9 @@ pub(crate) fn stop_recording(
     app: AppHandle,
     recorder: RecorderState,
 ) -> Result<ThreadDetail, String> {
-    let gate = app.state::<StorageGate>().inner().clone();
-    gate.run(|| stop_recording_inner(app, recorder))
+    let operation_recorder = recorder.clone();
+    let _operation_guard = operation_recorder.lock_operation()?;
+    stop_recording_inner(app, recorder)
 }
 
 fn stop_recording_inner(app: AppHandle, recorder: RecorderState) -> Result<ThreadDetail, String> {

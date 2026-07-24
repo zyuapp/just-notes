@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::atomic::AtomicBool, sync::Arc, time::Instant};
 
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use super::{
     audio_sink::spawn_audio_sink,
@@ -10,7 +10,7 @@ use super::{
     state::{RecorderSession, RecorderState},
 };
 use crate::{
-    app::{AppPaths, StorageGate},
+    app::AppPaths,
     capture::{prepare_audio_input, start_audio_capture, PreparedAudioInput, RecordingInputMode},
     settings::{AppSettings, SettingsState},
     threads::{
@@ -58,8 +58,7 @@ pub(super) fn start_recording_with_mode(
     request: RecordingRequest,
 ) -> Result<StartedRecording, String> {
     let starting_recorder = request.recorder.clone();
-    let gate = request.app.state::<StorageGate>();
-    let _storage_guard = gate.lock()?;
+    let _operation_guard = starting_recorder.lock_operation()?;
     let _starting = starting_recorder.begin_starting()?;
     let settings = request.settings_state.snapshot();
     let start = RecordingStart {

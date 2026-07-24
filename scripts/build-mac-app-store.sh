@@ -137,8 +137,8 @@ if [ "$privacy_api" != "NSPrivacyAccessedAPICategoryFileTimestamp" ]; then
   exit 1
 fi
 case "$privacy_reasons" in
-  *'C617.1'*'3B52.1'*) ;;
-  *) echo "Privacy manifest is missing container or user-selected file reasons" >&2; exit 1 ;;
+  *'C617.1'*) ;;
+  *) echo "Privacy manifest is missing the app-container file timestamp reason" >&2; exit 1 ;;
 esac
 
 /usr/bin/codesign --verify --deep --strict --verbose=2 "$app"

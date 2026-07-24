@@ -46,17 +46,4 @@ describe("eventsApi", () => {
       expect((error as ApiError).message).toBe("Listener rejected");
     }
   });
-
-  test("registers the native File menu import request", async () => {
-    const dispose = mock();
-    const handler = mock();
-    listenMock.mockImplementationOnce(async () => dispose);
-
-    await eventsApi.onLegacyImportRequested(handler);
-    const [eventName, registeredHandler] = listenMock.mock.calls[0];
-    registeredHandler({ payload: undefined });
-
-    expect(eventName).toBe("legacy-import-requested");
-    expect(handler).toHaveBeenCalledTimes(1);
-  });
 });
