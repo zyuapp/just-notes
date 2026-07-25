@@ -126,7 +126,7 @@
 }
 
 .transcript-no-match {
-  margin: 40px 12px;
+  margin: 40px 15px;
   color: var(--text-subtle);
   font-size: var(--type-body);
 }

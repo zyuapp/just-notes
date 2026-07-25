@@ -11,19 +11,24 @@ export function visibleSegments(segments: TranscriptSegment[], query: string): I
 
 export type SpeakerRunEdges = { isStart: boolean; isEnd: boolean };
 
+// Two items continue one run only when they are neighbours in the unfiltered
+// transcript, so a search that hides the segments between them cannot fuse them.
+const continuesRun = (earlier: IndexedSegment, later: IndexedSegment) =>
+  later.index === earlier.index + 1 && later.segment.speaker === earlier.segment.speaker;
+
 // A run is a maximal group of adjacent segments sharing one speaker. `isStart` also
 // decides header visibility; both edges let the speaker rail span the run as one line.
 export function speakerRunEdges(items: IndexedSegment[], position: number): SpeakerRunEdges {
-  const { speaker } = items[position].segment;
+  const current = items[position];
+  const previous = items[position - 1];
+  const next = items[position + 1];
   return {
-    isStart: position === 0 || items[position - 1].segment.speaker !== speaker,
-    isEnd: position === items.length - 1 || items[position + 1].segment.speaker !== speaker,
+    isStart: !previous || !continuesRun(previous, current),
+    isEnd: !next || !continuesRun(current, next),
   };
 }
 
-// The rail keys on `source` (is this the local mic channel?) while runs key on
-// `speaker` (who is talking?). Separate questions, so deliberately separate fields —
-// they only coincide while every channel carries exactly one speaker label.
+// The rail keys on `source` (the local mic channel) while runs key on `speaker`.
 export function segmentClasses(
   segment: TranscriptSegment,
   runEdges: SpeakerRunEdges,

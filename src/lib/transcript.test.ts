@@ -69,19 +69,21 @@ describe("speakerRunEdges", () => {
     ]);
   });
 
-  test("indexes by list position, not by the segment's original index", () => {
+  test("breaks the run where a query hid the segments in between", () => {
     const segments = [
       { ...segment("mic", 1_000, 2_000), text: "keep me" },
-      { ...segment("system", 3_000, 4_000), text: "filtered out" },
-      { ...segment("mic", 5_000, 6_000), text: "keep me too" },
+      { ...segment("mic", 3_000, 4_000), text: "keep me too" },
+      { ...segment("system", 5_000, 6_000), text: "filtered out" },
+      { ...segment("mic", 7_000, 8_000), text: "keep me last" },
     ];
 
     const items = visibleSegments(segments, "keep me");
 
-    expect(items.map((item) => item.index)).toEqual([0, 2]);
+    expect(items.map((item) => item.index)).toEqual([0, 1, 3]);
     expect(items.map((_, position) => speakerRunEdges(items, position))).toEqual([
       { isStart: true, isEnd: false },
       { isStart: false, isEnd: true },
+      { isStart: true, isEnd: true },
     ]);
   });
 
