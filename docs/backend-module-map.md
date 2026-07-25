@@ -10,7 +10,7 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 
 - `mod.rs`: command adapter module declarations.
 - `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, search, markdown export), plus library disk usage and raw-audio reclamation.
-- `recording.rs`: start/stop/fixture recording commands and finalization cancel.
+- `recording.rs`: start/stop/fixture recording commands.
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
 - `settings.rs`: user-preference read/update commands.
 - `system.rs`: app info, permission status, Finder reveal, clipboard, and privacy-settings deep links through public AppKit APIs.
@@ -116,6 +116,7 @@ Use this when changing how audio is acquired, buffered, leveled, or fixture-driv
 - `live.rs`: the segmenter behind every transcript — splits a mono stream into bounded speech utterances (energy VAD, redemption, duration cap) plus `transcribe_live_utterance`; filler-only mic decodes require sustained confirmation-level audio before commit, while faint substantive speech remains recall-biased; `live/tests.rs` covers segmentation and `live/transcribe/tests.rs` covers decode filtering.
 - `faint_fillers.rs`: acoustic confirmation for filler-only mic decodes plus stop-time cleanup for faint filler segments produced by older or bypassed paths.
 - `live_worker.rs`: the live transcription worker — tails capture buffers per channel during recording, transcribes each closed utterance, emits the `transcript-update` event, and appends segments to the thread transcript.
+- `polish.rs`: the stop-time pass over the committed transcript — the only place both channels are seen together, running cross-channel bleed, system-dominance, and faint-filler suppression while the WAVs still exist; historical segments of a resumed thread are left untouched.
 - `finalize_audio.rs`: the raw-audio retention policy and measured duration for a recording's WAVs; also holds the saved-WAV decoding the quality harness runs (`#[cfg(test)]`).
 - `source_bleed.rs`: stop-time, audio-level suppression of mic segments dominated by overlapping system audio; `source_bleed/profile.rs` builds per-channel RMS/envelope profiles from the WAVs.
 - `text/cleanup.rs`: transcript cleanup, partial sentence handling, prefix agreement, and end-time estimation.
@@ -123,7 +124,7 @@ Use this when changing how audio is acquired, buffered, leveled, or fixture-driv
 - `text/words.rs`: shared word normalization, n-gram, and sentence splitting helpers.
 - `mod.rs`: transcription facade used by recording and tests.
 
-Use this when changing model status, Parakeet behavior, model download/install, the segmenter, live transcription, cleanup, cross-channel bleed, or audio math. Transcription owns the live path (`live_worker.rs` streams segments during recording) and the stop-time polish pass that suppresses cross-channel bleed over the committed transcript; `recording` only starts and stops them. Audio is transcribed once, while it is captured — nothing re-decodes a saved WAV.
+Use this when changing model status, Parakeet behavior, model download/install, the segmenter, live transcription, cleanup, cross-channel bleed, or audio math. Transcription owns the live path (`live_worker.rs` streams segments during recording) and the stop-time polish pass that suppresses cross-channel bleed over the committed transcript; `recording` only starts and stops them. Audio is transcribed once, while it is captured — the saved WAVs are re-read only for energy profiles, never re-transcribed.
 
 ## `src-tauri/src/recording`
 
