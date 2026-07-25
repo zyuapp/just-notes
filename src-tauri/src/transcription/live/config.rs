@@ -26,8 +26,10 @@ impl SegmenterConfig {
         }
     }
 
-    /// Finalization: a low fixed gate favors recall since this pass is
-    /// authoritative and re-reads the full recording.
+    /// A low fixed gate that re-reads whole saved channels. No shipping path
+    /// uses it; the quality harness measures it as a recall ceiling for
+    /// [`Self::live`].
+    #[cfg(test)]
     pub(crate) fn finalize() -> Self {
         Self {
             speech_rms: 0.0008,

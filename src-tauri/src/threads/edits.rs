@@ -98,8 +98,8 @@ fn existing_thread_dir(paths: &AppPaths, thread_id: &str) -> Result<std::path::P
     Ok(thread_dir)
 }
 
-// Renames write thread.json, which the live recorder and the finalization pass
-// also write; they must wait until the thread is idle.
+// Renames write thread.json, which the live recorder also writes; they must
+// wait until the thread is idle.
 fn ensure_thread_not_busy(thread_dir: &std::path::Path) -> Result<(), String> {
     let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
     if metadata.status.is_busy() {

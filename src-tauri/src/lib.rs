@@ -20,14 +20,13 @@ use meetings::MeetingSchedulerState;
 use recording::RecorderState;
 use settings::SettingsState;
 use threads::repository::reset_stale_recording_threads;
-use transcription::{FinalizeState, ModelDownloadState};
+use transcription::ModelDownloadState;
 
 type SetupResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 pub fn run() {
     let builder = Builder::default()
         .manage(RecorderState::default())
-        .manage(FinalizeState::default())
         .manage(ModelDownloadState::default())
         .manage(MeetingSchedulerState::default())
         .menu(app_menu::build)
@@ -87,15 +86,11 @@ fn manage_persistent_state(app: &mut tauri::App<Wry>) -> SetupResult {
 fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
     if let tauri::RunEvent::ExitRequested { api, .. } = event {
         let recorder = app.state::<RecorderState>().inner().clone();
-        let finalize = app.state::<FinalizeState>().inner().clone();
-        if recorder.is_active() || finalize.is_active() {
+        if recorder.is_active() {
             api.prevent_exit();
             let app = app.clone();
             tauri::async_runtime::spawn_blocking(move || {
-                if recorder.is_active() {
-                    stop_active_recording(&app);
-                }
-                finalize.wait_for_idle();
+                stop_active_recording(&app);
                 app.exit(0);
             });
         }
@@ -137,8 +132,6 @@ macro_rules! command_handler {
         commands::meetings::dismiss_meeting_prompt,
         commands::recording::start_recording,
         commands::recording::stop_recording,
-        commands::recording::reprocess_thread,
-        commands::recording::cancel_finalization,
         $($extra),*
         ])
     };

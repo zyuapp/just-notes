@@ -42,7 +42,7 @@ pub(crate) fn suppress_unconfirmed_mic_fillers(
         .collect()
 }
 
-/// Stop/reprocess-time defense for mic transcripts produced by an older or
+/// Stop-time defense for mic transcripts produced by an older or
 /// bypassed live path. Unlike the former isolation rule, conversational
 /// proximity is not evidence that the mic audio contained speech. System
 /// fillers are never filtered: quiet remote speech is valid conversation.

@@ -1,21 +1,29 @@
+use std::path::Path;
+
+use super::wav_duration_ms;
+use crate::threads::RecordingAudioPaths;
+
+#[cfg(test)]
 use std::{
     fs::File,
     io::BufReader,
-    path::Path,
     sync::atomic::{AtomicBool, Ordering},
 };
 
+#[cfg(test)]
 use hound::{SampleFormat, WavReader, WavSpec};
 
+#[cfg(test)]
 use super::{
-    transcribe_live_utterance, wav_duration_ms, ChannelRole, LiveSegmenter, SegmenterConfig,
-    Transcriber, Utterance,
+    transcribe_live_utterance, ChannelRole, LiveSegmenter, SegmenterConfig, Transcriber, Utterance,
 };
-use crate::threads::{RecordingAudioPaths, TranscriptSegment};
+#[cfg(test)]
+use crate::threads::TranscriptSegment;
 
 // Audio is read in bounded blocks and fed through the shared segmenter so the
 // recognizer only ever decodes one short speech utterance at a time, never the
 // whole channel at once.
+#[cfg(test)]
 const FINALIZE_READ_SECONDS: usize = 30;
 
 #[derive(Clone)]
@@ -63,6 +71,9 @@ impl FinalizationAudioArtifacts {
     }
 }
 
+/// Decodes a saved WAV channel through the shared segmenter. Only the quality
+/// harness reads saved audio; the shipping app transcribes live.
+#[cfg(test)]
 pub(super) fn transcribe_wav_channel(
     transcriber: &dyn Transcriber,
     path: &Path,
@@ -99,6 +110,7 @@ pub(super) fn transcribe_wav_channel(
     Ok(segments)
 }
 
+#[cfg(test)]
 fn drain_utterances(
     transcriber: &dyn Transcriber,
     role: ChannelRole,
@@ -111,6 +123,7 @@ fn drain_utterances(
     Ok(())
 }
 
+#[cfg(test)]
 fn read_mono_chunk(
     reader: &mut WavReader<BufReader<File>>,
     spec: WavSpec,

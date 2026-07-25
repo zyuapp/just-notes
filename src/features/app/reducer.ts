@@ -55,8 +55,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, meetingPrompt: action.meetingPrompt };
     case "settingsOpenChanged":
       return { ...state, settingsOpen: action.open };
-    case "finalizationReceived":
-      return { ...state, finalization: action.payload };
     case "recordingStarting":
       return {
         ...state,
@@ -64,7 +62,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         recorderState: "starting",
         meters: emptyMeters,
         liveSegments: [],
-        finalization: null,
       };
     case "recordingStarted":
       return {

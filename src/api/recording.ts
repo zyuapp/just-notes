@@ -14,8 +14,4 @@ export const recordingApi = {
   stop(): Promise<ThreadDetail> {
     return invokeCommand("stop_recording");
   },
-
-  reprocess(threadId: string): Promise<void> {
-    return invokeCommand("reprocess_thread", { threadId });
-  },
 };

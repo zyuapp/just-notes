@@ -1,4 +1,3 @@
-import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
@@ -11,9 +10,7 @@ import { DownloadingLabel } from "./DownloadingLabel";
 type CaptureBarProps = {
   recorderState: RecorderState;
   meters: MeterPayload;
-  finalization: FinalizationStatusPayload | null;
   transcriptionStatus: TranscriptionStatusPayload | null;
-  selectedThreadId: string | null;
   recordButtonControl: RecordButtonControl;
   fixtureMode: boolean;
   onStartFixtureRecording: () => void;
@@ -22,26 +19,20 @@ type CaptureBarProps = {
 export function CaptureBar({
   recorderState,
   meters,
-  finalization,
   transcriptionStatus,
-  selectedThreadId,
   recordButtonControl,
   fixtureMode,
   onStartFixtureRecording,
 }: CaptureBarProps) {
   const isRecording = recorderState === "recording";
   const capturing = isRecording || recorderState === "stopping";
-  const finalizationForThread =
-    finalization && finalization.threadId === selectedThreadId ? finalization : null;
   const idleStatus =
     transcriptionStatus == null
       ? "Checking local transcription…"
       : transcriptionStatus.ready
         ? null
         : transcriptionStatus.message;
-  const status =
-    finalizationForThread?.message ??
-    (capturing ? "Recording — transcript ready when you stop" : idleStatus);
+  const status = capturing ? "Recording — transcript ready when you stop" : idleStatus;
 
   return (
     <footer className={isRecording ? "capture-bar recording" : "capture-bar"}>

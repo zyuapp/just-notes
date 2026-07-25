@@ -1,9 +1,8 @@
 //! Stop-time transcript polish. The live worker publishes each channel's
-//! segments with no cross-channel context, and no re-transcription pass runs
-//! on stop — so speaker bleed (system audio attributed to "You") and
-//! hallucinated fillers would otherwise stay in the transcript forever. This
-//! pass runs the transcript suppressors over the committed transcript while
-//! the recording's WAVs are still on disk.
+//! segments with no cross-channel context, so speaker bleed (system audio
+//! attributed to "You") and hallucinated fillers would otherwise stay in the
+//! transcript forever. This is the only pass that sees both channels together,
+//! and it runs while the recording's WAVs are still on disk.
 
 use std::path::Path;
 

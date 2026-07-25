@@ -23,7 +23,7 @@ pub(crate) fn append_thread_segments(
 }
 
 /// Overwrites a thread's transcript with `segments`, bumps its updated-at, and
-/// re-renders markdown when copies are enabled. Used by the re-transcription
+/// re-renders markdown when copies are enabled. Used by the stop-time polish
 /// pass; live recording persists through [`append_thread_segments`].
 pub(crate) fn commit_transcript(
     thread_dir: &Path,

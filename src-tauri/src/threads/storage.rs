@@ -38,7 +38,7 @@ pub(crate) fn usage(paths: &AppPaths) -> Result<StorageUsage, String> {
 }
 
 /// Deletes `mic.wav`/`system.wav` for every idle thread and reports the bytes
-/// freed. Those threads can no longer be re-transcribed afterwards.
+/// freed. Transcripts are untouched.
 pub(crate) fn delete_reclaimable_raw_audio(paths: &AppPaths) -> Result<u64, String> {
     let mut freed = 0;
     for dir in thread_dirs(paths)? {
