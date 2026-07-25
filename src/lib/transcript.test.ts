@@ -2,8 +2,9 @@ import { describe, expect, test } from "bun:test";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import {
   mergeLiveSegments,
-  showsSpeakerHeader,
+  segmentClasses,
   sortTranscriptSegments,
+  speakerRunEdges,
   visibleSegments,
 } from "./transcript";
 
@@ -48,16 +49,84 @@ describe("visibleSegments", () => {
   });
 });
 
-describe("showsSpeakerHeader", () => {
-  test("shows a header only when the speaker changes", () => {
+describe("speakerRunEdges", () => {
+  test("marks the first and last segment of each same-speaker run", () => {
     const items = visibleSegments(
-      [segment("mic", 1_000, 2_000), segment("mic", 3_000, 4_000), segment("system", 5_000, 6_000)],
+      [
+        segment("mic", 1_000, 2_000),
+        segment("mic", 3_000, 4_000),
+        segment("mic", 5_000, 6_000),
+        segment("system", 7_000, 8_000),
+      ],
       "",
     );
 
-    expect(showsSpeakerHeader(items, 0)).toBe(true);
-    expect(showsSpeakerHeader(items, 1)).toBe(false);
-    expect(showsSpeakerHeader(items, 2)).toBe(true);
+    expect(items.map((_, position) => speakerRunEdges(items, position))).toEqual([
+      { isStart: true, isEnd: false },
+      { isStart: false, isEnd: false },
+      { isStart: false, isEnd: true },
+      { isStart: true, isEnd: true },
+    ]);
+  });
+
+  test("breaks the run where a query hid the segments in between", () => {
+    const segments = [
+      { ...segment("mic", 1_000, 2_000), text: "keep me" },
+      { ...segment("mic", 3_000, 4_000), text: "keep me too" },
+      { ...segment("system", 5_000, 6_000), text: "filtered out" },
+      { ...segment("mic", 7_000, 8_000), text: "keep me last" },
+    ];
+
+    const items = visibleSegments(segments, "keep me");
+
+    expect(items.map((item) => item.index)).toEqual([0, 1, 3]);
+    expect(items.map((_, position) => speakerRunEdges(items, position))).toEqual([
+      { isStart: true, isEnd: false },
+      { isStart: false, isEnd: true },
+      { isStart: true, isEnd: true },
+    ]);
+  });
+
+  test("groups by speaker, so one channel can hold several runs", () => {
+    const items = visibleSegments(
+      [
+        { ...segment("system", 1_000, 2_000), speaker: "Speaker 1" },
+        { ...segment("system", 3_000, 4_000), speaker: "Speaker 2" },
+      ],
+      "",
+    );
+
+    expect(items.map((_, position) => speakerRunEdges(items, position))).toEqual([
+      { isStart: true, isEnd: true },
+      { isStart: true, isEnd: true },
+    ]);
+  });
+});
+
+describe("segmentClasses", () => {
+  const bothEdges = { isStart: true, isEnd: true };
+  const mic = segment("mic", 0, 1_000);
+
+  test("keys the you channel on source, not on the speaker label", () => {
+    expect(segmentClasses(mic, bothEdges, false)).toBe("segment you run-end");
+    expect(segmentClasses(segment("system", 0, 1_000), bothEdges, false)).toBe("segment run-end");
+    expect(segmentClasses({ ...mic, speaker: "Renamed" }, bothEdges, false)).toBe(
+      "segment you run-end",
+    );
+  });
+
+  test("derives continuation and run-end from the run edges", () => {
+    expect(segmentClasses(mic, { isStart: true, isEnd: false }, false)).toBe("segment you");
+    expect(segmentClasses(mic, { isStart: false, isEnd: false }, false)).toBe(
+      "segment you continuation",
+    );
+    expect(segmentClasses(mic, { isStart: false, isEnd: true }, false)).toBe(
+      "segment you continuation run-end",
+    );
+  });
+
+  test("adds the active class while recording", () => {
+    expect(segmentClasses(mic, bothEdges, true)).toBe("segment you run-end active");
   });
 });
 
