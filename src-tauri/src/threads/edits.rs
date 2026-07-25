@@ -6,10 +6,10 @@ use self::fs_move::move_thread_dir;
 use super::{
     repository::{
         list_threads, load_thread_by_id, load_thread_detail, read_thread_metadata,
-        render_thread_markdown, update_thread_metadata, update_thread_metadata_preserving_activity,
+        render_thread_markdown, update_thread_metadata_preserving_activity,
     },
     title::validated_title,
-    transcript_store::{read_transcript_jsonl, write_transcript_jsonl},
+    transcript_store::read_transcript_jsonl,
     ThreadDetail, ThreadSummary,
 };
 
@@ -63,31 +63,6 @@ pub(crate) fn delete_thread(paths: &AppPaths, thread_id: &str) -> Result<(), Str
         .map_err(|err| format!("Failed to delete {}: {err}", thread_dir.display()))
 }
 
-pub(crate) fn update_segment_text(
-    paths: &AppPaths,
-    thread_id: &str,
-    segment_index: usize,
-    text: &str,
-) -> Result<ThreadDetail, String> {
-    let text = text.trim();
-    if text.is_empty() {
-        return Err("Transcript text cannot be empty".to_string());
-    }
-
-    let thread_dir = existing_thread_dir(paths, thread_id)?;
-    ensure_thread_not_busy(&thread_dir)?;
-    let jsonl_path = thread_dir.join("transcript.jsonl");
-    let mut segments = read_transcript_jsonl(&jsonl_path)?;
-    let segment = segments
-        .get_mut(segment_index)
-        .ok_or_else(|| "That transcript segment no longer exists".to_string())?;
-    segment.text = text.to_string();
-    write_transcript_jsonl(&jsonl_path, &segments)?;
-    update_thread_metadata(&thread_dir, |_| {})?;
-    rerender_markdown_if_present(&thread_dir)?;
-    load_thread_detail(&thread_dir)
-}
-
 pub(crate) fn search_threads(paths: &AppPaths, query: &str) -> Result<Vec<ThreadSummary>, String> {
     let query = query.trim().to_lowercase();
     let threads = list_threads(paths)?;
@@ -123,8 +98,8 @@ fn existing_thread_dir(paths: &AppPaths, thread_id: &str) -> Result<std::path::P
     Ok(thread_dir)
 }
 
-// Edits write thread.json and transcript.jsonl, which the live recorder and
-// the finalization pass also write; they must wait until the thread is idle.
+// Renames write thread.json, which the live recorder and the finalization pass
+// also write; they must wait until the thread is idle.
 fn ensure_thread_not_busy(thread_dir: &std::path::Path) -> Result<(), String> {
     let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
     if metadata.status.is_busy() {

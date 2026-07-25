@@ -83,48 +83,6 @@
   color: var(--text-strong);
 }
 
-.segment-edit {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border-radius: 6px;
-  color: var(--text-subtle);
-  cursor: pointer;
-  opacity: 0;
-}
-
-.segment.continuation .segment-edit {
-  top: 2px;
-}
-
-.segment:hover .segment-edit,
-.segment-edit:focus-visible {
-  opacity: 1;
-}
-
-.segment-edit:hover {
-  background: var(--surface-hover);
-  color: var(--text-strong);
-}
-
-.segment-editor {
-  width: 100%;
-  padding: 9px 11px;
-  border: 1px solid var(--border-strong);
-  border-radius: 7px;
-  outline: none;
-  background: var(--surface-app);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: var(--type-reading);
-  line-height: 1.62;
-  resize: vertical;
-}
-
 .transcript-no-match {
   margin: 40px 15px;
   color: var(--text-subtle);

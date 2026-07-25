@@ -13,7 +13,6 @@ type TranscriptSurfaceProps = {
   liveSegments: TranscriptSegment[];
   transcriptionStatus: TranscriptionStatusPayload | null;
   query: string;
-  onSaveSegmentText: (index: number, text: string) => void;
 };
 
 export function TranscriptSurface({
@@ -22,7 +21,6 @@ export function TranscriptSurface({
   liveSegments,
   transcriptionStatus,
   query,
-  onSaveSegmentText,
 }: TranscriptSurfaceProps) {
   const surfaceRef = useRef<HTMLElement | null>(null);
   const isRecording = recorderState === "recording";
@@ -50,12 +48,6 @@ export function TranscriptSurface({
   }
 
   const items = visibleSegments(segments, query);
-  // Live preview segments are not yet persisted, so an index here would not map
-  // to a stored segment; editing stays off until the finalized transcript lands.
-  const editable =
-    recorderState === "idle" &&
-    selectedThread.summary.status === "idle" &&
-    liveSegments.length === 0;
 
   return (
     <section className="transcript-surface" ref={surfaceRef}>
@@ -67,11 +59,8 @@ export function TranscriptSurface({
             <SegmentBlock
               key={`${item.segment.source}-${item.segment.startMs}-${item.index}`}
               segment={item.segment}
-              index={item.index}
               runEdges={speakerRunEdges(items, position)}
               active={isRecording && position === items.length - 1}
-              editable={editable}
-              onSaveText={onSaveSegmentText}
             />
           ))
         )}

@@ -1,6 +1,6 @@
 use std::{env, fs, time::UNIX_EPOCH};
 
-use super::{archive_thread, delete_thread, rename_thread, restore_thread, update_segment_text};
+use super::{archive_thread, delete_thread, rename_thread, restore_thread};
 use crate::app::AppPaths;
 use crate::threads::repository::{list_archived_threads, list_threads};
 
@@ -79,24 +79,6 @@ fn title_rename_preserves_activity_timestamp() {
             .unwrap()
             .starts_with("# Renamed thread\n")
     );
-
-    let _ = fs::remove_dir_all(&paths.data_dir);
-}
-
-#[test]
-fn segment_edit_advances_activity_timestamp() {
-    let paths = temp_paths("segment-edit-timestamp");
-    seed_thread(&paths, "thread-1");
-    fs::write(
-        paths.thread_dir("thread-1").join("transcript.jsonl"),
-        r#"{"speaker":"Speaker 0","source":"microphone","startMs":0,"endMs":1000,"text":"Original"}"#,
-    )
-    .unwrap();
-
-    let detail = update_segment_text(&paths, "thread-1", 0, "Updated").unwrap();
-
-    assert!(detail.summary.updated_at_ms > 1);
-    assert_eq!(detail.segments[0].text, "Updated");
 
     let _ = fs::remove_dir_all(&paths.data_dir);
 }
