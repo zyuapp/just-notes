@@ -77,9 +77,9 @@ fn stop_recording_inner(app: AppHandle, recorder: RecorderState) -> Result<Threa
     let duration_ms = resume_offset_ms.unwrap_or(0).saturating_add(session_ms);
     let persist_result = persist_stopped_thread(&thread_dir, duration_ms, settings.markdown_copy);
 
-    // No finalization pass owns raw-audio cleanup now, so honor the retention
-    // policy here even if persisting failed: drop the WAVs unless the user opted
-    // to keep them. Best-effort, so a leftover file never blocks the stop.
+    // Stop owns raw-audio cleanup, so honor the retention policy here even if
+    // persisting failed: drop the WAVs unless the user opted to keep them.
+    // Best-effort, so a leftover file never blocks the stop.
     let _ = audio_artifacts.cleanup_if_transient();
     // A failed audio-file finalize leaves a possibly-truncated WAV, but the
     // transcript was persisted live and is unaffected.

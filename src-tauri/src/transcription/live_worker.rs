@@ -73,9 +73,9 @@ fn run_live_transcription(config: LiveTranscriptionConfig, should_stop: Arc<Atom
         thread::sleep(Duration::from_millis(LIVE_POLL_MS));
     }
 
-    // No finalization pass runs on stop, so flush the audio since the last poll
-    // plus each channel's open utterance here; otherwise the last thing said
-    // before stop would be missing from the transcript.
+    // Last chance to emit: flush the audio since the last poll plus each
+    // channel's open utterance, or the final words spoken before stop never
+    // reach the transcript.
     publish(&config, mic.drain_and_flush(&config, &*transcriber));
     publish(&config, system.drain_and_flush(&config, &*transcriber));
 }
