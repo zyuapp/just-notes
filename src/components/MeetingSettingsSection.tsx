@@ -12,7 +12,7 @@ type MeetingSettingsSectionProps = MeetingSettingsActions & {
 };
 
 export function MeetingSettingsSection(props: MeetingSettingsSectionProps) {
-  const { access, requestingAccess, onOpenPrivacy, onRequestAccess } = props;
+  const { access, requestingAccess, onOpenPrivacy, onRequestCalendarAccess } = props;
   const calendarAuthorized = access?.calendarAuthorization === "authorized";
 
   return (
@@ -23,7 +23,7 @@ export function MeetingSettingsSection(props: MeetingSettingsSectionProps) {
         <MeetingCalendarConnect
           denied={access?.calendarAuthorization === "denied"}
           busy={requestingAccess}
-          onConnect={onRequestAccess}
+          onConnect={onRequestCalendarAccess}
           onOpenSettings={() => onOpenPrivacy("calendar")}
         />
       )}

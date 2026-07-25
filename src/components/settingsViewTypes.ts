@@ -18,7 +18,8 @@ export type SettingsData = {
 export type MeetingSettingsActions = {
   pendingCalendarIds: string[];
   requestingAccess: boolean;
-  onRequestAccess: () => void;
+  onRequestCalendarAccess: () => void;
+  onRequestNotificationAccess: () => void;
   onToggleCalendar: (calendarId: string) => void;
   onToggleReminders: () => void;
   onSetReminderMinutes: (minutes: number) => void;

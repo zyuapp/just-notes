@@ -1,6 +1,9 @@
-import { useCallback, useRef, useState } from "react";
-import { api, getApiErrorMessage } from "../../api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "../../api";
+import type { MeetingAccessPayload } from "../../bindings/MeetingAccessPayload";
 import { hasWatchedCalendar, toggleCalendarSelection } from "../../lib/meetingCalendars";
+import { createMeetingAccessRefresh } from "./meetingAccessRefresh";
+import { runMeetingAccessRequest } from "./meetingAccessRequest";
 import type { AppAction, AppState } from "./state";
 import type { SettingsUpdater } from "./useSettingsController";
 
@@ -12,34 +15,82 @@ export function useMeetingSettingsController(
   updateSettings: (update: SettingsUpdater) => Promise<void>,
 ) {
   const accessRequestInFlight = useRef(false);
+  const accessRefreshRef = useRef<ReturnType<typeof createMeetingAccessRefresh> | null>(null);
+  if (accessRefreshRef.current === null) {
+    accessRefreshRef.current = createMeetingAccessRefresh((meetingAccess) => {
+      dispatch({ type: "meetingAccessLoaded", meetingAccess });
+    });
+  }
+  const accessRefresh = accessRefreshRef.current;
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [pendingCalendarIds, setPendingCalendarIds] = useState<string[]>([]);
-  const fail = useCallback(
-    (error: unknown) => dispatch({ type: "failed", message: getApiErrorMessage(error) }),
-    [dispatch],
+
+  const refreshAccess = useCallback(async () => {
+    try {
+      await accessRefresh.refresh(api.meetings.getAccessStatus);
+    } catch {
+      // Automatic permission refreshes are best-effort; explicit requests report failures.
+    }
+  }, [accessRefresh]);
+
+  // The native window focus event, not the DOM one: WKWebView does not reliably
+  // re-fire `focus` on the page when the app window regains key status after a
+  // system permission dialog or a trip to System Settings.
+  useEffect(() => {
+    if (!state.settingsOpen) return;
+    void refreshAccess();
+
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void api.window
+      .onFocusChanged((focused) => {
+        if (focused && !disposed) void refreshAccess();
+      })
+      .then((stopListening) => {
+        if (disposed) stopListening();
+        else unlisten = stopListening;
+      })
+      .catch(() => undefined);
+
+    return () => {
+      disposed = true;
+      accessRefresh.invalidate();
+      unlisten?.();
+    };
+  }, [accessRefresh, refreshAccess, state.settingsOpen]);
+
+  const runAccessRequest = useCallback(
+    async (request: () => Promise<MeetingAccessPayload>) => {
+      // A second request would stack another system dialog, so this gesture stays
+      // guarded rather than queued.
+      if (accessRequestInFlight.current) return;
+      accessRequestInFlight.current = true;
+      accessRefresh.beginPermissionRequest();
+      setRequestingAccess(true);
+      try {
+        await runMeetingAccessRequest({
+          dispatch,
+          request,
+          refresh: api.meetings.getAccessStatus,
+        });
+      } finally {
+        accessRefresh.endPermissionRequest();
+        accessRequestInFlight.current = false;
+        setRequestingAccess(false);
+      }
+    },
+    [accessRefresh, dispatch],
   );
 
-  const requestAccess = useCallback(async () => {
-    // A second request would stack another system dialog, so this gesture stays
-    // guarded rather than queued.
-    if (accessRequestInFlight.current) return;
-    accessRequestInFlight.current = true;
-    setRequestingAccess(true);
-    dispatch({ type: "errorCleared" });
-    try {
-      const meetingAccess = await api.meetings.requestAccess();
-      dispatch({ type: "meetingAccessLoaded", meetingAccess });
-    } catch (error) {
-      api.meetings
-        .getAccessStatus()
-        .then((meetingAccess) => dispatch({ type: "meetingAccessLoaded", meetingAccess }))
-        .catch(() => undefined);
-      fail(error);
-    } finally {
-      accessRequestInFlight.current = false;
-      setRequestingAccess(false);
-    }
-  }, [dispatch, fail]);
+  const requestCalendarAccess = useCallback(
+    () => runAccessRequest(() => api.meetings.requestCalendarAccess()),
+    [runAccessRequest],
+  );
+
+  const requestNotificationAccess = useCallback(
+    () => runAccessRequest(() => api.meetings.requestNotificationAccess()),
+    [runAccessRequest],
+  );
 
   const availableCalendars = state.meetingAccess?.calendars ?? [];
 
@@ -92,7 +143,8 @@ export function useMeetingSettingsController(
   return {
     pendingCalendarIds,
     requestingAccess,
-    requestAccess,
+    requestCalendarAccess,
+    requestNotificationAccess,
     setReminderMinutes,
     toggleCalendar,
     toggleEndReminders,

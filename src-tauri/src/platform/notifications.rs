@@ -14,6 +14,8 @@ use objc2_user_notifications::{
 };
 use tauri::AppHandle;
 
+use super::permission_request_result;
+
 #[derive(Clone, Debug)]
 pub(crate) struct NotificationResponseAction {
     pub(crate) action_id: String,
@@ -121,12 +123,9 @@ pub(crate) fn request_access(app: &AppHandle) -> Result<(), String> {
 
 fn request_access_on_main(sender: mpsc::Sender<Result<(), String>>) {
     let center = UNUserNotificationCenter::currentNotificationCenter();
-    let completion = RcBlock::new(move |granted: Bool, _error: *mut NSError| {
-        let result = if granted.as_bool() {
-            Ok(())
-        } else {
-            Err("Notification permission was not granted".to_string())
-        };
+    let completion = RcBlock::new(move |_granted: Bool, error: *mut NSError| {
+        let error = unsafe { error.as_ref() }.map(|error| error.localizedDescription().to_string());
+        let result = permission_request_result("notification", error);
         let _ = sender.send(result);
     });
     center.requestAuthorizationWithOptions_completionHandler(

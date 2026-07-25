@@ -8,8 +8,12 @@ export const meetingsApi = {
     return invokeCommand("get_meeting_access_status");
   },
 
-  requestAccess(): Promise<MeetingAccessPayload> {
-    return invokeCommand("request_meeting_access");
+  requestCalendarAccess(): Promise<MeetingAccessPayload> {
+    return invokeCommand("request_meeting_calendar_access");
+  },
+
+  requestNotificationAccess(): Promise<MeetingAccessPayload> {
+    return invokeCommand("request_meeting_notification_access");
   },
 
   getPrompt(): Promise<MeetingPromptPayload | null> {

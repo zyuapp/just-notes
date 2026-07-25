@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-matches="$(rg --line-number '@tauri-apps/api/(core|event)' src --glob '!src/api/**' || true)"
+matches="$(rg --line-number '@tauri-apps/api/' src --glob '!src/api/**' || true)"
 
 if [ -n "$matches" ]; then
   echo "$matches"

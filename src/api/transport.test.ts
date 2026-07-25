@@ -8,6 +8,7 @@ mock.module("@tauri-apps/api/core", () => ({
 }));
 
 const { invokeCommand } = await import("./transport");
+const { meetingsApi } = await import("./meetings");
 
 describe("invokeCommand", () => {
   beforeEach(() => {
@@ -34,5 +35,27 @@ describe("invokeCommand", () => {
       expect(error).toBeInstanceOf(ApiError);
       expect((error as ApiError).message).toBe("Tauri rejected command");
     }
+  });
+});
+
+describe("meetingsApi", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+  });
+
+  test("requests Calendar access with the Calendar-only command", async () => {
+    invokeMock.mockResolvedValueOnce({});
+
+    await meetingsApi.requestCalendarAccess();
+
+    expect(invokeMock.mock.calls).toEqual([["request_meeting_calendar_access", undefined]]);
+  });
+
+  test("requests notification access with the notification-only command", async () => {
+    invokeMock.mockResolvedValueOnce({});
+
+    await meetingsApi.requestNotificationAccess();
+
+    expect(invokeMock.mock.calls).toEqual([["request_meeting_notification_access", undefined]]);
   });
 });

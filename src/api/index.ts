@@ -6,6 +6,7 @@ import { settingsApi } from "./settings";
 import { systemApi } from "./system";
 import { threadsApi } from "./threads";
 import { transcriptionApi } from "./transcription";
+import { windowApi } from "./window";
 
 export { getApiErrorMessage, toApiError, ApiError } from "./errors";
 
@@ -18,4 +19,5 @@ export const api = {
   system: systemApi,
   threads: threadsApi,
   transcription: transcriptionApi,
+  window: windowApi,
 };
