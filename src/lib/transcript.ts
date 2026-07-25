@@ -9,9 +9,32 @@ export function visibleSegments(segments: TranscriptSegment[], query: string): I
   return indexed.filter(({ segment }) => segment.text.toLowerCase().includes(trimmed));
 }
 
-export function showsSpeakerHeader(items: IndexedSegment[], position: number): boolean {
-  if (position === 0) return true;
-  return items[position - 1].segment.speaker !== items[position].segment.speaker;
+export type SpeakerRunEdges = { isStart: boolean; isEnd: boolean };
+
+// A run is a maximal group of adjacent segments sharing one speaker. `isStart` also
+// decides header visibility; both edges let the speaker rail span the run as one line.
+export function speakerRunEdges(items: IndexedSegment[], position: number): SpeakerRunEdges {
+  const { speaker } = items[position].segment;
+  return {
+    isStart: position === 0 || items[position - 1].segment.speaker !== speaker,
+    isEnd: position === items.length - 1 || items[position + 1].segment.speaker !== speaker,
+  };
+}
+
+// The rail keys on `source` (is this the local mic channel?) while runs key on
+// `speaker` (who is talking?). Separate questions, so deliberately separate fields —
+// they only coincide while every channel carries exactly one speaker label.
+export function segmentClasses(
+  segment: TranscriptSegment,
+  runEdges: SpeakerRunEdges,
+  active: boolean,
+): string {
+  const classes = ["segment"];
+  if (segment.source === "mic") classes.push("you");
+  if (!runEdges.isStart) classes.push("continuation");
+  if (runEdges.isEnd) classes.push("run-end");
+  if (active) classes.push("active");
+  return classes.join(" ");
 }
 
 export function transcriptToText(

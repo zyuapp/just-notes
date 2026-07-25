@@ -3,7 +3,7 @@ import type { ThreadDetail } from "../bindings/ThreadDetail";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
-import { mergeLiveSegments, showsSpeakerHeader, visibleSegments } from "../lib/transcript";
+import { mergeLiveSegments, speakerRunEdges, visibleSegments } from "../lib/transcript";
 import { SegmentBlock } from "./SegmentBlock";
 import { TranscriptEmptyState } from "./TranscriptEmptyState";
 
@@ -68,8 +68,7 @@ export function TranscriptSurface({
               key={`${item.segment.source}-${item.segment.startMs}-${item.index}`}
               segment={item.segment}
               index={item.index}
-              showHeader={showsSpeakerHeader(items, position)}
-              speakerLabel={item.segment.speaker}
+              runEdges={speakerRunEdges(items, position)}
               active={isRecording && position === items.length - 1}
               editable={editable}
               onSaveText={onSaveSegmentText}

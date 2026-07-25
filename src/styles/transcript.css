@@ -10,9 +10,11 @@
   margin: 0 auto;
 }
 
+/* The left padding reserves the rail gutter on every segment, so mic and system
+   speech keep one text origin and the reading column never shifts. */
 .segment {
   position: relative;
-  padding: 8px 12px;
+  padding: 8px 12px 8px 15px;
   border-radius: 8px;
 }
 
@@ -22,6 +24,27 @@
 
 .segment.continuation {
   padding-top: 2px;
+}
+
+/* Runs out to the segment edges so consecutive mic segments draw one unbroken
+   rail; the run's outer edges inset to sit level with the label and last line. */
+.segment.you::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--speaker-you-rail);
+}
+
+.segment.you:not(.continuation)::before {
+  top: 7px;
+}
+
+.segment.you.run-end::before {
+  bottom: 7px;
 }
 
 .segment-head {
@@ -38,7 +61,7 @@
 }
 
 .segment.you .segment-head strong {
-  color: var(--text-primary);
+  color: var(--speaker-you);
 }
 
 .segment-head time {

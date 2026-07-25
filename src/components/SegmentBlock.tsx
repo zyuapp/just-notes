@@ -2,12 +2,12 @@ import { Pencil } from "lucide-react";
 import { useState } from "react";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import { formatDuration } from "../lib/format";
+import { segmentClasses, type SpeakerRunEdges } from "../lib/transcript";
 
 type SegmentBlockProps = {
   segment: TranscriptSegment;
   index: number;
-  showHeader: boolean;
-  speakerLabel: string;
+  runEdges: SpeakerRunEdges;
   active: boolean;
   editable: boolean;
   onSaveText: (index: number, text: string) => void;
@@ -16,18 +16,12 @@ type SegmentBlockProps = {
 export function SegmentBlock({
   segment,
   index,
-  showHeader,
-  speakerLabel,
+  runEdges,
   active,
   editable,
   onSaveText,
 }: SegmentBlockProps) {
   const [draft, setDraft] = useState<string | null>(null);
-
-  const classes = ["segment"];
-  if (segment.source === "mic") classes.push("you");
-  if (!showHeader) classes.push("continuation");
-  if (active) classes.push("active");
 
   const commit = () => {
     if (draft !== null && draft.trim() && draft.trim() !== segment.text) {
@@ -37,10 +31,10 @@ export function SegmentBlock({
   };
 
   return (
-    <article className={classes.join(" ")}>
-      {showHeader && (
+    <article className={segmentClasses(segment, runEdges, active)}>
+      {runEdges.isStart && (
         <header className="segment-head">
-          <strong>{speakerLabel}</strong>
+          <strong>{segment.speaker}</strong>
           <time>{formatDuration(segment.startMs)}</time>
         </header>
       )}
