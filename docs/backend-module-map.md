@@ -82,7 +82,7 @@ Use this when frontend/backend payload shape changes are needed.
 - `storage.rs`: library disk footprint (total, raw-audio, reclaimable bytes) and deletion of raw audio belonging to idle threads.
 - `repository.rs`: thread-directory enumeration, active/archived listing, loading, status/duration updates, work directory setup, markdown rendering and `transcript.md` export, and stale-status cleanup.
 - `create.rs`: collision-safe thread directory creation plus internal and external title handling.
-- `edits.rs`: user-initiated mutations — rename, archive, restore, delete, edit segment text, and search across titles and transcript text.
+- `edits.rs`: user-initiated mutations — rename, archive, restore, delete, and search across titles and transcript text.
 - `edits/fs_move.rs`: filesystem move of a thread directory between the active and archive locations.
 - `artifacts.rs`: `RecordingAudioPaths` — on-disk locations of a thread's raw `mic.wav`/`system.wav`, plus existence checks and removal.
 - `transcript_store.rs`: transcript JSONL append/read/count/replace behavior, snippet extraction, and atomic text writes.

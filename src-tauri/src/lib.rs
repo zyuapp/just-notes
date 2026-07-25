@@ -126,7 +126,6 @@ macro_rules! command_handler {
         commands::threads::archive_thread,
         commands::threads::restore_thread,
         commands::threads::delete_thread,
-        commands::threads::update_segment_text,
         commands::threads::search_threads,
         commands::threads::export_thread_markdown,
         commands::settings::get_settings,

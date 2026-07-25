@@ -119,7 +119,6 @@ export function TranscriptPanel({
         liveSegments={liveSegments}
         transcriptionStatus={transcriptionStatus}
         query={query}
-        onSaveSegmentText={(index, text) => void threadActions.updateSegmentText(index, text)}
       />
 
       <CaptureBar

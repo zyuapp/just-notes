@@ -81,19 +81,6 @@ export function useThreadActions(
     [fail],
   );
 
-  const updateSegmentText = useCallback(
-    async (segmentIndex: number, text: string) => {
-      if (!threadId) return;
-      try {
-        const detail = await api.threads.updateSegmentText(threadId, segmentIndex, text);
-        dispatch({ type: "threadUpdated", detail });
-      } catch (error) {
-        fail(error);
-      }
-    },
-    [dispatch, fail, threadId],
-  );
-
   const copyTranscript = useCallback(async () => {
     if (!selected) return;
     try {
@@ -134,6 +121,5 @@ export function useThreadActions(
     renameThread,
     restoreThread,
     revealPath,
-    updateSegmentText,
   };
 }

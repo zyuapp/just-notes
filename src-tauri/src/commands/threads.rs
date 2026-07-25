@@ -57,16 +57,6 @@ pub(crate) fn delete_thread(paths: State<'_, AppPaths>, thread_id: String) -> Re
 }
 
 #[tauri::command]
-pub(crate) fn update_segment_text(
-    paths: State<'_, AppPaths>,
-    thread_id: String,
-    segment_index: usize,
-    text: String,
-) -> Result<ThreadDetail, String> {
-    edits::update_segment_text(&paths, &thread_id, segment_index, &text)
-}
-
-#[tauri::command]
 pub(crate) fn search_threads(
     paths: State<'_, AppPaths>,
     query: String,
