@@ -1,7 +1,8 @@
-//! Transcript-quality harness: runs both transcription pipelines — the live
-//! path (authoritative transcript) and the finalize/reprocess path — on local
-//! fixture recordings with known reference transcripts and holds WER,
-//! missed-segment, and hallucination metrics to a committed baseline.
+//! Transcript-quality harness: runs two segmenter gates — "live", the path that
+//! produces every shipping transcript, and "finalize", a measurement-only gate
+//! that re-reads whole saved channels — on local fixture recordings with known
+//! reference transcripts, and holds WER, missed-segment, and hallucination
+//! metrics to a committed baseline.
 //!
 //! Fixtures live in `~/.just-notes/quality-fixtures` (see
 //! `scripts/setup-quality-fixtures.sh`). The model is read from the sandbox
@@ -17,7 +18,8 @@
 //! Accepted residuals, recorded as regression floors rather than endorsed
 //! numbers:
 //! - `7-quiet-with-room-tone@live` (~50% WER): whisper-level speech ~6 dB
-//!   over a noise floor; the finalize pass (5.9%) is the recovery path.
+//!   over a noise floor. The finalize gate scores 5.9% on it, so the loss is
+//!   the live gate's, not the recognizer's.
 //! - `10-quiet-backchannels` / `11-quiet-replies-over-bleed`: voiced-quiet
 //!   interjections and faint substantive replies spoken over correlated
 //!   bleed are partly lost — they ride inside bleed-dominated utterances
@@ -48,9 +50,9 @@ use metrics::{evaluate, hallucinated_segments, FixtureMetrics};
 const WER_TOLERANCE: f32 = 0.01;
 pub(super) const SUPPORTED_MODE_NAMES: [&str; 2] = ["live", "finalize"];
 
-/// Both pipelines share the recognizer and suppressors; they differ in the
+/// Both modes share the recognizer and suppressors; they differ only in the
 /// segmenter gate. "live" mirrors the live-to-stop flow that produces the
-/// transcript users keep; "finalize" mirrors manual reprocessing.
+/// transcript users keep; "finalize" is a recall ceiling to measure it against.
 fn modes() -> [(&'static str, SegmenterConfig); 2] {
     [
         (SUPPORTED_MODE_NAMES[0], SegmenterConfig::live()),

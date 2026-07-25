@@ -114,15 +114,6 @@ describe("appReducer", () => {
     expect(updated.selectedThread).toBeNull();
   });
 
-  test("stores finalization progress", () => {
-    const updated = appReducer(initialAppState, {
-      type: "finalizationReceived",
-      payload: { threadId: "thread-1", state: "running", message: "Improving" },
-    });
-
-    expect(updated.finalization?.state).toBe("running");
-  });
-
   test("stores meeting calendar access", () => {
     const meetingAccess = { calendarAuthorization: "authorized",
       notificationAuthorization: "authorized", calendars: [{ id: "calendar-1", title: "Work", account: "iCloud", color: "#5b8ff9" }] };

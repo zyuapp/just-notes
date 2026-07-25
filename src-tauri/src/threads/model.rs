@@ -16,6 +16,9 @@ pub(crate) struct ThreadMetadata {
 pub(crate) enum ThreadStatus {
     Idle,
     Recording,
+    /// Never written. Retained so `thread.json` files left behind by earlier
+    /// versions still deserialize; `reset_stale_recording_threads` clears them
+    /// to `Idle` at startup.
     Transcribing,
 }
 

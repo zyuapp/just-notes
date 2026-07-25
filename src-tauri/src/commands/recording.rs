@@ -7,7 +7,6 @@ use crate::{
     recording_payload,
     settings::SettingsState,
     threads::ThreadDetail,
-    transcription::FinalizeState,
 };
 
 #[tauri::command]
@@ -58,39 +57,4 @@ pub(crate) async fn stop_recording(
     tauri::async_runtime::spawn_blocking(move || recording::stop_recording(app, recorder))
         .await
         .map_err(|err| format!("Audio stop task failed: {err}"))?
-}
-
-#[tauri::command]
-// Tauri injects each managed state and command argument independently.
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn reprocess_thread(
-    app: AppHandle,
-    paths: State<'_, AppPaths>,
-    recorder: State<'_, RecorderState>,
-    settings: State<'_, SettingsState>,
-    finalize: State<'_, FinalizeState>,
-    thread_id: String,
-) -> Result<(), String> {
-    let paths = paths.inner().clone();
-    let recorder = recorder.inner().clone();
-    let settings = settings.inner().clone();
-    let finalize = finalize.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let app_settings = settings.snapshot();
-        recording::reprocess_thread(recording::ReprocessRequest {
-            app,
-            paths,
-            recorder,
-            settings: app_settings,
-            finalize,
-            thread_id,
-        })
-    })
-    .await
-    .map_err(|err| format!("Reprocess task failed: {err}"))?
-}
-
-#[tauri::command]
-pub(crate) fn cancel_finalization(finalize: State<'_, FinalizeState>, thread_id: String) -> bool {
-    finalize.cancel(&thread_id)
 }

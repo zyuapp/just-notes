@@ -40,11 +40,11 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Transcription
 
-`transcription` owns local speech-to-text behavior. It knows model status, the Parakeet (sherpa-onnx) runtime setup, model download/installation, audio math, the speech segmenter, text cleanup, duplicate and cross-channel bleed suppression, the live transcription worker that streams segments during recording, and the on-demand finalization pass that re-transcribes saved audio. It reads capture buffers and writes transcript segments through the thread storage boundary.
+`transcription` owns local speech-to-text behavior. It knows model status, the Parakeet (sherpa-onnx) runtime setup, model download/installation, audio math, the speech segmenter, text cleanup, duplicate and cross-channel bleed suppression, the live transcription worker that streams segments during recording, and the stop-time polish pass that suppresses cross-channel bleed. It reads capture buffers and writes transcript segments through the thread storage boundary.
 
 ### Recording
 
-`recording` owns recording-session orchestration and serializes recording operations that mutate the thread store. It starts and stops capture, streams raw audio to disk, emits meter updates, selects or creates a thread, persists duration, starts and stops live transcription, kicks off on-demand re-transcription, and updates the tray. It coordinates contexts, but it should avoid owning low-level capture, transcription, or thread persistence details.
+`recording` owns recording-session orchestration and serializes recording operations that mutate the thread store. It starts and stops capture, streams raw audio to disk, emits meter updates, selects or creates a thread, persists duration, starts and stops live transcription, and updates the tray. It coordinates contexts, but it should avoid owning low-level capture, transcription, or thread persistence details.
 
 ## Dependency Direction
 

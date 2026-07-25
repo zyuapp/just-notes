@@ -50,8 +50,7 @@ fn stop_recording_inner(app: AppHandle, recorder: RecorderState) -> Result<Threa
     }
     stop_audio_capture(audio_capture);
     // Live transcription has been persisting each utterance as it lands; stopping
-    // it flushes the final tail, leaving an authoritative transcript on disk with
-    // no separate re-transcription pass.
+    // it flushes the final tail, leaving the complete transcript on disk.
     live_transcription.stop();
     let audio_sink_result = audio_sink.stop();
     drop(buffers);

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import type { FinalizationStatusPayload } from "../bindings/FinalizationStatusPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { MeetingPromptPayload } from "../bindings/MeetingPromptPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
@@ -20,7 +19,6 @@ import { TranscriptToolbar } from "./TranscriptToolbar";
 type TranscriptPanelProps = {
   error: string | null;
   fixtureMode: boolean;
-  finalization: FinalizationStatusPayload | null;
   meters: MeterPayload;
   notice: Notice | null;
   recorderState: RecorderState;
@@ -31,7 +29,6 @@ type TranscriptPanelProps = {
   transcriptionStatus: TranscriptionStatusPayload | null;
   threadActions: ThreadActions;
   onArchiveThread: (threadId: string) => void;
-  onReprocess: (threadId: string) => void;
   onStartFixtureRecording: () => void;
   onStartMeetingRecording: (requestId: string) => void;
   onDismissMeetingPrompt: (requestId: string) => void;
@@ -40,7 +37,6 @@ type TranscriptPanelProps = {
 export function TranscriptPanel({
   error,
   fixtureMode,
-  finalization,
   meters,
   notice,
   recorderState,
@@ -51,7 +47,6 @@ export function TranscriptPanel({
   transcriptionStatus,
   threadActions,
   onArchiveThread,
-  onReprocess,
   onStartFixtureRecording,
   onStartMeetingRecording,
   onDismissMeetingPrompt,
@@ -88,18 +83,13 @@ export function TranscriptPanel({
         </p>
       </header>
 
-      {selectedThread && (hasSegments || selectedThread.summary.hasAudio) && (
+      {selectedThread && hasSegments && (
         <TranscriptToolbar
           query={query}
           canModify={canModify}
           onQueryChange={setQuery}
           onCopy={() => void threadActions.copyTranscript()}
           onArchive={() => onArchiveThread(selectedThread.summary.id)}
-          onReprocess={
-            selectedThread.summary.hasAudio
-              ? () => onReprocess(selectedThread.summary.id)
-              : undefined
-          }
         />
       )}
 
@@ -124,9 +114,7 @@ export function TranscriptPanel({
       <CaptureBar
         recorderState={recorderState}
         meters={meters}
-        finalization={finalization}
         transcriptionStatus={transcriptionStatus}
-        selectedThreadId={summary?.id ?? null}
         recordButtonControl={recordButtonControl}
         fixtureMode={fixtureMode}
         onStartFixtureRecording={onStartFixtureRecording}

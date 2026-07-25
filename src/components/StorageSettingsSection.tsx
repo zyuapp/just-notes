@@ -48,7 +48,7 @@ export function StorageSettingsSection(props: StorageSettingsSectionProps) {
         description={
           props.settings.saveRawAudio
             ? "Keep mic.wav and system.wav after the transcript is polished."
-            : "Off: raw audio is deleted once each recording finishes transcribing, which also means it cannot be re-transcribed."
+            : "Off: raw audio is deleted once each recording finishes transcribing. Transcripts are unaffected."
         }
         checked={props.settings.saveRawAudio}
         onToggle={props.onToggleRawAudio}
@@ -80,7 +80,7 @@ function ReclaimSpaceRow({ reclaimableBytes, clearing, onDelete }: ReclaimSpaceR
   return (
     <SettingsRow
       label="Reclaim space"
-      description="Delete raw audio for recordings that already finished. Transcripts are kept, but those recordings can no longer be re-transcribed."
+      description="Delete raw audio for recordings that already finished. Transcripts are kept."
     >
       <Button
         size="compact"

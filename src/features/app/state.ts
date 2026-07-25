@@ -1,6 +1,5 @@
 import type { AppInfo } from "../../bindings/AppInfo";
 import type { AppSettings } from "../../bindings/AppSettings";
-import type { FinalizationStatusPayload } from "../../bindings/FinalizationStatusPayload";
 import type { LiveTranscriptPayload } from "../../bindings/LiveTranscriptPayload";
 import type { MeterPayload } from "../../bindings/MeterPayload";
 import type { MeetingAccessPayload } from "../../bindings/MeetingAccessPayload";
@@ -34,7 +33,6 @@ export type AppState = {
   meetingAccess: MeetingAccessPayload | null;
   storageUsage: StorageUsagePayload | null;
   meetingPrompt: MeetingPromptPayload | null;
-  finalization: FinalizationStatusPayload | null;
   settingsOpen: boolean;
   archiveOpen: boolean;
   error: string | null;
@@ -62,7 +60,6 @@ export const initialAppState: AppState = {
   meetingAccess: null,
   storageUsage: null,
   meetingPrompt: null,
-  finalization: null,
   settingsOpen: false,
   archiveOpen: false,
   error: null,
@@ -92,7 +89,6 @@ export type AppAction =
   | { type: "storageUsageLoaded"; storageUsage: StorageUsagePayload }
   | { type: "meetingPromptChanged"; meetingPrompt: MeetingPromptPayload | null }
   | { type: "settingsOpenChanged"; open: boolean }
-  | { type: "finalizationReceived"; payload: FinalizationStatusPayload }
   | { type: "recordingStarting" }
   | { type: "recordingStarted"; payload: RecordingPayload }
   | { type: "recordingStartFailed"; message: string }

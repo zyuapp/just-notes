@@ -46,11 +46,10 @@ export default function App() {
     },
     [flyToArchive, threadActions],
   );
-  const onFinalizationSettled = useCallback(() => void actions.refreshThreads(), [actions.refreshThreads]);
   const onRecordingStarted = useCallback(
     (threadId: string) => void actions.refreshThreads(threadId), [actions.refreshThreads],
   );
-  useAppEvents(dispatch, onFinalizationSettled, onRecordingStarted);
+  useAppEvents(dispatch, onRecordingStarted);
   const activeThreadId = getActiveThreadId(state);
   const recordButtonControl = buildRecordButtonControl(state, actions);
   const notice = useMemo(
@@ -103,7 +102,6 @@ export default function App() {
       <TranscriptPanel
         error={state.error}
         fixtureMode={state.appInfo?.fixtureMode ?? false}
-        finalization={state.finalization}
         meters={state.meters}
         notice={notice}
         recorderState={state.recorderState}
@@ -114,7 +112,6 @@ export default function App() {
         transcriptionStatus={state.transcriptionStatus}
         threadActions={threadActions}
         onArchiveThread={archiveThread}
-        onReprocess={(threadId) => void actions.reprocessThread(threadId)}
         onStartFixtureRecording={actions.startFixtureRecording}
         onStartMeetingRecording={(id) => void meetingPromptActions.startMeetingRecording(id)}
         onDismissMeetingPrompt={(id) => void meetingPromptActions.dismissMeetingPrompt(id)}

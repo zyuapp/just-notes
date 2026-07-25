@@ -5,11 +5,8 @@ import type { AppAction } from "./state";
 
 type AppDispatch = (action: AppAction) => void;
 
-const FINALIZATION_TERMINAL_STATES = new Set(["done", "failed", "cancelled"]);
-
 export function useAppEvents(
   dispatch: AppDispatch,
-  onFinalizationSettled: (threadId: string) => void,
   onRecordingStarted: (threadId: string) => void,
 ) {
   useEffect(() => {
@@ -36,12 +33,6 @@ export function useAppEvents(
       api.events.onTranscriptUpdate((payload) => {
         dispatch({ type: "liveSegmentReceived", payload });
       }),
-      api.events.onFinalizationStatus((payload) => {
-        dispatch({ type: "finalizationReceived", payload });
-        if (FINALIZATION_TERMINAL_STATES.has(payload.state)) {
-          onFinalizationSettled(payload.threadId);
-        }
-      }),
     ];
 
     return () => {
@@ -50,5 +41,5 @@ export function useAppEvents(
         subscription.then((dispose) => dispose()).catch(() => undefined);
       }
     };
-  }, [dispatch, onFinalizationSettled, onRecordingStarted]);
+  }, [dispatch, onRecordingStarted]);
 }

@@ -228,3 +228,6 @@ fn format_transcript_time(ms: u64) -> String {
     let seconds = total_seconds % 60;
     format!("{minutes:02}:{seconds:02}")
 }
+
+#[cfg(test)]
+mod tests;
