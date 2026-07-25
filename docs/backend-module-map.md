@@ -9,7 +9,7 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 ## `src-tauri/src/commands`
 
 - `mod.rs`: command adapter module declarations.
-- `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, segment edit, search, markdown export), plus library disk usage and raw-audio reclamation.
+- `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, search, markdown export), plus library disk usage and raw-audio reclamation.
 - `recording.rs`: start/stop/fixture recording commands and finalization cancel.
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
 - `settings.rs`: user-preference read/update commands.
