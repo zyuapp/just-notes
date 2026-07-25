@@ -6,6 +6,10 @@ pub(crate) fn samples_to_ms(samples: u64, sample_rate: u32) -> u64 {
     ((samples as f64 * 1000.0) / sample_rate as f64).floor() as u64
 }
 
+pub(crate) fn samples_for_ms(sample_rate: u32, ms: u64) -> usize {
+    ((u64::from(sample_rate) * ms) / 1000) as usize
+}
+
 /// Length of a recorded WAV in milliseconds from its frame count. Returns 0 for
 /// a missing file so a never-captured channel contributes no duration.
 pub(crate) fn wav_duration_ms(path: &Path) -> Result<u64, String> {

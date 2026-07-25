@@ -43,12 +43,13 @@ fn a_late_starting_channel_records_its_skew_from_the_shared_origin() {
     push_mono_frames([0.1f32; 64].into_iter(), &buffers, CaptureSource::Mic);
 
     let shared = buffers.lock().expect("capture buffers lock");
-    assert_eq!(shared.mic.start_offset_ms(), 0);
-    let skew = shared.system.start_offset_ms();
-    assert!(
-        skew >= 50,
-        "system start offset is {skew}ms after a 60ms delay"
-    );
+    let mic = shared.take_new(CaptureSource::Mic, &mut 0);
+    let system = shared.take_new(CaptureSource::System, &mut 0);
+
+    assert_eq!(mic.samples.len(), 128);
+    assert_eq!(system.samples.len(), 64);
+    let skew = system.start_offset_ms.saturating_sub(mic.start_offset_ms);
+    assert!(skew >= 50, "system starts only {skew}ms after the mic");
 }
 
 #[test]

@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use super::{faint_fillers::CONFIDENT_SPEECH_RMS, rms, Transcriber};
+use super::{faint_fillers::CONFIDENT_SPEECH_RMS, rms, samples_for_ms, Transcriber};
 
 const FRAME_MS: u64 = 20;
 const REDEMPTION_MS: u64 = 600;
@@ -234,10 +234,6 @@ impl LiveSegmenter {
             samples: active.samples,
         });
     }
-}
-
-fn samples_for_ms(sample_rate: u32, ms: u64) -> usize {
-    ((u64::from(sample_rate) * ms) / 1000) as usize
 }
 
 mod transcribe;

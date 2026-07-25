@@ -25,7 +25,7 @@ impl Transcriber for FixedTranscriber {
 #[test]
 fn segment_times_carry_the_channel_start_offset() {
     const RATE: u32 = 16_000;
-    let mut channel = LiveChannel::new("system", "Others", false, RATE);
+    let mut channel = LiveChannel::new("system", "Others", CaptureSource::System, RATE);
     channel.start_offset_ms = 250;
     let utterance = Utterance {
         start_index: u64::from(RATE),
@@ -54,7 +54,7 @@ fn keeps_short_voiced_backchannel_despite_quiet_utterance_padding() {
     let padded_rms = crate::transcription::rms(&utterance.samples);
     assert!(padded_rms < crate::transcription::faint_fillers::CONFIDENT_SPEECH_RMS);
     assert!(crate::transcription::source_bleed::mic_audio_is_system_dominated(padded_rms, 0.06));
-    let channel = LiveChannel::new("mic", "You", true, RATE);
+    let channel = LiveChannel::new("mic", "You", CaptureSource::Mic, RATE);
 
     let segments = channel.transcribe(vec![utterance], &FixedTranscriber, 2_000);
 

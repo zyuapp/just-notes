@@ -78,10 +78,10 @@ fn push_bounded_segments(
     }
 }
 
-/// How many leading tokens stay inside the duration cap, cut at the longest
-/// pause so a boundary lands between words rather than inside one. Returns
-/// every token when the run already fits, and never returns zero for a
-/// non-empty run.
+/// How many leading tokens stay inside the duration cap. Candidates are ranked
+/// by whether they start a word and then by the pause before them, so a cut
+/// lands between words rather than inside one. Returns every token when the run
+/// already fits, and never returns zero for a non-empty run.
 fn cap_split_index(tokens: &[TimedToken]) -> usize {
     let Some(first) = tokens.first() else {
         return 0;
@@ -91,20 +91,31 @@ fn cap_split_index(tokens: &[TimedToken]) -> usize {
     }
 
     let mut cut = 1;
-    let mut longest_pause = 0;
+    let mut best = (false, 0);
+    let mut cut_end_ms = first.end_ms;
     for index in 1..tokens.len() {
-        if tokens[index].start_ms.saturating_sub(first.start_ms) > PARAKEET_MAX_SEGMENT_MS {
+        if cut_end_ms.saturating_sub(first.start_ms) > PARAKEET_MAX_SEGMENT_MS {
             break;
         }
-        let pause = tokens[index]
-            .start_ms
-            .saturating_sub(tokens[index - 1].end_ms);
-        if pause >= longest_pause {
-            longest_pause = pause;
+        let candidate = (
+            starts_word(&tokens[index].text),
+            tokens[index]
+                .start_ms
+                .saturating_sub(tokens[index - 1].end_ms),
+        );
+        if candidate >= best {
+            best = candidate;
             cut = index;
         }
+        cut_end_ms = cut_end_ms.max(tokens[index].end_ms);
     }
     cut
+}
+
+/// Parakeet emits sub-word tokens; only a word's first token keeps the space
+/// that `\u{2581}` was decoded into.
+fn starts_word(text: &str) -> bool {
+    text.starts_with(' ')
 }
 
 fn group_end_ms(tokens: &[TimedToken]) -> u64 {

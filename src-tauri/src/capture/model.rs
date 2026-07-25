@@ -70,6 +70,35 @@ impl SharedBuffers {
             CaptureSource::System => self.system.push(chunk, level, origin),
         }
     }
+
+    /// Reads everything captured on `source` since `cursor` and advances it past
+    /// what was read.
+    pub(crate) fn take_new(&self, source: CaptureSource, cursor: &mut u64) -> NewAudio {
+        let channel = self.channel(source);
+        let start_index = (*cursor).max(channel.earliest_index());
+        let end_index = channel.available_end_index();
+        *cursor = end_index.max(*cursor);
+        NewAudio {
+            start_index,
+            start_offset_ms: channel.start_offset_ms(),
+            samples: channel.window(start_index, end_index).unwrap_or_default(),
+        }
+    }
+
+    fn channel(&self, source: CaptureSource) -> &RollingChannel {
+        match source {
+            CaptureSource::Mic => &self.mic,
+            CaptureSource::System => &self.system,
+        }
+    }
+}
+
+/// Audio read from one channel. `start_index` counts from that channel's first
+/// sample, which itself sits `start_offset_ms` after the shared capture origin.
+pub(crate) struct NewAudio {
+    pub(crate) start_index: u64,
+    pub(crate) start_offset_ms: u64,
+    pub(crate) samples: Vec<f32>,
 }
 
 pub(crate) struct RollingChannel {
@@ -107,19 +136,19 @@ impl RollingChannel {
     /// Where sample index 0 sits on the shared capture timeline. Resolution is
     /// one input callback, so this measures stream start-up skew, not the
     /// device latency inside a single callback.
-    pub(crate) fn start_offset_ms(&self) -> u64 {
+    pub(super) fn start_offset_ms(&self) -> u64 {
         self.start_offset_ms.unwrap_or(0)
     }
 
-    pub(crate) fn available_end_index(&self) -> u64 {
+    pub(super) fn available_end_index(&self) -> u64 {
         self.base_index + self.samples.len() as u64
     }
 
-    pub(crate) fn earliest_index(&self) -> u64 {
+    pub(super) fn earliest_index(&self) -> u64 {
         self.base_index
     }
 
-    pub(crate) fn window(&self, start_index: u64, end_index: u64) -> Option<Vec<f32>> {
+    pub(super) fn window(&self, start_index: u64, end_index: u64) -> Option<Vec<f32>> {
         if start_index < self.base_index || end_index > self.available_end_index() {
             return None;
         }
@@ -133,7 +162,7 @@ impl RollingChannel {
 }
 
 #[derive(Clone, Copy)]
-pub(super) enum CaptureSource {
+pub(crate) enum CaptureSource {
     Mic,
     System,
 }

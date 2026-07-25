@@ -15,7 +15,7 @@ mod status;
 mod text;
 
 pub(crate) use artifacts::{parakeet_artifact, ModelArtifact};
-pub(crate) use audio::{resample_to_rate, rms, samples_to_ms, wav_duration_ms};
+pub(crate) use audio::{resample_to_rate, rms, samples_for_ms, samples_to_ms, wav_duration_ms};
 pub(crate) use download::ModelDownloadState;
 pub(crate) use faint_fillers::{suppress_faint_mic_fillers, suppress_unconfirmed_mic_fillers};
 pub(crate) use finalize_audio::FinalizationAudioArtifacts;

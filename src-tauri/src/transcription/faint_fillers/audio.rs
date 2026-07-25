@@ -2,7 +2,7 @@ use std::path::Path;
 
 use hound::{SampleFormat, WavReader};
 
-use crate::transcription::rms;
+use crate::transcription::{rms, samples_for_ms};
 
 /// Filler-only text below this frame level is much more likely to be a decode
 /// of mic noise than an intentional backchannel. Quiet substantive speech is
@@ -123,10 +123,6 @@ fn has_sustained_confident_frames(frame_rms: &[f32]) -> bool {
         }
     }
     false
-}
-
-fn samples_for_ms(sample_rate: u32, ms: u64) -> usize {
-    ((u64::from(sample_rate) * ms) / 1000) as usize
 }
 
 struct SpeechProfileBuilder {

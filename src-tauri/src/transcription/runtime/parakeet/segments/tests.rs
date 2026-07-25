@@ -4,71 +4,6 @@ use super::{
 };
 use sherpa_onnx::OfflineRecognizerResult;
 
-#[test]
-fn parakeet_segments_use_token_timestamps() {
-    let result = OfflineRecognizerResult {
-        text: "Hello there. Back to notes.".to_string(),
-        tokens: [
-            "\u{2581}Hello",
-            "\u{2581}there",
-            ".",
-            "\u{2581}Back",
-            "\u{2581}to",
-            "\u{2581}notes",
-            ".",
-        ]
-        .iter()
-        .map(|token| token.to_string())
-        .collect(),
-        timestamps: Some(vec![1.0, 1.4, 1.8, 4.0, 4.4, 4.8, 5.2]),
-        durations: Some(vec![0.3; 7]),
-    };
-
-    let segments = parakeet_result_segments(
-        &result,
-        8_000,
-        SegmentIdentity {
-            source: "mic",
-            speaker: "You",
-        },
-    );
-
-    assert_eq!(segments.len(), 2);
-    assert_eq!(segments[0].text, "Hello there.");
-    assert_eq!(segments[0].start_ms, 1_000);
-    assert_eq!(segments[0].end_ms, 2_100);
-    assert_eq!(segments[1].text, "Back to notes.");
-    assert_eq!(segments[1].start_ms, 4_000);
-    assert_eq!(segments[1].end_ms, 5_500);
-}
-
-#[test]
-fn parakeet_does_not_split_on_sentence_end_before_minimum_duration() {
-    let result = OfflineRecognizerResult {
-        text: "Hi. there friend.".to_string(),
-        tokens: ["\u{2581}Hi", ".", "\u{2581}there", "\u{2581}friend", "."]
-            .iter()
-            .map(|token| token.to_string())
-            .collect(),
-        timestamps: Some(vec![0.0, 0.1, 0.6, 1.0, 1.4]),
-        durations: Some(vec![0.05; 5]),
-    };
-
-    let segments = parakeet_result_segments(
-        &result,
-        4_000,
-        SegmentIdentity {
-            source: "mic",
-            speaker: "You",
-        },
-    );
-
-    assert_eq!(segments.len(), 1);
-    assert_eq!(segments[0].text, "Hi. there friend.");
-    assert_eq!(segments[0].start_ms, 0);
-    assert_eq!(segments[0].end_ms, 1_450);
-}
-
 /// A recognizer token as `(token, start_seconds, duration_seconds)`.
 type TimedWord<'a> = (&'a str, f32, f32);
 
@@ -88,6 +23,17 @@ fn timed_result(words: &[TimedWord<'_>]) -> OfflineRecognizerResult {
     }
 }
 
+fn you(result: &OfflineRecognizerResult, total_duration_ms: u64) -> Vec<TranscriptSegment> {
+    parakeet_result_segments(
+        result,
+        total_duration_ms,
+        SegmentIdentity {
+            source: "mic",
+            speaker: "You",
+        },
+    )
+}
+
 fn others(result: &OfflineRecognizerResult, total_duration_ms: u64) -> Vec<TranscriptSegment> {
     parakeet_result_segments(
         result,
@@ -97,6 +43,47 @@ fn others(result: &OfflineRecognizerResult, total_duration_ms: u64) -> Vec<Trans
             speaker: "Others",
         },
     )
+}
+
+#[test]
+fn parakeet_segments_use_token_timestamps() {
+    let result = timed_result(&[
+        ("\u{2581}Hello", 1.0, 0.3),
+        ("\u{2581}there", 1.4, 0.3),
+        (".", 1.8, 0.3),
+        ("\u{2581}Back", 4.0, 0.3),
+        ("\u{2581}to", 4.4, 0.3),
+        ("\u{2581}notes", 4.8, 0.3),
+        (".", 5.2, 0.3),
+    ]);
+
+    let segments = you(&result, 8_000);
+
+    assert_eq!(segments.len(), 2);
+    assert_eq!(segments[0].text, "Hello there.");
+    assert_eq!(segments[0].start_ms, 1_000);
+    assert_eq!(segments[0].end_ms, 2_100);
+    assert_eq!(segments[1].text, "Back to notes.");
+    assert_eq!(segments[1].start_ms, 4_000);
+    assert_eq!(segments[1].end_ms, 5_500);
+}
+
+#[test]
+fn parakeet_does_not_split_on_sentence_end_before_minimum_duration() {
+    let result = timed_result(&[
+        ("\u{2581}Hi", 0.0, 0.05),
+        (".", 0.1, 0.05),
+        ("\u{2581}there", 0.6, 0.05),
+        ("\u{2581}friend", 1.0, 0.05),
+        (".", 1.4, 0.05),
+    ]);
+
+    let segments = you(&result, 4_000);
+
+    assert_eq!(segments.len(), 1);
+    assert_eq!(segments[0].text, "Hi. there friend.");
+    assert_eq!(segments[0].start_ms, 0);
+    assert_eq!(segments[0].end_ms, 1_450);
 }
 
 // A sentence long enough to span the other channel's turn must not sort every
@@ -151,11 +138,32 @@ fn parakeet_cuts_a_capped_sentence_at_its_longest_pause() {
     let segments = others(&result, 5_300);
 
     assert_eq!(segments.len(), 2);
-    assert_eq!(segments[0].text, "one two three");
+    assert_eq!(segments[0].text, "one two three four five six seven");
     assert_eq!(segments[0].start_ms, 0);
-    assert_eq!(segments[0].end_ms, 1_100);
-    assert_eq!(segments[1].text, "four five six seven eight.");
-    assert_eq!(segments[1].start_ms, 2_000);
+    assert_eq!(segments[0].end_ms, 3_500);
+    assert_eq!(segments[1].text, "eight.");
+    assert_eq!(segments[1].start_ms, 5_000);
+}
+
+// Parakeet emits sub-word tokens, so the longest gap in a capped sentence can
+// fall inside a word. The cut has to skip it rather than split the word.
+#[test]
+fn parakeet_never_cuts_a_capped_sentence_inside_a_word() {
+    let result = timed_result(&[
+        ("\u{2581}one", 0.0, 0.3),
+        ("\u{2581}two", 0.4, 0.3),
+        ("\u{2581}ex", 0.8, 0.3),
+        ("ist", 2.0, 0.3),
+        ("ence", 2.4, 0.3),
+        ("\u{2581}three", 2.8, 0.3),
+        ("\u{2581}four.", 5.0, 0.3),
+    ]);
+
+    let segments = others(&result, 5_300);
+
+    assert_eq!(segments.len(), 2);
+    assert_eq!(segments[0].text, "one two existence three");
+    assert_eq!(segments[1].text, "four.");
 }
 
 #[test]
@@ -167,16 +175,7 @@ fn parakeet_ignores_empty_results() {
         durations: None,
     };
 
-    let segments = parakeet_result_segments(
-        &result,
-        4_000,
-        SegmentIdentity {
-            source: "mic",
-            speaker: "You",
-        },
-    );
-
-    assert!(segments.is_empty());
+    assert!(you(&result, 4_000).is_empty());
 }
 
 #[test]
@@ -194,14 +193,7 @@ fn parakeet_fallback_splits_long_untimed_results() {
         durations: None,
     };
 
-    let segments = parakeet_result_segments(
-        &result,
-        PARAKEET_MAX_SEGMENT_MS * 2,
-        SegmentIdentity {
-            source: "system",
-            speaker: "Others",
-        },
-    );
+    let segments = others(&result, PARAKEET_MAX_SEGMENT_MS * 2);
 
     assert_eq!(segments.len(), 2);
     assert_eq!(segments[0].start_ms, 0);
