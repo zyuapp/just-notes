@@ -57,6 +57,54 @@
   opacity: 0.45;
 }
 
+/* Matches the switch above so one screen has a single on/off language. */
+.settings-check {
+  position: relative;
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.settings-check input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.settings-check-box {
+  display: block;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--border-emphasis);
+  border-radius: 4px;
+  background: var(--surface-raised);
+}
+
+.settings-check input:checked + .settings-check-box {
+  border-color: var(--toggle-on);
+  background: var(--toggle-on);
+}
+
+.settings-check input:checked + .settings-check-box::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  width: 3px;
+  height: 7px;
+  border: solid var(--surface-app);
+  border-width: 0 1.8px 1.8px 0;
+  transform: rotate(43deg);
+}
+
+.settings-check input:focus-visible + .settings-check-box {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .settings-segmented {
   display: inline-flex;
   flex: 0 0 auto;

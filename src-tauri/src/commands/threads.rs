@@ -2,7 +2,9 @@ use tauri::State;
 
 use crate::{
     app::AppPaths,
-    threads::{create, edits, repository, ThreadDetail, ThreadSummary},
+    ipc::StorageUsagePayload,
+    recording::{self, RecorderState},
+    threads::{create, edits, repository, storage, StorageUsage, ThreadDetail, ThreadSummary},
 };
 
 #[tauri::command]
@@ -78,4 +80,37 @@ pub(crate) fn export_thread_markdown(
     thread_id: String,
 ) -> Result<String, String> {
     repository::export_thread_markdown(&paths, &thread_id)
+}
+
+#[tauri::command]
+pub(crate) async fn get_storage_usage(
+    paths: State<'_, AppPaths>,
+) -> Result<StorageUsagePayload, String> {
+    let paths = paths.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || storage::usage(&paths).map(to_usage_payload))
+        .await
+        .map_err(|err| format!("Storage usage task failed: {err}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn delete_reclaimable_raw_audio(
+    paths: State<'_, AppPaths>,
+    recorder: State<'_, RecorderState>,
+) -> Result<StorageUsagePayload, String> {
+    let paths = paths.inner().clone();
+    let recorder = recorder.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        recording::reclaim_raw_audio(&paths, &recorder).map(to_usage_payload)
+    })
+    .await
+    .map_err(|err| format!("Raw audio cleanup task failed: {err}"))?
+}
+
+fn to_usage_payload(usage: StorageUsage) -> StorageUsagePayload {
+    StorageUsagePayload {
+        total_bytes: usage.total_bytes,
+        raw_audio_bytes: usage.raw_audio_bytes,
+        reclaimable_bytes: usage.reclaimable_bytes,
+        thread_count: usage.thread_count,
+    }
 }

@@ -1,4 +1,7 @@
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::app::{now_ms, AppPaths};
 
@@ -16,6 +19,23 @@ pub(crate) fn list_threads(paths: &AppPaths) -> Result<Vec<ThreadSummary>, Strin
 
 pub(crate) fn list_archived_threads(paths: &AppPaths) -> Result<Vec<ThreadSummary>, String> {
     list_thread_summaries_in(&paths.archived_dir)
+}
+
+pub(crate) fn metadata_path(thread_dir: &Path) -> PathBuf {
+    thread_dir.join("thread.json")
+}
+
+/// Every directory under `root` that is a thread, i.e. holds a `thread.json`.
+pub(crate) fn thread_dirs_in(root: &Path) -> Result<Vec<PathBuf>, String> {
+    if !root.is_dir() {
+        return Ok(Vec::new());
+    }
+    Ok(fs::read_dir(root)
+        .map_err(|err| format!("Failed to read {}: {err}", root.display()))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| metadata_path(path).is_file())
+        .collect())
 }
 
 fn list_thread_summaries_in(dir: &Path) -> Result<Vec<ThreadSummary>, String> {
@@ -87,16 +107,8 @@ fn metadata_with_change(
 
 pub(crate) fn reset_stale_recording_threads(paths: &AppPaths) -> Result<(), String> {
     paths.ensure()?;
-    for entry in fs::read_dir(&paths.threads_dir)
-        .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?
-    {
-        let entry = entry
-            .map_err(|err| format!("Failed to read {}: {err}", paths.threads_dir.display()))?;
-        let thread_dir = entry.path();
-        if !thread_dir.is_dir() || !thread_dir.join("thread.json").is_file() {
-            continue;
-        }
-        let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
+    for thread_dir in thread_dirs_in(&paths.threads_dir)? {
+        let metadata = read_thread_metadata(&metadata_path(&thread_dir))?;
         if metadata.status.is_busy() {
             set_thread_status(&thread_dir, ThreadStatus::Idle)?;
         }

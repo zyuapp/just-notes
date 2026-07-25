@@ -125,7 +125,7 @@ describe("appReducer", () => {
 
   test("stores meeting calendar access", () => {
     const meetingAccess = { calendarAuthorization: "authorized",
-      notificationAuthorization: "authorized", calendars: [{ id: "calendar-1", title: "Work" }] };
+      notificationAuthorization: "authorized", calendars: [{ id: "calendar-1", title: "Work", account: "iCloud", color: "#5b8ff9" }] };
 
     const updated = appReducer(initialAppState, {
       type: "meetingAccessLoaded",

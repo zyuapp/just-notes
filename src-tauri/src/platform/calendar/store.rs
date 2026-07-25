@@ -1,11 +1,15 @@
 use std::collections::HashSet;
 
+use objc2_app_kit::NSColorSpace;
 use objc2_event_kit::{
-    EKEntityType, EKEventAvailability, EKEventStatus, EKEventStore, EKParticipantStatus,
+    EKCalendar, EKEntityType, EKEventAvailability, EKEventStatus, EKEventStore, EKParticipantStatus,
 };
 use objc2_foundation::{NSArray, NSDate};
 
 use super::{CalendarEvent, CalendarInfo};
+
+const UNKNOWN_ACCOUNT: &str = "Other";
+const FALLBACK_COLOR: &str = "#8a929a";
 
 pub(super) fn read_calendars(store: &EKEventStore) -> Vec<CalendarInfo> {
     unsafe { store.calendarsForEntityType(EKEntityType::Event) }
@@ -13,8 +17,33 @@ pub(super) fn read_calendars(store: &EKEventStore) -> Vec<CalendarInfo> {
         .map(|calendar| CalendarInfo {
             id: unsafe { calendar.calendarIdentifier() }.to_string(),
             title: unsafe { calendar.title() }.to_string(),
+            account: read_account(&calendar),
+            color: read_color(&calendar),
         })
         .collect()
+}
+
+fn read_account(calendar: &EKCalendar) -> String {
+    unsafe { calendar.source() }
+        .map(|source| unsafe { source.title() }.to_string())
+        .filter(|title| !title.is_empty())
+        .unwrap_or_else(|| UNKNOWN_ACCOUNT.to_string())
+}
+
+/// EventKit hands back an `NSColor` in an arbitrary colour space; only sRGB
+/// components can be read directly, so unconvertible colours fall back.
+fn read_color(calendar: &EKCalendar) -> String {
+    let color = unsafe { calendar.color() };
+    let Some(srgb) = color.colorUsingColorSpace(&NSColorSpace::sRGBColorSpace()) else {
+        return FALLBACK_COLOR.to_string();
+    };
+    let channel = |value: f64| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+    format!(
+        "#{:02x}{:02x}{:02x}",
+        channel(srgb.redComponent()),
+        channel(srgb.greenComponent()),
+        channel(srgb.blueComponent()),
+    )
 }
 
 pub(super) fn read_upcoming_events(

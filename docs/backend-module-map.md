@@ -9,7 +9,7 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 ## `src-tauri/src/commands`
 
 - `mod.rs`: command adapter module declarations.
-- `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, segment edit, search, markdown export).
+- `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, segment edit, search, markdown export), plus library disk usage and raw-audio reclamation.
 - `recording.rs`: start/stop/fixture recording commands and finalization cancel.
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
 - `settings.rs`: user-preference read/update commands.
@@ -48,6 +48,7 @@ Use this when adding or changing a user preference.
 ## `src-tauri/src/platform`
 
 - `mod.rs`: public AppKit/Foundation helpers — Finder reveal, clipboard copy, and System Settings privacy-pane links.
+- `system_audio.rs`: Screen & System Audio Recording authorization preflight.
 - `calendar.rs`: EventKit authorization, database-change observation, calendar listing, and eligible event retrieval; `calendar/worker.rs` serializes synchronous EventKit reads and replaces timed-out workers.
 - `notifications.rs`: UserNotifications permission, categories, delivery, and action callback adapter.
 
@@ -79,7 +80,8 @@ Use this when frontend/backend payload shape changes are needed.
 ## `src-tauri/src/threads`
 
 - `model.rs`: thread metadata (including duration), thread summaries/details (including the `has_audio` flag), transcript segment model, and thread status (idle/recording/transcribing).
-- `repository.rs`: active/archived listing, loading, status/duration updates, work directory setup, markdown rendering and `transcript.md` export, and stale-status cleanup.
+- `storage.rs`: library disk footprint (total, raw-audio, reclaimable bytes) and deletion of raw audio belonging to idle threads.
+- `repository.rs`: thread-directory enumeration, active/archived listing, loading, status/duration updates, work directory setup, markdown rendering and `transcript.md` export, and stale-status cleanup.
 - `create.rs`: collision-safe thread directory creation plus internal and external title handling.
 - `edits.rs`: user-initiated mutations — rename, archive, restore, delete, edit segment text, and search across titles and transcript text.
 - `edits/fs_move.rs`: filesystem move of a thread directory between the active and archive locations.
@@ -131,6 +133,7 @@ Use this when changing model status, Parakeet behavior, model download/install, 
 - `state.rs`: recorder state, operation serialization, active session storage, startup guard, and selected-thread reuse predicate.
 - `workflow.rs`: start orchestration — model-readiness gate, thread selection, capture startup, audio sink startup, live transcription startup, and tray updates.
 - `stop.rs`: stop orchestration — worker shutdown (including live transcription), duration persistence, markdown rendering, raw-audio retention, and the stopped event. The transcript is already on disk, so stop does not re-transcribe.
+- `reclaim.rs`: raw-audio reclamation under the operation lock, so a starting recording cannot lose the WAVs it is writing.
 - `reprocess.rs`: on-demand re-transcription entry point — checks eligibility (idle, has saved audio, not resumed) then kicks off the transcription finalization pass.
 - `audio_sink.rs`: streams captured samples to `mic.wav`/`system.wav` during recording via a cursor over the rolling buffers.
 - `meter.rs`: live meter event worker and tray elapsed-time updates.

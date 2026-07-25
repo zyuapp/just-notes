@@ -15,6 +15,8 @@ use tauri::AppHandle;
 pub(crate) struct CalendarInfo {
     pub(crate) id: String,
     pub(crate) title: String,
+    pub(crate) account: String,
+    pub(crate) color: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,7 +90,11 @@ pub(crate) fn observe_changes(on_change: impl Fn() + Send + Sync + 'static) {
 pub(crate) fn list_calendars() -> Result<Vec<CalendarInfo>, String> {
     ensure_authorized()?;
     let mut calendars = worker::list_calendars()?;
-    calendars.sort_by(|left, right| left.title.cmp(&right.title));
+    calendars.sort_by(|left, right| {
+        left.account
+            .cmp(&right.account)
+            .then_with(|| left.title.cmp(&right.title))
+    });
     Ok(calendars)
 }
 

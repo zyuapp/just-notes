@@ -1,4 +1,12 @@
-import { ArrowLeft, AudioLines, CalendarDays, FileText, HardDrive, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  AudioLines,
+  CalendarDays,
+  FileText,
+  HardDrive,
+  Info,
+  ShieldCheck,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 export type SettingsSectionId =
@@ -6,16 +14,28 @@ export type SettingsSectionId =
   | "transcription"
   | "meetings"
   | "permissions"
-  | "privacy";
+  | "privacy"
+  | "about";
 
 type SettingsNavigationProps = {
   activeSection: SettingsSectionId;
+  attention: Partial<Record<SettingsSectionId, boolean>>;
   onSelect: (id: SettingsSectionId) => void;
   onClose: () => void;
 };
 
+const SECTIONS: { id: SettingsSectionId; label: string; icon: ReactNode }[] = [
+  { id: "storage", label: "Storage", icon: <HardDrive size={16} /> },
+  { id: "transcription", label: "Transcription", icon: <AudioLines size={16} /> },
+  { id: "meetings", label: "Meetings", icon: <CalendarDays size={16} /> },
+  { id: "permissions", label: "Permissions", icon: <ShieldCheck size={16} /> },
+  { id: "privacy", label: "Privacy & Legal", icon: <FileText size={16} /> },
+  { id: "about", label: "About", icon: <Info size={16} /> },
+];
+
 export function SettingsNavigation({
   activeSection,
+  attention,
   onSelect,
   onClose,
 }: SettingsNavigationProps) {
@@ -31,11 +51,17 @@ export function SettingsNavigation({
         <ArrowLeft size={16} aria-hidden="true" />
       </button>
       <div className="settings-nav-title fullscreen-nav-title">Settings</div>
-      <SettingsNavButton label="Storage" id="storage" icon={<HardDrive size={16} />} activeSection={activeSection} onSelect={onSelect} />
-      <SettingsNavButton label="Transcription" id="transcription" icon={<AudioLines size={16} />} activeSection={activeSection} onSelect={onSelect} />
-      <SettingsNavButton label="Meetings" id="meetings" icon={<CalendarDays size={16} />} activeSection={activeSection} onSelect={onSelect} />
-      <SettingsNavButton label="Permissions" id="permissions" icon={<ShieldCheck size={16} />} activeSection={activeSection} onSelect={onSelect} />
-      <SettingsNavButton label="Privacy & Legal" id="privacy" icon={<FileText size={16} />} activeSection={activeSection} onSelect={onSelect} />
+      {SECTIONS.map((section) => (
+        <SettingsNavButton
+          key={section.id}
+          label={section.label}
+          id={section.id}
+          icon={section.icon}
+          needsAttention={attention[section.id] ?? false}
+          activeSection={activeSection}
+          onSelect={onSelect}
+        />
+      ))}
     </nav>
   );
 }
@@ -44,11 +70,19 @@ type SettingsNavButtonProps = {
   label: string;
   id: SettingsSectionId;
   icon: ReactNode;
+  needsAttention: boolean;
   activeSection: SettingsSectionId;
   onSelect: (id: SettingsSectionId) => void;
 };
 
-function SettingsNavButton({ label, id, icon, activeSection, onSelect }: SettingsNavButtonProps) {
+function SettingsNavButton({
+  label,
+  id,
+  icon,
+  needsAttention,
+  activeSection,
+  onSelect,
+}: SettingsNavButtonProps) {
   const active = activeSection === id;
   return (
     <button
@@ -63,6 +97,9 @@ function SettingsNavButton({ label, id, icon, activeSection, onSelect }: Setting
     >
       {icon}
       <span>{label}</span>
+      {needsAttention && (
+        <span className="settings-nav-dot" role="img" aria-label={`${label} needs attention`} />
+      )}
     </button>
   );
 }

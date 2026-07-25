@@ -18,3 +18,11 @@ export function downloadConfirmationMessage(model: TranscriptionModelStatus): st
 export function isModelDownloadActive(model: TranscriptionModelStatus): boolean {
   return model.downloadState === "downloading" || model.downloadState === "installing";
 }
+
+// The one model the UI speaks about. The catalogue is a list, but exactly one
+// entry is selected; falling back to the first keeps a malformed status usable.
+export function currentModel(
+  models: TranscriptionModelStatus[] | undefined,
+): TranscriptionModelStatus | undefined {
+  return models?.find((model) => model.selected) ?? models?.[0];
+}

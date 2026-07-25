@@ -14,9 +14,12 @@ import { useJustNotesController } from "./features/app/useJustNotesController";
 import { useMeetingSettingsController } from "./features/app/useMeetingSettingsController";
 import { useMeetingPromptController } from "./features/app/useMeetingPromptController";
 import { useSettingsController } from "./features/app/useSettingsController";
+import { useSettingsShortcut } from "./features/app/useSettingsShortcut";
 import { useSidebarWidth } from "./features/app/useSidebarWidth";
+import { useStorageController } from "./features/app/useStorageController";
 import { useThreadActions } from "./features/app/useThreadActions";
 import { useThreadSearch } from "./features/app/useThreadSearch";
+import { useWindowFocusRefresh } from "./features/app/useWindowFocusRefresh";
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./lib/sidebarWidth";
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
@@ -25,6 +28,13 @@ export default function App() {
   const settingsActions = useSettingsController(state, dispatch, actions.bootstrap);
   const meetingSettingsActions = useMeetingSettingsController(state, dispatch, settingsActions.updateSettings);
   const meetingPromptActions = useMeetingPromptController(dispatch, actions.refreshThreads);
+  const storageActions = useStorageController(dispatch);
+  const refreshSettingsData = useCallback(() => {
+    settingsActions.refreshPermissions();
+    storageActions.refreshUsage();
+  }, [settingsActions.refreshPermissions, storageActions.refreshUsage]);
+  useWindowFocusRefresh(state.settingsOpen, refreshSettingsData);
+  useSettingsShortcut(settingsActions.openSettings);
   const search = useThreadSearch(dispatch, state.threads);
   const archived = useArchivedThreads(state.archiveOpen);
   const { iconRef, scopeRef, flyToArchive } = useArchiveFlight();
@@ -110,7 +120,7 @@ export default function App() {
         onDismissMeetingPrompt={(id) => void meetingPromptActions.dismissMeetingPrompt(id)}
       />
       <AppSettingsOverlay state={state} actions={actions} meetingSettings={meetingSettingsActions}
-        settings={settingsActions} threads={threadActions} />
+        settings={settingsActions} storage={storageActions} threads={threadActions} />
       {state.archiveOpen && (
         <ArchivedView
           items={archived.items}

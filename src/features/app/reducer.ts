@@ -49,6 +49,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, permissions: action.permissions };
     case "meetingAccessLoaded":
       return { ...state, meetingAccess: action.meetingAccess };
+    case "storageUsageLoaded":
+      return { ...state, storageUsage: action.storageUsage };
     case "meetingPromptChanged":
       return { ...state, meetingPrompt: action.meetingPrompt };
     case "settingsOpenChanged":

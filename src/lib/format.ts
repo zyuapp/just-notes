@@ -1,3 +1,19 @@
+const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
+
+// Binary steps, matching the model catalogue's own display_size so one download
+// is not described as two different sizes.
+export function formatBytes(bytes: number): string {
+  if (bytes <= 0) return "0 MB";
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const precision = value < 10 && unit > 1 ? 1 : 0;
+  return `${value.toFixed(precision)} ${BYTE_UNITS[unit]}`;
+}
+
 export function formatDuration(ms: number) {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);

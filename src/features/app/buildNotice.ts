@@ -1,4 +1,5 @@
 import type { Notice } from "../../components/NoticeBar";
+import { permissionDisplay } from "../../lib/permissionStatus";
 import { downloadActionLabel } from "../../lib/transcriptionModel";
 import type { AppState } from "./state";
 
@@ -8,7 +9,7 @@ export function buildNotice(
   openPrivacy: (pane: "microphone" | "system-audio") => Promise<void>,
   startModelDownload: () => void,
 ): Notice | null {
-  if (state.permissions && ["denied", "restricted"].includes(state.permissions.microphone)) {
+  if (permissionDisplay(state.permissions?.microphone).needsAttention) {
     return {
       message: "Microphone access is blocked, so recordings will miss your voice.",
       actionLabel: "Open System Settings",

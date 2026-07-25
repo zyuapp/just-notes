@@ -1,16 +1,15 @@
 import { useState } from "react";
-import type { AppInfo } from "../bindings/AppInfo";
-import type { AppSettings } from "../bindings/AppSettings";
-import type { PermissionsPayload } from "../bindings/PermissionsPayload";
-import type { MeetingAccessPayload } from "../bindings/MeetingAccessPayload";
-import { MeetingSettingsSection } from "./MeetingSettingsSection";
-import { PrivacyLegalSection } from "./PrivacyLegalSection";
-import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
-import { SettingsNavigation, type SettingsSectionId } from "./SettingsNavigation";
-import { SettingsPermissionsSection } from "./SettingsPermissionsSection";
-import { StorageSettingsSection } from "./StorageSettingsSection";
-import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
+import { settingsAttention } from "../lib/permissionStatus";
 import { FullscreenView } from "./FullscreenView";
+import { SettingsNavigation, type SettingsSectionId } from "./SettingsNavigation";
+import { SettingsSectionContent } from "./SettingsSectionContent";
+import type {
+  MeetingSettingsActions,
+  ModelActions,
+  SettingsData,
+  StorageActions,
+  SystemActions,
+} from "./settingsViewTypes";
 
 const SECTION_COPY: Record<SettingsSectionId, { title: string; description: string }> = {
   storage: { title: "Storage", description: "See where recordings live and choose which files are kept." },
@@ -18,63 +17,30 @@ const SECTION_COPY: Record<SettingsSectionId, { title: string; description: stri
   meetings: { title: "Meetings", description: "Get a prompt when a calendar meeting is about to begin or end." },
   permissions: { title: "Permissions", description: "Review the system access Just Notes uses." },
   privacy: { title: "Privacy & Legal", description: "See how local data and third-party software are handled." },
+  about: { title: "About", description: "Version and storage details for this copy of Just Notes." },
 };
 
 type SettingsViewProps = {
-  settings: AppSettings;
-  appInfo: AppInfo | null;
-  transcriptionStatus: TranscriptionStatusPayload | null;
-  permissions: PermissionsPayload | null;
-  meetingAccess: MeetingAccessPayload | null;
+  data: SettingsData;
+  meeting: MeetingSettingsActions;
+  storage: StorageActions;
+  model: ModelActions;
+  system: SystemActions;
   onClose: () => void;
-  onRevealFolder: () => void;
-  onToggleRawAudio: () => void;
-  onToggleMarkdownCopy: () => void;
-  onRequestMeetingAccess: () => void;
-  onToggleMeetingCalendar: (calendarId: string) => void;
-  onToggleMeetingReminders: () => void;
-  onSetMeetingReminderMinutes: (minutes: number) => void;
-  onToggleMeetingEndReminders: () => void;
-  meetingSettingsBusy: boolean;
-  onStartModelDownload: () => void;
-  onCancelModelDownload: () => void;
-  onDeleteModel: () => void;
-  onOpenPrivacy: (pane: "microphone" | "system-audio" | "calendar" | "notifications") => void;
-  onOpenExternalUrl: (url: string) => void;
-  onOpenLegalDocument: (document: "privacy" | "notices") => void;
 };
 
-export function SettingsView({
-  settings,
-  appInfo,
-  transcriptionStatus,
-  permissions,
-  meetingAccess,
-  onClose,
-  onRevealFolder,
-  onToggleRawAudio,
-  onToggleMarkdownCopy,
-  onRequestMeetingAccess,
-  onToggleMeetingCalendar,
-  onToggleMeetingReminders,
-  onSetMeetingReminderMinutes,
-  onToggleMeetingEndReminders,
-  meetingSettingsBusy,
-  onStartModelDownload,
-  onCancelModelDownload,
-  onDeleteModel,
-  onOpenPrivacy,
-  onOpenExternalUrl,
-  onOpenLegalDocument,
-}: SettingsViewProps) {
+export function SettingsView({ data, meeting, storage, model, system, onClose }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("storage");
   const activeSectionCopy = SECTION_COPY[activeSection];
+  const attention = settingsAttention(data.permissions, data.meetingAccess);
+
   return (
     <FullscreenView
       ariaLabel="Settings"
       navigation={
         <SettingsNavigation
           activeSection={activeSection}
+          attention={attention}
           onSelect={setActiveSection}
           onClose={onClose}
         />
@@ -84,52 +50,14 @@ export function SettingsView({
       panelClassName="settings-panel"
       onClose={onClose}
     >
-      {activeSection === "storage" && (
-        <StorageSettingsSection
-          appInfo={appInfo}
-          settings={settings}
-          onRevealFolder={onRevealFolder}
-          onToggleRawAudio={onToggleRawAudio}
-          onToggleMarkdownCopy={onToggleMarkdownCopy}
-        />
-      )}
-
-      {activeSection === "transcription" && (
-        <div id="settings-transcription">
-          <TranscriptionSettingsSection
-            transcriptionStatus={transcriptionStatus}
-            onStartModelDownload={onStartModelDownload}
-            onCancelModelDownload={onCancelModelDownload}
-            onDeleteModel={onDeleteModel}
-          />
-        </div>
-      )}
-
-      {activeSection === "meetings" && (
-        <div id="settings-meetings">
-          <MeetingSettingsSection
-            settings={settings}
-            access={meetingAccess}
-            onRequestAccess={onRequestMeetingAccess}
-            onToggleCalendar={onToggleMeetingCalendar}
-            onToggleReminders={onToggleMeetingReminders}
-            onSetReminderMinutes={onSetMeetingReminderMinutes}
-            onToggleEndReminders={onToggleMeetingEndReminders}
-            onOpenPrivacy={onOpenPrivacy}
-            busy={meetingSettingsBusy}
-          />
-        </div>
-      )}
-
-      {activeSection === "permissions" && (
-        <SettingsPermissionsSection permissions={permissions} onOpenPrivacy={onOpenPrivacy} />
-      )}
-      {activeSection === "privacy" && (
-        <PrivacyLegalSection
-          onOpenExternalUrl={onOpenExternalUrl}
-          onOpenLegalDocument={onOpenLegalDocument}
-        />
-      )}
+      <SettingsSectionContent
+        section={activeSection}
+        data={data}
+        meeting={meeting}
+        storage={storage}
+        model={model}
+        system={system}
+      />
     </FullscreenView>
   );
 }
