@@ -20,6 +20,26 @@ impl Transcriber for FixedTranscriber {
     }
 }
 
+// A channel that started late must shift its segments onto the shared capture
+// timeline, or the two channels' turns interleave in the wrong order.
+#[test]
+fn segment_times_carry_the_channel_start_offset() {
+    const RATE: u32 = 16_000;
+    let mut channel = LiveChannel::new("system", "Others", false, RATE);
+    channel.start_offset_ms = 250;
+    let utterance = Utterance {
+        start_index: u64::from(RATE),
+        sample_rate: RATE,
+        samples: vec![0.05; RATE as usize],
+    };
+
+    let segments = channel.transcribe(vec![utterance], &FixedTranscriber, 0);
+
+    assert_eq!(segments.len(), 1);
+    assert_eq!(segments[0].start_ms, 1_550);
+    assert_eq!(segments[0].end_ms, 1_610);
+}
+
 #[test]
 fn keeps_short_voiced_backchannel_despite_quiet_utterance_padding() {
     const RATE: u32 = 16_000;

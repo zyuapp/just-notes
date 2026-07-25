@@ -103,6 +103,7 @@ struct LiveChannel {
     speaker: &'static str,
     is_mic: bool,
     cursor: u64,
+    start_offset_ms: u64,
     segmenter: LiveSegmenter,
 }
 
@@ -113,6 +114,7 @@ impl LiveChannel {
             speaker,
             is_mic,
             cursor: 0,
+            start_offset_ms: 0,
             segmenter: LiveSegmenter::new(sample_rate, SegmenterConfig::live()),
         }
     }
@@ -123,12 +125,14 @@ impl LiveChannel {
         config: &LiveTranscriptionConfig,
         transcriber: &dyn Transcriber,
     ) -> Vec<TranscriptSegment> {
-        let (start_index, samples) = read_new(&config.buffers, self.is_mic, &mut self.cursor);
-        if samples.is_empty() {
+        let audio = read_new(&config.buffers, self.is_mic, &mut self.cursor);
+        if audio.samples.is_empty() {
             return Vec::new();
         }
+        self.start_offset_ms = audio.start_offset_ms;
         let mut utterances = Vec::new();
-        self.segmenter.push(start_index, &samples, &mut utterances);
+        self.segmenter
+            .push(audio.start_index, &audio.samples, &mut utterances);
         self.transcribe(utterances, transcriber, config.offset_ms)
     }
 
@@ -149,13 +153,14 @@ impl LiveChannel {
         &self,
         utterances: Vec<Utterance>,
         transcriber: &dyn Transcriber,
-        offset_ms: u64,
+        resume_offset_ms: u64,
     ) -> Vec<TranscriptSegment> {
         let mut segments = Vec::new();
         let role = ChannelRole {
             source: self.source,
             speaker: self.speaker,
         };
+        let offset_ms = resume_offset_ms + self.start_offset_ms;
         for utterance in utterances {
             if let Ok(mut produced) =
                 transcribe_live_utterance(transcriber, &utterance, role, offset_ms)
@@ -167,18 +172,32 @@ impl LiveChannel {
     }
 }
 
-fn read_new(buffers: &Mutex<SharedBuffers>, is_mic: bool, cursor: &mut u64) -> (u64, Vec<f32>) {
+struct NewAudio {
+    start_index: u64,
+    start_offset_ms: u64,
+    samples: Vec<f32>,
+}
+
+fn read_new(buffers: &Mutex<SharedBuffers>, is_mic: bool, cursor: &mut u64) -> NewAudio {
     let Ok(shared) = buffers.lock() else {
-        return (*cursor, Vec::new());
+        return NewAudio {
+            start_index: *cursor,
+            start_offset_ms: 0,
+            samples: Vec::new(),
+        };
     };
     let channel = if is_mic { &shared.mic } else { &shared.system };
     let start = (*cursor).max(channel.earliest_index());
     let end = channel.available_end_index();
     *cursor = end.max(*cursor);
-    if end > start {
-        (start, channel.window(start, end).unwrap_or_default())
-    } else {
-        (start, Vec::new())
+    NewAudio {
+        start_index: start,
+        start_offset_ms: channel.start_offset_ms(),
+        samples: if end > start {
+            channel.window(start, end).unwrap_or_default()
+        } else {
+            Vec::new()
+        },
     }
 }
 

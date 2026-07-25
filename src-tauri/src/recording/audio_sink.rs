@@ -57,7 +57,9 @@ pub(super) fn spawn_audio_sink(
 struct ChannelSink {
     writer: ChannelWavWriter,
     cursor: u64,
+    sample_rate: u32,
     is_mic: bool,
+    lead_in_written: bool,
 }
 
 impl ChannelSink {
@@ -73,12 +75,14 @@ impl ChannelSink {
         Ok(Self {
             writer,
             cursor: 0,
+            sample_rate,
             is_mic,
+            lead_in_written: false,
         })
     }
 
     fn drain(&mut self, buffers: &Arc<Mutex<SharedBuffers>>) -> Result<(), String> {
-        let samples = {
+        let (start_offset_ms, samples) = {
             let shared = buffers
                 .lock()
                 .map_err(|_| "Audio buffer lock was poisoned".to_string())?;
@@ -90,16 +94,36 @@ impl ChannelSink {
             let start = self.cursor.max(channel.earliest_index());
             let end = channel.available_end_index();
             self.cursor = end.max(self.cursor);
-            (end > start).then(|| channel.window(start, end)).flatten()
+            (
+                channel.start_offset_ms(),
+                (end > start).then(|| channel.window(start, end)).flatten(),
+            )
         };
 
         let Some(samples) = samples else {
             return Ok(());
         };
+        self.write_lead_in(start_offset_ms)?;
         for sample in samples {
             let value = (sample.clamp(-1.0, 1.0) * f32::from(i16::MAX)) as i16;
             self.writer
                 .write_sample(value)
+                .map_err(|err| format!("Failed to write recording audio: {err}"))?;
+        }
+        Ok(())
+    }
+
+    /// Silence covering the gap between the shared capture origin and this
+    /// channel's first sample, so a position in the file means the same instant
+    /// as the matching transcript timestamp.
+    fn write_lead_in(&mut self, start_offset_ms: u64) -> Result<(), String> {
+        if self.lead_in_written {
+            return Ok(());
+        }
+        self.lead_in_written = true;
+        for _ in 0..(u64::from(self.sample_rate) * start_offset_ms) / 1000 {
+            self.writer
+                .write_sample(0i16)
                 .map_err(|err| format!("Failed to write recording audio: {err}"))?;
         }
         Ok(())
