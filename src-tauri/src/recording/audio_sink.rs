@@ -109,8 +109,8 @@ impl ChannelSink {
     }
 
     /// Silence covering the gap between the shared capture origin and this
-    /// channel's first sample, so a position in the file means the same instant
-    /// as the matching transcript timestamp.
+    /// channel's first sample, so a position in the file lines up with the
+    /// matching transcript timestamp to within one input callback.
     fn write_lead_in(&mut self, start_offset_ms: u64) -> Result<(), String> {
         if self.lead_in_written {
             return Ok(());

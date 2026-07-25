@@ -80,8 +80,9 @@ fn push_bounded_segments(
 
 /// How many leading tokens stay inside the duration cap. Candidates are ranked
 /// by whether they start a word and then by the pause before them, so a cut
-/// lands between words rather than inside one. Returns every token when the run
-/// already fits, and never returns zero for a non-empty run.
+/// prefers a word boundary; a run with no word start inside the cap is still
+/// cut, mid-word. Returns every token when the run already fits, and never
+/// returns zero for a non-empty run.
 fn cap_split_index(tokens: &[TimedToken]) -> usize {
     let Some(first) = tokens.first() else {
         return 0;

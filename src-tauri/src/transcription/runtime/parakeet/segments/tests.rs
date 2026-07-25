@@ -146,9 +146,9 @@ fn parakeet_cuts_a_capped_sentence_at_its_longest_pause() {
 }
 
 // Parakeet emits sub-word tokens, so the longest gap in a capped sentence can
-// fall inside a word. The cut has to skip it rather than split the word.
+// fall inside a word. A word start reachable within the cap wins over it.
 #[test]
-fn parakeet_never_cuts_a_capped_sentence_inside_a_word() {
+fn parakeet_prefers_a_word_boundary_over_a_wider_mid_word_gap() {
     let result = timed_result(&[
         ("\u{2581}one", 0.0, 0.3),
         ("\u{2581}two", 0.4, 0.3),
