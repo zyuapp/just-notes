@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { api, getApiErrorMessage } from "../../api";
 import type { AppSettings } from "../../bindings/AppSettings";
+import type { PrivacyPane } from "../../lib/permissionStatus";
 import type { AppAction, AppState } from "./state";
 
 type AppDispatch = (action: AppAction) => void;
@@ -21,8 +22,9 @@ export function useSettingsController(
     [dispatch],
   );
 
-  const openSettings = useCallback(() => {
-    dispatch({ type: "settingsOpenChanged", open: true });
+  // Permissions change outside the app, in System Settings, so anything that
+  // returns the user's attention to Just Notes has to re-read them.
+  const refreshPermissions = useCallback(() => {
     api.system
       .getPermissions()
       .then((permissions) => dispatch({ type: "permissionsLoaded", permissions }))
@@ -32,6 +34,13 @@ export function useSettingsController(
       .then((meetingAccess) => dispatch({ type: "meetingAccessLoaded", meetingAccess }))
       .catch(() => undefined);
   }, [dispatch]);
+
+  // Opening only flips the flag; whoever renders the overlay keeps its data
+  // fresh, so a permission granted mid-session is picked up on the way back.
+  const openSettings = useCallback(
+    () => dispatch({ type: "settingsOpenChanged", open: true }),
+    [dispatch],
+  );
 
   const closeSettings = useCallback(
     () => dispatch({ type: "settingsOpenChanged", open: false }),
@@ -70,9 +79,20 @@ export function useSettingsController(
   }, [updateSettings]);
 
   const openPrivacySettings = useCallback(
-    async (pane: "microphone" | "system-audio" | "calendar" | "notifications") => {
+    async (pane: PrivacyPane) => {
       try {
         await api.system.openPrivacySettings(pane);
+      } catch (error) {
+        fail(error);
+      }
+    },
+    [fail],
+  );
+
+  const copyText = useCallback(
+    async (text: string) => {
+      try {
+        await api.system.copyText(text);
       } catch (error) {
         fail(error);
       }
@@ -98,10 +118,12 @@ export function useSettingsController(
 
   return {
     closeSettings,
+    copyText,
     openExternalUrl,
     openLegalDocument,
     openPrivacySettings,
     openSettings,
+    refreshPermissions,
     toggleMarkdownCopy,
     toggleRawAudio,
     updateSettings,

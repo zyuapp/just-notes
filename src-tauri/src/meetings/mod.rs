@@ -33,6 +33,8 @@ pub(crate) fn access_status() -> MeetingAccess {
             .map(|calendar| MeetingCalendar {
                 id: calendar.id,
                 title: calendar.title,
+                account: calendar.account,
+                color: calendar.color,
             })
             .collect()
     } else {

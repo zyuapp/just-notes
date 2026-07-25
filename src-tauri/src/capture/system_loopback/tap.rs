@@ -10,7 +10,25 @@ use std::ptr::NonNull;
 use super::aggregate::{
     attach_tap_to_aggregate_device, coreaudio_status, create_aggregate_device_description,
 };
+use super::authorization::remember_tap_succeeded;
 use crate::app::now_ms;
+
+pub(super) const TAP_PROBE_NAME: &str = "Just Notes Permission Check";
+
+/// Creates and immediately destroys a tap to learn whether macOS permits one.
+/// The tap is private and gets no aggregate device, so nothing reaches the
+/// audio device list and no samples are ever read.
+pub(super) fn probe_process_tap(device_name: &str) -> bool {
+    match create_process_tap(device_name) {
+        Ok(tap_id) => {
+            unsafe {
+                AudioHardwareDestroyProcessTap(tap_id);
+            }
+            true
+        }
+        Err(_) => false,
+    }
+}
 
 pub(in crate::capture) struct CoreAudioSystemTap {
     tap_id: AudioObjectID,
@@ -78,6 +96,7 @@ fn create_process_tap(device_name: &str) -> Result<AudioObjectID, String> {
             coreaudio_status(status)
         ));
     }
+    remember_tap_succeeded();
     Ok(tap_id)
 }
 

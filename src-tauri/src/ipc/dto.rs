@@ -10,6 +10,7 @@ pub(crate) struct AppInfo {
     pub(crate) data_dir: String,
     pub(crate) threads_dir: String,
     pub(crate) fixture_mode: bool,
+    pub(crate) version: String,
 }
 
 #[derive(serde::Serialize, ts_rs::TS, Clone)]
@@ -50,6 +51,16 @@ pub(crate) struct FinalizationStatusPayload {
 #[derive(serde::Serialize, ts_rs::TS, Clone)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
+pub(crate) struct StorageUsagePayload {
+    pub(crate) total_bytes: u64,
+    pub(crate) raw_audio_bytes: u64,
+    pub(crate) reclaimable_bytes: u64,
+    pub(crate) thread_count: u64,
+}
+
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub(crate) struct PermissionsPayload {
     pub(crate) microphone: String,
     pub(crate) system_audio: String,
@@ -61,6 +72,11 @@ pub(crate) struct PermissionsPayload {
 pub(crate) struct MeetingCalendarPayload {
     pub(crate) id: String,
     pub(crate) title: String,
+    /// Owning account, e.g. "iCloud" or a Google address. Calendars from
+    /// different accounts frequently share a title, so this disambiguates them.
+    pub(crate) account: String,
+    /// `#rrggbb`, matching the calendar's colour in macOS Calendar.
+    pub(crate) color: String,
 }
 
 #[derive(serde::Serialize, ts_rs::TS, Clone)]

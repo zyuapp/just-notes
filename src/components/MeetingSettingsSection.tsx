@@ -2,21 +2,17 @@ import type { AppSettings } from "../bindings/AppSettings";
 import type { MeetingAccessPayload } from "../bindings/MeetingAccessPayload";
 import { MeetingCalendarConnect } from "./MeetingCalendarConnect";
 import { MeetingSettingsConnected } from "./MeetingSettingsConnected";
+import type { MeetingSettingsActions } from "./settingsViewTypes";
+import type { PrivacyPane } from "../lib/permissionStatus";
 
-type MeetingSettingsSectionProps = {
+type MeetingSettingsSectionProps = MeetingSettingsActions & {
   settings: AppSettings;
   access: MeetingAccessPayload | null;
-  onRequestAccess: () => void;
-  onToggleCalendar: (calendarId: string) => void;
-  onToggleReminders: () => void;
-  onSetReminderMinutes: (minutes: number) => void;
-  onToggleEndReminders: () => void;
-  onOpenPrivacy: (pane: "calendar" | "notifications") => void;
-  busy: boolean;
+  onOpenPrivacy: (pane: PrivacyPane) => void;
 };
 
 export function MeetingSettingsSection(props: MeetingSettingsSectionProps) {
-  const { access, busy, onOpenPrivacy, onRequestAccess } = props;
+  const { access, requestingAccess, onOpenPrivacy, onRequestAccess } = props;
   const calendarAuthorized = access?.calendarAuthorization === "authorized";
 
   return (
@@ -26,7 +22,7 @@ export function MeetingSettingsSection(props: MeetingSettingsSectionProps) {
       ) : (
         <MeetingCalendarConnect
           denied={access?.calendarAuthorization === "denied"}
-          busy={busy}
+          busy={requestingAccess}
           onConnect={onRequestAccess}
           onOpenSettings={() => onOpenPrivacy("calendar")}
         />

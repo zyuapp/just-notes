@@ -48,6 +48,54 @@
   line-height: 1.45;
 }
 
+.settings-hint-danger {
+  color: var(--danger-text);
+}
+
+.settings-hint-warning {
+  color: var(--warning-text);
+}
+
+.settings-subhint {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-subtle);
+}
+
+.settings-panel h3.settings-group-heading {
+  margin-top: 26px;
+}
+
+.settings-note {
+  margin-top: 10px;
+  color: var(--text-subtle);
+}
+
+.settings-callout {
+  margin: 14px 0 0;
+  padding: 9px 11px;
+  border-left: 2px solid var(--border-emphasis);
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.settings-link {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-primary);
+  font-size: var(--type-control);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--border-emphasis);
+  text-underline-offset: 2px;
+}
+
+.settings-link:hover {
+  text-decoration-color: var(--text-primary);
+}
+
 .settings-path {
   overflow-wrap: anywhere;
   font-family: var(--mono);

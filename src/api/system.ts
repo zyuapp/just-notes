@@ -1,9 +1,19 @@
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
+import type { StorageUsagePayload } from "../bindings/StorageUsagePayload";
+import type { PrivacyPane } from "../lib/permissionStatus";
 import { invokeCommand } from "./transport";
 
 export const systemApi = {
   getPermissions(): Promise<PermissionsPayload> {
     return invokeCommand("get_permissions_status");
+  },
+
+  getStorageUsage(): Promise<StorageUsagePayload> {
+    return invokeCommand("get_storage_usage");
+  },
+
+  deleteReclaimableRawAudio(): Promise<StorageUsagePayload> {
+    return invokeCommand("delete_reclaimable_raw_audio");
   },
 
   revealInFinder(path: string): Promise<void> {
@@ -15,7 +25,7 @@ export const systemApi = {
   },
 
   openPrivacySettings(
-    pane: "microphone" | "system-audio" | "calendar" | "notifications",
+    pane: PrivacyPane,
   ): Promise<void> {
     return invokeCommand("open_privacy_settings", { pane });
   },

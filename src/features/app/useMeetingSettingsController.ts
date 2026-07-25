@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { api, getApiErrorMessage } from "../../api";
+import { hasWatchedCalendar, toggleCalendarSelection } from "../../lib/meetingCalendars";
 import type { AppAction, AppState } from "./state";
 import type { SettingsUpdater } from "./useSettingsController";
 
@@ -10,17 +11,20 @@ export function useMeetingSettingsController(
   dispatch: AppDispatch,
   updateSettings: (update: SettingsUpdater) => Promise<void>,
 ) {
-  const updateInFlight = useRef(false);
-  const [busy, setBusy] = useState(false);
+  const accessRequestInFlight = useRef(false);
+  const [requestingAccess, setRequestingAccess] = useState(false);
+  const [pendingCalendarIds, setPendingCalendarIds] = useState<string[]>([]);
   const fail = useCallback(
     (error: unknown) => dispatch({ type: "failed", message: getApiErrorMessage(error) }),
     [dispatch],
   );
 
   const requestAccess = useCallback(async () => {
-    if (updateInFlight.current) return;
-    updateInFlight.current = true;
-    setBusy(true);
+    // A second request would stack another system dialog, so this gesture stays
+    // guarded rather than queued.
+    if (accessRequestInFlight.current) return;
+    accessRequestInFlight.current = true;
+    setRequestingAccess(true);
     dispatch({ type: "errorCleared" });
     try {
       const meetingAccess = await api.meetings.requestAccess();
@@ -32,74 +36,62 @@ export function useMeetingSettingsController(
         .catch(() => undefined);
       fail(error);
     } finally {
-      updateInFlight.current = false;
-      setBusy(false);
+      accessRequestInFlight.current = false;
+      setRequestingAccess(false);
     }
   }, [dispatch, fail]);
 
-  const persist = useCallback(
-    async (update: SettingsUpdater) => {
-      if (updateInFlight.current) return;
-      updateInFlight.current = true;
-      setBusy(true);
+  const availableCalendars = state.meetingAccess?.calendars ?? [];
+
+  const toggleCalendar = useCallback(
+    async (calendarId: string) => {
+      setPendingCalendarIds((pending) => [...pending, calendarId]);
       try {
-        await updateSettings(update);
+        // updateSettings serializes writes, so each updater sees the previous
+        // one's result and a burst of ticks all land. The reminder preference is
+        // left untouched: with no calendars selected no prompt can fire anyway,
+        // and preserving it means re-selecting one restores the user's choice.
+        await updateSettings((settings) => ({
+          ...settings,
+          meetingCalendarIds: toggleCalendarSelection(settings.meetingCalendarIds, calendarId),
+        }));
       } finally {
-        updateInFlight.current = false;
-        setBusy(false);
+        setPendingCalendarIds((pending) => {
+          const index = pending.indexOf(calendarId);
+          if (index === -1) return pending;
+          return [...pending.slice(0, index), ...pending.slice(index + 1)];
+        });
       }
     },
     [updateSettings],
   );
 
-  const toggleCalendar = useCallback(
-    async (calendarId: string) => {
-      const available = new Set(
-        state.meetingAccess?.calendars.map((calendar) => calendar.id) ?? [],
-      );
-      await persist((settings) => {
-        const selected = new Set(settings.meetingCalendarIds);
-        const hadValidSelection = settings.meetingCalendarIds.some((id) => available.has(id));
-        if (selected.has(calendarId)) selected.delete(calendarId);
-        else selected.add(calendarId);
-        const hasValidSelection = [...selected].some((id) => available.has(id));
-        return {
-          ...settings,
-          meetingCalendarIds: [...selected],
-          meetingRemindersEnabled:
-            hasValidSelection && hadValidSelection && settings.meetingRemindersEnabled,
-        };
-      });
-    },
-    [persist, state.meetingAccess?.calendars],
-  );
-
   const toggleReminders = useCallback(async () => {
-    const available = new Set(state.meetingAccess?.calendars.map((calendar) => calendar.id) ?? []);
-    await persist((settings) => ({
+    await updateSettings((settings) => ({
       ...settings,
       meetingRemindersEnabled:
-        settings.meetingCalendarIds.some((id) => available.has(id))
-          && !settings.meetingRemindersEnabled,
+        hasWatchedCalendar(settings.meetingCalendarIds, availableCalendars)
+        && !settings.meetingRemindersEnabled,
     }));
-  }, [persist, state.meetingAccess?.calendars]);
+  }, [availableCalendars, updateSettings]);
 
   const setReminderMinutes = useCallback(
     async (meetingReminderMinutes: number) => {
-      await persist((settings) => ({ ...settings, meetingReminderMinutes }));
+      await updateSettings((settings) => ({ ...settings, meetingReminderMinutes }));
     },
-    [persist],
+    [updateSettings],
   );
 
   const toggleEndReminders = useCallback(async () => {
-    await persist((settings) => ({
+    await updateSettings((settings) => ({
       ...settings,
       meetingEndReminders: !settings.meetingEndReminders,
     }));
-  }, [persist]);
+  }, [updateSettings]);
 
   return {
-    busy,
+    pendingCalendarIds,
+    requestingAccess,
     requestAccess,
     setReminderMinutes,
     toggleCalendar,

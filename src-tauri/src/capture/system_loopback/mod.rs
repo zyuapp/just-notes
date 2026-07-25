@@ -1,4 +1,5 @@
 mod aggregate;
+mod authorization;
 mod tap;
 
 use std::{thread, time::Duration};
@@ -7,6 +8,8 @@ use cpal::{
     traits::{DeviceTrait, HostTrait},
     Device, Stream,
 };
+
+pub(crate) use authorization::authorization_status as system_audio_permission_status;
 
 use tap::CoreAudioSystemTap;
 

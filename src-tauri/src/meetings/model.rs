@@ -2,6 +2,8 @@
 pub(crate) struct MeetingCalendar {
     pub(crate) id: String,
     pub(crate) title: String,
+    pub(crate) account: String,
+    pub(crate) color: String,
 }
 
 #[derive(Clone)]

@@ -1,0 +1,77 @@
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.calendar-filter {
+  min-width: 0;
+  height: var(--control-height-compact);
+  flex: 1;
+}
+
+.calendar-list {
+  padding: 5px 0;
+  border-top: 1px solid var(--border-default);
+}
+
+/* A long calendar list must not push the reminder controls off-screen at the
+   window's minimum height. */
+.calendar-list.scrolls {
+  max-height: 214px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.calendar-account {
+  margin: 12px 0 4px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border-default);
+  color: var(--text-subtle);
+  font-size: var(--type-caption);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.calendar-list > div:first-child .calendar-account {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.calendar-option {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 6px;
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--type-body);
+}
+
+.calendar-option:hover {
+  background: var(--surface-hover);
+}
+
+.calendar-swatch {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.calendar-option-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-option-pending {
+  margin-left: auto;
+  color: var(--text-subtle);
+  font-size: var(--type-caption);
+}

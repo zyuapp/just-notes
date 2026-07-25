@@ -2,17 +2,18 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::{
     app::AppPaths,
-    capture::microphone_permission_status,
+    capture::{microphone_permission_status, system_audio_permission_status},
     ipc::{AppInfo, PermissionsPayload},
     platform,
 };
 
 #[tauri::command]
-pub(crate) fn get_app_info(paths: State<'_, AppPaths>) -> AppInfo {
+pub(crate) fn get_app_info(app: AppHandle, paths: State<'_, AppPaths>) -> AppInfo {
     AppInfo {
         data_dir: paths.data_dir.display().to_string(),
         threads_dir: paths.threads_dir.display().to_string(),
         fixture_mode: cfg!(any(debug_assertions, feature = "qa-fixtures")),
+        version: app.package_info().version.to_string(),
     }
 }
 
@@ -21,7 +22,7 @@ pub(crate) async fn get_permissions_status(app: AppHandle) -> Result<Permissions
     tauri::async_runtime::spawn_blocking(move || {
         Ok(PermissionsPayload {
             microphone: microphone_permission_status(&app)?,
-            system_audio: "unknown".to_string(),
+            system_audio: system_audio_permission_status(),
         })
     })
     .await

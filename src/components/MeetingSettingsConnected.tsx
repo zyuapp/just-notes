@@ -1,124 +1,87 @@
 import type { AppSettings } from "../bindings/AppSettings";
 import type { MeetingAccessPayload } from "../bindings/MeetingAccessPayload";
+import { hasWatchedCalendar } from "../lib/meetingCalendars";
+import { meetingPromptsBlocked } from "../lib/permissionStatus";
 import { Button } from "./Button";
-import { SettingsToggle } from "./SettingsControls";
+import { CalendarPicker } from "./CalendarPicker";
+import { MeetingReminderControls } from "./MeetingReminderControls";
+import { SettingsBanner } from "./SettingsBanner";
+import { SettingsRow } from "./SettingsRow";
+import { StatusPill } from "./StatusPill";
+import type { MeetingSettingsActions } from "./settingsViewTypes";
+import type { PrivacyPane } from "../lib/permissionStatus";
 
-type MeetingSettingsConnectedProps = {
+type MeetingSettingsConnectedProps = MeetingSettingsActions & {
   settings: AppSettings;
   access: MeetingAccessPayload;
-  onRequestAccess: () => void;
-  onToggleCalendar: (calendarId: string) => void;
-  onToggleReminders: () => void;
-  onSetReminderMinutes: (minutes: number) => void;
-  onToggleEndReminders: () => void;
-  onOpenPrivacy: (pane: "calendar" | "notifications") => void;
-  busy: boolean;
+  onOpenPrivacy: (pane: PrivacyPane) => void;
 };
 
-const REMINDER_MINUTES = [1, 5, 10];
+export function MeetingSettingsConnected(props: MeetingSettingsConnectedProps) {
+  const { access, settings } = props;
+  const hasSelectedCalendar = hasWatchedCalendar(settings.meetingCalendarIds, access.calendars);
+  const notificationsBlocked = meetingPromptsBlocked(access);
+  const canRemind = hasSelectedCalendar && !notificationsBlocked;
 
-export function MeetingSettingsConnected({
-  settings, access, onRequestAccess, onToggleCalendar, onToggleReminders,
-  onSetReminderMinutes, onToggleEndReminders, onOpenPrivacy, busy,
-}: MeetingSettingsConnectedProps) {
-  const availableIds = new Set(access.calendars.map((calendar) => calendar.id));
-  const hasSelectedCalendar = settings.meetingCalendarIds.some((id) => availableIds.has(id));
+  return (
+    <>
+      {notificationsBlocked && (
+        <SettingsBanner
+          tone="warning"
+          title="Meeting prompts can't appear"
+          description="Notifications are blocked for Just Notes, so nothing below will fire until you allow them."
+        >
+          <Button
+            size="compact"
+            variant="primary"
+            disabled={props.requestingAccess}
+            onClick={
+              access.notificationAuthorization === "denied"
+                ? () => props.onOpenPrivacy("notifications")
+                : props.onRequestAccess
+            }
+          >
+            {access.notificationAuthorization === "denied"
+              ? "Open System Settings"
+              : "Allow notifications"}
+          </Button>
+        </SettingsBanner>
+      )}
 
-  return <>
-    <section className="meeting-settings-group">
-      <h3>Calendar access</h3>
-      <div className="settings-row">
-        <div>
-          <strong>Calendar access</strong>
-          <p className="settings-hint">Connected to macOS Calendar</p>
-        </div>
-        <span className="calendar-connected-status"><i aria-hidden="true" />Connected</span>
-      </div>
-    </section>
-
-    <section className="meeting-settings-group">
-      <h3>Calendars</h3>
-      <div className="calendar-list">
-        {access.calendars.map((calendar) => (
-          <label key={calendar.id} className="calendar-option">
-            <input
-              type="checkbox"
-              checked={settings.meetingCalendarIds.includes(calendar.id)}
-              onChange={() => onToggleCalendar(calendar.id)}
-              disabled={busy}
-            />
-            <span>{calendar.title}</span>
-          </label>
-        ))}
-        {access.calendars.length === 0 && (
-          <p className="settings-hint">No event calendars are available in macOS Calendar.</p>
-        )}
-      </div>
-    </section>
-
-    <section className="meeting-settings-group">
-      <h3>Reminders</h3>
-      <SettingsToggle
-        label="Recording reminders"
-        description={hasSelectedCalendar
-          ? "Ask before meetings on selected calendars."
-          : "Select at least one calendar to enable reminders."}
-        checked={settings.meetingRemindersEnabled && hasSelectedCalendar}
-        onToggle={onToggleReminders}
-        disabled={!hasSelectedCalendar || busy}
-      />
-      <div className="settings-row">
-        <div>
-          <strong>Ask before meetings</strong>
-          <p className="settings-hint">Choose when the start prompt appears.</p>
-        </div>
-        <div className="settings-segmented" aria-label="Meeting reminder lead time">
-          {REMINDER_MINUTES.map((minutes) => (
-            <button
-              key={minutes}
-              type="button"
-              className={settings.meetingReminderMinutes === minutes ? "selected" : ""}
-              onClick={() => onSetReminderMinutes(minutes)}
-              aria-pressed={settings.meetingReminderMinutes === minutes}
-              disabled={busy}
-            >
-              {minutes}m
-            </button>
-          ))}
-        </div>
-      </div>
-      <SettingsToggle
-        label="End reminders"
-        description="Ask at the scheduled end, then again in 10 minutes."
-        checked={settings.meetingEndReminders}
-        onToggle={onToggleEndReminders}
-        disabled={busy}
-      />
-    </section>
-
-    {access.notificationAuthorization !== "authorized" && (
       <section className="meeting-settings-group">
-        <h3>Notifications</h3>
-        <div className="settings-row">
-          <div>
-            <strong>Notifications need access</strong>
-            <p className="settings-hint">Allow notifications so meeting prompts can appear.</p>
-          </div>
-          <div className="settings-row-actions">
-            <Button
-              size="compact"
-              disabled={busy}
-              onClick={access.notificationAuthorization === "denied"
-                ? () => onOpenPrivacy("notifications")
-                : onRequestAccess}
-            >
-              {access.notificationAuthorization === "denied"
-                ? "Open System Settings"
-                : "Allow notifications"}
-            </Button>
-          </div>
-        </div>
+        <SettingsRow label="Calendar access" description="Read-only access to macOS Calendar.">
+          <StatusPill tone="ok" label="Connected" />
+        </SettingsRow>
       </section>
-    )}
-  </>;
+
+      <section className="meeting-settings-group">
+        <h3>Calendars to watch</h3>
+        <CalendarPicker
+          calendars={access.calendars}
+          selectedIds={settings.meetingCalendarIds}
+          pendingIds={props.pendingCalendarIds}
+          onToggle={props.onToggleCalendar}
+        />
+      </section>
+
+      <MeetingReminderControls
+        settings={settings}
+        canRemind={canRemind}
+        blockedReason={
+          notificationsBlocked
+            ? "Blocked by notification permission."
+            : "Watch at least one calendar to enable reminders."
+        }
+        onToggleReminders={props.onToggleReminders}
+        onSetReminderMinutes={props.onSetReminderMinutes}
+        onToggleEndReminders={props.onToggleEndReminders}
+      />
+
+      {!hasSelectedCalendar && settings.meetingRemindersEnabled && (
+        <p className="settings-callout">
+          Reminders stay switched on and resume as soon as you watch a calendar again.
+        </p>
+      )}
+    </>
+  );
 }

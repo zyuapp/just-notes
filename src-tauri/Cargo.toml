@@ -25,7 +25,7 @@ cpal = "0.17.3"
 hound = "3.5.1"
 reqwest = { version = "0.12.15", default-features = false, features = ["blocking", "rustls-tls"] }
 objc2 = "0.6.4"
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "NSPasteboard", "NSResponder", "NSWindow", "NSWorkspace"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "NSColor", "NSColorSpace", "NSPasteboard", "NSResponder", "NSWindow", "NSWorkspace"] }
 objc2-av-foundation = { version = "0.3.2", default-features = false, features = ["AVCaptureDevice", "AVMediaFormat", "block2", "std"] }
 objc2-core-audio = { version = "0.3.2", default-features = false, features = ["AudioHardware", "objc2", "objc2-foundation", "std"] }
 objc2-core-foundation = { version = "0.3.2", features = ["CFArray", "CFDictionary", "CFString"] }

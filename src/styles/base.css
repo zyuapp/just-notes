@@ -23,6 +23,9 @@
   --danger-text: #e3a0a4;
   --danger-text-strong: #f0b6b9;
   --warning: #caa064;
+  --warning-soft: rgba(202, 160, 100, 0.13);
+  --warning-border: rgba(202, 160, 100, 0.4);
+  --warning-text: #d9b782;
   --success: #98aa9d;
   --success-soft: rgba(115, 151, 124, 0.16);
   --success-text: #b7cfbd;

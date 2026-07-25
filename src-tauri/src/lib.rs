@@ -111,6 +111,8 @@ macro_rules! command_handler {
         commands::transcription::cancel_transcription_model_download,
         commands::transcription::delete_transcription_model,
         commands::system::get_permissions_status,
+        commands::threads::get_storage_usage,
+        commands::threads::delete_reclaimable_raw_audio,
         commands::system::reveal_in_finder,
         commands::system::copy_text_to_clipboard,
         commands::system::open_privacy_settings,
