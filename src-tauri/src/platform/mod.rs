@@ -7,7 +7,6 @@ use tauri::AppHandle;
 
 pub(crate) mod calendar;
 pub(crate) mod notifications;
-pub(crate) mod system_audio;
 
 const APP_KIT_TIMEOUT: Duration = Duration::from_secs(120);
 

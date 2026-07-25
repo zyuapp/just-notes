@@ -2,7 +2,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::{
     app::AppPaths,
-    capture::microphone_permission_status,
+    capture::{microphone_permission_status, system_audio_permission_status},
     ipc::{AppInfo, PermissionsPayload},
     platform,
 };
@@ -22,7 +22,7 @@ pub(crate) async fn get_permissions_status(app: AppHandle) -> Result<Permissions
     tauri::async_runtime::spawn_blocking(move || {
         Ok(PermissionsPayload {
             microphone: microphone_permission_status(&app)?,
-            system_audio: platform::system_audio::authorization_status(),
+            system_audio: system_audio_permission_status(),
         })
     })
     .await

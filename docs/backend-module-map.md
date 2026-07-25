@@ -48,7 +48,6 @@ Use this when adding or changing a user preference.
 ## `src-tauri/src/platform`
 
 - `mod.rs`: public AppKit/Foundation helpers — Finder reveal, clipboard copy, and System Settings privacy-pane links.
-- `system_audio.rs`: Screen & System Audio Recording authorization preflight.
 - `calendar.rs`: EventKit authorization, database-change observation, calendar listing, and eligible event retrieval; `calendar/worker.rs` serializes synchronous EventKit reads and replaces timed-out workers.
 - `notifications.rs`: UserNotifications permission, categories, delivery, and action callback adapter.
 
@@ -96,7 +95,8 @@ Use this when changing thread persistence, transcript ordering, markdown output,
 - `model.rs`: capture session models, prepared input, shared rolling buffers with absolute sample indexing, channel state, and capture source.
 - `device.rs`: real microphone and system-loopback device preparation.
 - `system_loopback/mod.rs`: system-loopback facade and CPAL device discovery.
-- `system_loopback/tap.rs`: CoreAudio process tap lifecycle and permission-aware error messages.
+- `system_loopback/tap.rs`: CoreAudio process tap lifecycle, the authorization probe, and permission-aware error messages.
+- `system_loopback/authorization.rs`: Screen & System Audio Recording authorization status, answered by probing for a process tap.
 - `system_loopback/aggregate.rs`: CoreAudio aggregate device description, attachment, and property helpers.
 - `permission.rs`: microphone authorization request and non-blocking status query.
 - `samples.rs`: CPAL input stream construction and sample conversion into mono rolling buffers.
