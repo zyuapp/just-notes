@@ -5,16 +5,16 @@ use crate::{
     transcription::{clean_transcript_text, is_ignored_transcript_text},
 };
 
-const PARAKEET_MAX_SEGMENT_MS: u64 = 30_000;
-const PARAKEET_MIN_SENTENCE_MS: u64 = 500;
-const MIN_TOKEN_DURATION_MS: u64 = 20;
+mod tokens;
 
-#[derive(Clone)]
-struct TimedToken {
-    text: String,
-    start_ms: u64,
-    end_ms: u64,
-}
+use tokens::{parakeet_timed_tokens, TimedToken};
+
+/// Longest span one segment may cover. The transcript is a single list ordered
+/// by segment start, so a segment places every word it holds ahead of whatever
+/// the other capture channel said meanwhile; this bounds that displacement.
+const PARAKEET_MAX_SEGMENT_MS: u64 = 4_000;
+const PARAKEET_MIN_SENTENCE_MS: u64 = 500;
+const MIN_SEGMENT_DURATION_MS: u64 = 20;
 
 pub(super) struct SegmentIdentity<'a> {
     pub(super) source: &'a str,
@@ -38,137 +38,114 @@ pub(super) fn parakeet_result_segments(
     grouped_parakeet_segments(tokens, identity)
 }
 
-fn parakeet_timed_tokens(
-    result: &OfflineRecognizerResult,
-    total_duration_ms: u64,
-) -> Vec<TimedToken> {
-    let Some(timestamps) = result.timestamps.as_ref() else {
-        return Vec::new();
-    };
-    result
-        .tokens
-        .iter()
-        .enumerate()
-        .filter_map(|(index, token)| {
-            let text = parakeet_token_text(token);
-            if text.trim().is_empty() {
-                return None;
-            }
-            let start_ms = seconds_to_ms(*timestamps.get(index)?).min(total_duration_ms);
-            let end_ms = parakeet_token_end_ms(index, start_ms, result, total_duration_ms);
-            Some(TimedToken {
-                text,
-                start_ms,
-                end_ms,
-            })
-        })
-        .collect()
-}
-
-fn parakeet_token_end_ms(
-    index: usize,
-    start_ms: u64,
-    result: &OfflineRecognizerResult,
-    total_duration_ms: u64,
-) -> u64 {
-    let duration_end = result
-        .durations
-        .as_ref()
-        .and_then(|durations| durations.get(index))
-        .copied()
-        .filter(|duration| duration.is_finite() && *duration > 0.0)
-        .map(|duration| start_ms.saturating_add(seconds_to_ms(duration)));
-    let next_start = result
-        .timestamps
-        .as_ref()
-        .and_then(|timestamps| timestamps.get(index + 1))
-        .copied()
-        .map(seconds_to_ms);
-    let end_ms = duration_end
-        .or(next_start)
-        .unwrap_or(total_duration_ms)
-        .max(start_ms.saturating_add(MIN_TOKEN_DURATION_MS));
-    if total_duration_ms > start_ms {
-        end_ms.min(total_duration_ms)
-    } else {
-        end_ms
-    }
-}
-
-fn seconds_to_ms(seconds: f32) -> u64 {
-    if seconds.is_finite() && seconds > 0.0 {
-        (seconds * 1000.0).round() as u64
-    } else {
-        0
-    }
-}
-
-fn parakeet_token_text(token: &str) -> String {
-    token
-        .replace('\u{2581}', " ")
-        .replace("<blk>", "")
-        .replace("<blank>", "")
-}
-
 fn grouped_parakeet_segments(
     tokens: Vec<TimedToken>,
     identity: SegmentIdentity<'_>,
 ) -> Vec<TranscriptSegment> {
     let mut segments = Vec::new();
-    let mut current = Vec::new();
-    let mut current_start_ms = 0;
-    let mut current_end_ms = 0;
+    let mut sentence: Vec<TimedToken> = Vec::new();
+    let mut sentence_end_ms = 0;
 
     for token in tokens {
-        if current.is_empty() {
-            current_start_ms = token.start_ms;
-        }
-        current_end_ms = current_end_ms.max(token.end_ms);
-        let sentence_boundary = ends_sentence(&token.text)
-            && current_end_ms.saturating_sub(current_start_ms) >= PARAKEET_MIN_SENTENCE_MS;
-        let duration_boundary =
-            current_end_ms.saturating_sub(current_start_ms) >= PARAKEET_MAX_SEGMENT_MS;
-        current.push(token.text);
-        if sentence_boundary || duration_boundary {
-            push_parakeet_segment(
-                &mut segments,
-                &current,
-                current_start_ms,
-                current_end_ms,
-                &identity,
-            );
-            current.clear();
+        let closes_sentence = ends_sentence(&token.text);
+        let start_ms = sentence
+            .first()
+            .map_or(token.start_ms, |first: &TimedToken| first.start_ms);
+        sentence_end_ms = sentence_end_ms.max(token.end_ms);
+        sentence.push(token);
+        if closes_sentence && sentence_end_ms.saturating_sub(start_ms) >= PARAKEET_MIN_SENTENCE_MS {
+            push_bounded_segments(&mut segments, std::mem::take(&mut sentence), &identity);
+            sentence_end_ms = 0;
         }
     }
 
-    if !current.is_empty() {
-        push_parakeet_segment(
-            &mut segments,
-            &current,
-            current_start_ms,
-            current_end_ms,
-            &identity,
-        );
-    }
+    push_bounded_segments(&mut segments, sentence, &identity);
     segments
+}
+
+/// Emits a sentence as one segment, or as several cut at its longest pauses
+/// when it runs past [`PARAKEET_MAX_SEGMENT_MS`].
+fn push_bounded_segments(
+    segments: &mut Vec<TranscriptSegment>,
+    sentence: Vec<TimedToken>,
+    identity: &SegmentIdentity<'_>,
+) {
+    let mut rest = sentence;
+    while !rest.is_empty() {
+        let tail = rest.split_off(cap_split_index(&rest));
+        push_parakeet_segment(segments, &rest, identity);
+        rest = tail;
+    }
+}
+
+/// How many leading tokens stay inside the duration cap. Candidates are ranked
+/// by whether they start a word and then by the pause before them, so a cut
+/// prefers a word boundary; a run with no word start inside the cap is still
+/// cut, mid-word. Returns every token when the run already fits, and never
+/// returns zero for a non-empty run.
+fn cap_split_index(tokens: &[TimedToken]) -> usize {
+    let Some(first) = tokens.first() else {
+        return 0;
+    };
+    if group_end_ms(tokens).saturating_sub(first.start_ms) <= PARAKEET_MAX_SEGMENT_MS {
+        return tokens.len();
+    }
+
+    let mut cut = 1;
+    let mut best = (false, 0);
+    let mut cut_end_ms = first.end_ms;
+    for index in 1..tokens.len() {
+        if cut_end_ms.saturating_sub(first.start_ms) > PARAKEET_MAX_SEGMENT_MS {
+            break;
+        }
+        let candidate = (
+            starts_word(&tokens[index].text),
+            tokens[index]
+                .start_ms
+                .saturating_sub(tokens[index - 1].end_ms),
+        );
+        if candidate >= best {
+            best = candidate;
+            cut = index;
+        }
+        cut_end_ms = cut_end_ms.max(tokens[index].end_ms);
+    }
+    cut
+}
+
+/// Parakeet emits sub-word tokens; only a word's first token keeps the space
+/// that `\u{2581}` was decoded into.
+fn starts_word(text: &str) -> bool {
+    text.starts_with(' ')
+}
+
+fn group_end_ms(tokens: &[TimedToken]) -> u64 {
+    tokens.iter().map(|token| token.end_ms).max().unwrap_or(0)
 }
 
 fn push_parakeet_segment(
     segments: &mut Vec<TranscriptSegment>,
-    pieces: &[String],
-    start_ms: u64,
-    end_ms: u64,
+    tokens: &[TimedToken],
     identity: &SegmentIdentity<'_>,
 ) {
-    let text = clean_segment_text(&pieces.concat());
+    let Some(first) = tokens.first() else {
+        return;
+    };
+    let text = clean_segment_text(
+        &tokens
+            .iter()
+            .map(|token| token.text.as_str())
+            .collect::<String>(),
+    );
     if text.is_empty() || is_ignored_transcript_text(&text) {
         return;
     }
+    let start_ms = first.start_ms;
     segments.push(TranscriptSegment {
         speaker: identity.speaker.to_string(),
         source: identity.source.to_string(),
         start_ms,
-        end_ms: end_ms.max(start_ms.saturating_add(MIN_TOKEN_DURATION_MS)),
+        end_ms: group_end_ms(tokens).max(start_ms.saturating_add(MIN_SEGMENT_DURATION_MS)),
         text,
     });
 }
@@ -199,7 +176,7 @@ fn split_text_evenly(
                 speaker: identity.speaker.to_string(),
                 source: identity.source.to_string(),
                 start_ms,
-                end_ms: end_ms.max(start_ms.saturating_add(MIN_TOKEN_DURATION_MS)),
+                end_ms: end_ms.max(start_ms.saturating_add(MIN_SEGMENT_DURATION_MS)),
                 text,
             })
         })

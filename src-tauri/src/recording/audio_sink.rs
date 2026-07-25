@@ -12,7 +12,11 @@ use std::{
 
 use hound::{SampleFormat, WavSpec, WavWriter};
 
-use crate::{capture::SharedBuffers, threads::RecordingAudioPaths};
+use crate::{
+    capture::{CaptureSource, SharedBuffers},
+    threads::RecordingAudioPaths,
+    transcription::samples_for_ms,
+};
 
 const AUDIO_SINK_POLL_MS: u64 = 250;
 
@@ -42,8 +46,12 @@ pub(super) fn spawn_audio_sink(
     mic_sample_rate: u32,
     system_sample_rate: u32,
 ) -> Result<AudioSink, String> {
-    let mic = ChannelSink::create(audio_paths.mic_path(), mic_sample_rate, true)?;
-    let system = ChannelSink::create(audio_paths.system_path(), system_sample_rate, false)?;
+    let mic = ChannelSink::create(audio_paths.mic_path(), mic_sample_rate, CaptureSource::Mic)?;
+    let system = ChannelSink::create(
+        audio_paths.system_path(),
+        system_sample_rate,
+        CaptureSource::System,
+    )?;
     let should_stop = Arc::new(AtomicBool::new(false));
     let stop_flag = Arc::clone(&should_stop);
     let worker = thread::spawn(move || run_audio_sink(buffers, mic, system, stop_flag));
@@ -57,11 +65,13 @@ pub(super) fn spawn_audio_sink(
 struct ChannelSink {
     writer: ChannelWavWriter,
     cursor: u64,
-    is_mic: bool,
+    sample_rate: u32,
+    channel: CaptureSource,
+    lead_in_written: bool,
 }
 
 impl ChannelSink {
-    fn create(path: &Path, sample_rate: u32, is_mic: bool) -> Result<Self, String> {
+    fn create(path: &Path, sample_rate: u32, channel: CaptureSource) -> Result<Self, String> {
         let spec = WavSpec {
             channels: 1,
             sample_rate,
@@ -73,33 +83,42 @@ impl ChannelSink {
         Ok(Self {
             writer,
             cursor: 0,
-            is_mic,
+            sample_rate,
+            channel,
+            lead_in_written: false,
         })
     }
 
     fn drain(&mut self, buffers: &Arc<Mutex<SharedBuffers>>) -> Result<(), String> {
-        let samples = {
-            let shared = buffers
-                .lock()
-                .map_err(|_| "Audio buffer lock was poisoned".to_string())?;
-            let channel = if self.is_mic {
-                &shared.mic
-            } else {
-                &shared.system
-            };
-            let start = self.cursor.max(channel.earliest_index());
-            let end = channel.available_end_index();
-            self.cursor = end.max(self.cursor);
-            (end > start).then(|| channel.window(start, end)).flatten()
-        };
+        let audio = buffers
+            .lock()
+            .map_err(|_| "Audio buffer lock was poisoned".to_string())?
+            .take_new(self.channel, &mut self.cursor);
 
-        let Some(samples) = samples else {
+        if audio.samples.is_empty() {
             return Ok(());
-        };
-        for sample in samples {
+        }
+        self.write_lead_in(audio.start_offset_ms)?;
+        for sample in audio.samples {
             let value = (sample.clamp(-1.0, 1.0) * f32::from(i16::MAX)) as i16;
             self.writer
                 .write_sample(value)
+                .map_err(|err| format!("Failed to write recording audio: {err}"))?;
+        }
+        Ok(())
+    }
+
+    /// Silence covering the gap between the shared capture origin and this
+    /// channel's first sample, so a position in the file lines up with the
+    /// matching transcript timestamp to within one input callback.
+    fn write_lead_in(&mut self, start_offset_ms: u64) -> Result<(), String> {
+        if self.lead_in_written {
+            return Ok(());
+        }
+        self.lead_in_written = true;
+        for _ in 0..samples_for_ms(self.sample_rate, start_offset_ms) {
+            self.writer
+                .write_sample(0i16)
                 .map_err(|err| format!("Failed to write recording audio: {err}"))?;
         }
         Ok(())

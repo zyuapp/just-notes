@@ -14,7 +14,9 @@ use tauri::AppHandle;
 #[cfg(any(debug_assertions, feature = "qa-fixtures"))]
 use fixture::prepare_fixture_audio_input;
 
-pub(crate) use model::{ActiveAudioCapture, PreparedAudioInput, RecordingInputMode, SharedBuffers};
+pub(crate) use model::{
+    ActiveAudioCapture, CaptureSource, PreparedAudioInput, RecordingInputMode, SharedBuffers,
+};
 pub(crate) use permission::microphone_permission_status;
 pub(crate) use system_loopback::system_audio_permission_status;
 

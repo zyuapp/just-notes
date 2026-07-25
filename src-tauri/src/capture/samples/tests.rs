@@ -1,6 +1,10 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
 
-use super::{push_f32_samples, CaptureSource, ChannelSelector, SharedBuffers};
+use super::{push_f32_samples, push_mono_frames, CaptureSource, ChannelSelector, SharedBuffers};
 
 fn mic_mono_after_chunks(chunks: &[Vec<f32>], channels: u16) -> Vec<f32> {
     let buffers = Arc::new(Mutex::new(SharedBuffers::new(48_000, 48_000)));
@@ -26,6 +30,26 @@ fn stereo_chunk(left: f32, right: f32, frames: usize) -> Vec<f32> {
 
 fn rms(samples: &[f32]) -> f32 {
     (samples.iter().map(|sample| sample * sample).sum::<f32>() / samples.len() as f32).sqrt()
+}
+
+// The mic and system streams start independently, so the later one's sample
+// index 0 must carry its distance from the first audio seen on either channel.
+#[test]
+fn a_late_starting_channel_records_its_skew_from_the_shared_origin() {
+    let buffers = Arc::new(Mutex::new(SharedBuffers::new(48_000, 48_000)));
+    push_mono_frames([0.1f32; 64].into_iter(), &buffers, CaptureSource::Mic);
+    thread::sleep(Duration::from_millis(60));
+    push_mono_frames([0.1f32; 64].into_iter(), &buffers, CaptureSource::System);
+    push_mono_frames([0.1f32; 64].into_iter(), &buffers, CaptureSource::Mic);
+
+    let shared = buffers.lock().expect("capture buffers lock");
+    let mic = shared.take_new(CaptureSource::Mic, &mut 0);
+    let system = shared.take_new(CaptureSource::System, &mut 0);
+
+    assert_eq!(mic.samples.len(), 128);
+    assert_eq!(system.samples.len(), 64);
+    let skew = system.start_offset_ms.saturating_sub(mic.start_offset_ms);
+    assert!(skew >= 50, "system starts only {skew}ms after the mic");
 }
 
 #[test]

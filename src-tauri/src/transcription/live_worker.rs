@@ -15,7 +15,7 @@ use super::{
     Transcriber, TranscriptionModelSelection, Utterance,
 };
 use crate::{
-    capture::SharedBuffers,
+    capture::{CaptureSource, SharedBuffers},
     ipc::LiveTranscriptPayload,
     threads::{commit::append_thread_segments, TranscriptSegment},
 };
@@ -64,8 +64,13 @@ fn run_live_transcription(config: LiveTranscriptionConfig, should_stop: Arc<Atom
     let Ok(transcriber) = load_transcriber(&config.model_selection) else {
         return;
     };
-    let mut mic = LiveChannel::new("mic", "You", true, config.mic_sample_rate);
-    let mut system = LiveChannel::new("system", "Others", false, config.system_sample_rate);
+    let mut mic = LiveChannel::new("mic", "You", CaptureSource::Mic, config.mic_sample_rate);
+    let mut system = LiveChannel::new(
+        "system",
+        "Others",
+        CaptureSource::System,
+        config.system_sample_rate,
+    );
 
     while !should_stop.load(Ordering::Relaxed) {
         publish(&config, mic.drain(&config, &*transcriber));
@@ -101,18 +106,25 @@ fn publish(config: &LiveTranscriptionConfig, segments: Vec<TranscriptSegment>) {
 struct LiveChannel {
     source: &'static str,
     speaker: &'static str,
-    is_mic: bool,
+    channel: CaptureSource,
     cursor: u64,
+    start_offset_ms: u64,
     segmenter: LiveSegmenter,
 }
 
 impl LiveChannel {
-    fn new(source: &'static str, speaker: &'static str, is_mic: bool, sample_rate: u32) -> Self {
+    fn new(
+        source: &'static str,
+        speaker: &'static str,
+        channel: CaptureSource,
+        sample_rate: u32,
+    ) -> Self {
         Self {
             source,
             speaker,
-            is_mic,
+            channel,
             cursor: 0,
+            start_offset_ms: 0,
             segmenter: LiveSegmenter::new(sample_rate, SegmenterConfig::live()),
         }
     }
@@ -123,12 +135,18 @@ impl LiveChannel {
         config: &LiveTranscriptionConfig,
         transcriber: &dyn Transcriber,
     ) -> Vec<TranscriptSegment> {
-        let (start_index, samples) = read_new(&config.buffers, self.is_mic, &mut self.cursor);
-        if samples.is_empty() {
+        let Ok(shared) = config.buffers.lock() else {
+            return Vec::new();
+        };
+        let audio = shared.take_new(self.channel, &mut self.cursor);
+        drop(shared);
+        if audio.samples.is_empty() {
             return Vec::new();
         }
+        self.start_offset_ms = audio.start_offset_ms;
         let mut utterances = Vec::new();
-        self.segmenter.push(start_index, &samples, &mut utterances);
+        self.segmenter
+            .push(audio.start_index, &audio.samples, &mut utterances);
         self.transcribe(utterances, transcriber, config.offset_ms)
     }
 
@@ -149,13 +167,14 @@ impl LiveChannel {
         &self,
         utterances: Vec<Utterance>,
         transcriber: &dyn Transcriber,
-        offset_ms: u64,
+        resume_offset_ms: u64,
     ) -> Vec<TranscriptSegment> {
         let mut segments = Vec::new();
         let role = ChannelRole {
             source: self.source,
             speaker: self.speaker,
         };
+        let offset_ms = resume_offset_ms + self.start_offset_ms;
         for utterance in utterances {
             if let Ok(mut produced) =
                 transcribe_live_utterance(transcriber, &utterance, role, offset_ms)
@@ -164,21 +183,6 @@ impl LiveChannel {
             }
         }
         segments
-    }
-}
-
-fn read_new(buffers: &Mutex<SharedBuffers>, is_mic: bool, cursor: &mut u64) -> (u64, Vec<f32>) {
-    let Ok(shared) = buffers.lock() else {
-        return (*cursor, Vec::new());
-    };
-    let channel = if is_mic { &shared.mic } else { &shared.system };
-    let start = (*cursor).max(channel.earliest_index());
-    let end = channel.available_end_index();
-    *cursor = end.max(*cursor);
-    if end > start {
-        (start, channel.window(start, end).unwrap_or_default())
-    } else {
-        (start, Vec::new())
     }
 }
 

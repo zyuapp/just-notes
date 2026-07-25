@@ -196,9 +196,6 @@ pub(super) fn push_mono_frames<I>(
     let level = (rms * 4.0).min(1.0);
 
     if let Ok(mut shared) = buffers.lock() {
-        match source {
-            CaptureSource::Mic => shared.mic.push(&chunk, level),
-            CaptureSource::System => shared.system.push(&chunk, level),
-        }
+        shared.push(source, &chunk, level);
     }
 }
