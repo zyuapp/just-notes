@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Local-first live transcription notes"
 authors = ["Just Notes"]
 edition = "2021"
-rust-version = "1.78"
+rust-version = "1.88"
 
 [lib]
 name = "just_notes_lib"
@@ -32,7 +32,7 @@ objc2-core-foundation = { version = "0.3.2", features = ["CFArray", "CFDictionar
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSArray", "NSError", "NSNotification", "NSOperation", "NSString", "NSURL", "NSUUID", "block2", "std"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-sha2 = "0.10.8"
+sha2 = "0.11.0"
 sherpa-onnx = "1.13.3"
 tauri = { version = "2.9.3", features = ["tray-icon"] }
 tar = "0.4.44"

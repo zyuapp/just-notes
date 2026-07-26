@@ -34,9 +34,9 @@ pub(super) struct Fixture {
 
 impl Fixture {
     pub(super) fn runs_mode(&self, mode: &str) -> bool {
-        self.modes.as_ref().map_or(true, |modes| {
-            modes.iter().any(|candidate| candidate == mode)
-        })
+        self.modes
+            .as_ref()
+            .is_none_or(|modes| modes.iter().any(|candidate| candidate == mode))
     }
 }
 

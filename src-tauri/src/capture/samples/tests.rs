@@ -22,8 +22,7 @@ fn mic_mono_after(interleaved: &[f32], channels: u16) -> Vec<f32> {
 }
 
 fn stereo_chunk(left: f32, right: f32, frames: usize) -> Vec<f32> {
-    std::iter::repeat([left, right])
-        .take(frames)
+    std::iter::repeat_n([left, right], frames)
         .flatten()
         .collect()
 }

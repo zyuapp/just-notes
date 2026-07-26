@@ -3,7 +3,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::install_extracted_model;
+use bzip2::{write::BzEncoder, Compression};
+
+use super::{extract_archive, install_extracted_model, verify_archive};
 use crate::{
     app::AppPaths,
     transcription::{parakeet_artifact, ModelArtifact},
@@ -47,6 +49,48 @@ fn write_model_files(dir: &Path, artifact: ModelArtifact, paths: &AppPaths) {
         let name = path.file_name().expect("model file name");
         File::create(dir.join(name)).expect("create model file");
     }
+}
+
+fn archive_fixture(path: &Path) -> &'static [u8] {
+    const CONTENT: &[u8] = b"verified archive payload";
+    let file = File::create(path).expect("create archive");
+    let encoder = BzEncoder::new(file, Compression::best());
+    let mut archive = tar::Builder::new(encoder);
+    let mut header = tar::Header::new_gnu();
+    header.set_size(CONTENT.len() as u64);
+    header.set_mode(0o644);
+    header.set_mtime(0);
+    header.set_cksum();
+    archive
+        .append_data(&mut header, "fixture/payload.txt", CONTENT)
+        .expect("append fixture payload");
+    let encoder = archive.into_inner().expect("finish tar archive");
+    encoder.finish().expect("finish bzip2 archive");
+    CONTENT
+}
+
+#[test]
+fn verifies_and_extracts_tar_bz2_archive() {
+    const ARCHIVE_SHA256: &str = "a8d4e9ccb5fa1a8e49477d6ff745c84d5c2dd0e89e0d22f63e2481915361a2fa";
+    let fixture = Fixture::new("archive-round-trip");
+    let archive_path = fixture.root.join("fixture.tar.bz2");
+    let extracting_dir = fixture.root.join("extracted");
+    let expected_content = archive_fixture(&archive_path);
+    let invalid_artifact = ModelArtifact {
+        archive_sha256: "0000000000000000000000000000000000000000000000000000000000000000",
+        ..parakeet()
+    };
+    let artifact = ModelArtifact {
+        archive_sha256: ARCHIVE_SHA256,
+        ..parakeet()
+    };
+
+    assert!(verify_archive(invalid_artifact, &archive_path).is_err());
+    verify_archive(artifact, &archive_path).expect("verify archive checksum");
+    extract_archive(&archive_path, &extracting_dir).expect("extract archive");
+
+    let payload = fs::read(extracting_dir.join("fixture/payload.txt")).expect("read payload");
+    assert_eq!(payload, expected_content);
 }
 
 #[test]

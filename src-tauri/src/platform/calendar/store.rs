@@ -84,7 +84,7 @@ pub(super) fn read_upcoming_events(
                 return None;
             }
             Some(CalendarEvent {
-                id: format!("{}:{start_at_ms}", event_id),
+                id: format!("{event_id}:{start_at_ms}"),
                 calendar_id: unsafe { calendar.calendarIdentifier() }.to_string(),
                 title: unsafe { event.title() }.to_string(),
                 start_at_ms,
