@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Local-first live transcription notes"
 authors = ["Just Notes"]
 edition = "2021"
-rust-version = "1.78"
+rust-version = "1.88"
 
 [lib]
 name = "just_notes_lib"

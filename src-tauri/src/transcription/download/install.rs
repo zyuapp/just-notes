@@ -111,7 +111,11 @@ fn verify_archive(artifact: ModelArtifact, archive_path: &Path) -> Result<(), Do
         }
         hasher.update(&buffer[..read]);
     }
-    let checksum = format!("{:x}", hasher.finalize());
+    let checksum = hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
     if checksum != artifact.archive_sha256 {
         return Err(format!(
             "Downloaded model failed integrity check: expected {}, got {}",
