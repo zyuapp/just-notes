@@ -16,9 +16,9 @@ export function MeetingAutomationControls({
 }: MeetingAutomationControlsProps) {
   return (
     <section className="meeting-settings-group">
-      <h3>Automation</h3>
+      <h3>Recording</h3>
       <SettingsToggle
-        label="Automatically record meetings"
+        label="Record meetings automatically"
         description={
           canAutomate
             ? "Starts recording meetings with other attendees, then stops at the scheduled end. You can skip or keep recording."
