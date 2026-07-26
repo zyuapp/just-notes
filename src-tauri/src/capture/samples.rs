@@ -26,7 +26,7 @@ pub(super) fn build_capture_stream(
 
     match sample_format {
         SampleFormat::F32 => device.build_input_stream(
-            &config,
+            config,
             {
                 let mut selector = ChannelSelector::new();
                 move |data: &[f32], _| {
@@ -37,7 +37,7 @@ pub(super) fn build_capture_stream(
             None,
         ),
         SampleFormat::I16 => device.build_input_stream(
-            &config,
+            config,
             {
                 let mut selector = ChannelSelector::new();
                 move |data: &[i16], _| {
@@ -48,7 +48,7 @@ pub(super) fn build_capture_stream(
             None,
         ),
         SampleFormat::U16 => device.build_input_stream(
-            &config,
+            config,
             {
                 let mut selector = ChannelSelector::new();
                 move |data: &[u16], _| {
