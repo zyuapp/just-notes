@@ -16,6 +16,9 @@ fn settings_defaults_are_safe() {
     assert!(defaults.meeting_calendar_ids.is_empty());
     assert_eq!(defaults.meeting_reminder_minutes, 5);
     assert!(defaults.meeting_end_reminders);
+    assert!(!defaults.meeting_auto_record_enabled);
+    assert!(defaults.meeting_auto_stop_enabled);
+    assert!(defaults.meeting_auto_record_requires_attendees);
     let _ = fs::remove_dir_all(&dir);
 }
 
@@ -30,6 +33,9 @@ fn settings_round_trip() {
         meeting_calendar_ids: vec!["calendar-1".to_string()],
         meeting_reminder_minutes: 10,
         meeting_end_reminders: false,
+        meeting_auto_record_enabled: true,
+        meeting_auto_stop_enabled: false,
+        meeting_auto_record_requires_attendees: false,
     };
     save_settings(&dir, &custom).unwrap();
     let loaded = load_settings(&dir);
@@ -38,6 +44,37 @@ fn settings_round_trip() {
     assert_eq!(loaded.meeting_calendar_ids, ["calendar-1"]);
     assert_eq!(loaded.meeting_reminder_minutes, 10);
     assert!(!loaded.meeting_end_reminders);
+    assert!(loaded.meeting_auto_record_enabled);
+    assert!(!loaded.meeting_auto_stop_enabled);
+    assert!(!loaded.meeting_auto_record_requires_attendees);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn legacy_settings_keep_existing_values_and_receive_automation_defaults() {
+    let dir = settings_test_dir("legacy");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        super::settings_path(&dir),
+        r#"{
+          "saveRawAudio": false,
+          "markdownCopy": true,
+          "meetingRemindersEnabled": true,
+          "meetingCalendarIds": ["calendar-1"],
+          "meetingReminderMinutes": 10,
+          "meetingEndReminders": false
+        }"#,
+    )
+    .unwrap();
+    let loaded = load_settings(&dir);
+    assert!(!loaded.save_raw_audio);
+    assert!(loaded.meeting_reminders_enabled);
+    assert_eq!(loaded.meeting_calendar_ids, ["calendar-1"]);
+    assert_eq!(loaded.meeting_reminder_minutes, 10);
+    assert!(!loaded.meeting_end_reminders);
+    assert!(!loaded.meeting_auto_record_enabled);
+    assert!(loaded.meeting_auto_stop_enabled);
+    assert!(loaded.meeting_auto_record_requires_attendees);
     let _ = fs::remove_dir_all(&dir);
 }
 

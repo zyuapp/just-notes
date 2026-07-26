@@ -6,7 +6,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod end;
 mod prompts;
+pub(super) use prompts::auto_record_eligible;
 #[cfg(test)]
 use prompts::start_prompt_is_due;
 use prompts::{reconcile_start_prompts, start_action_is_timely};
@@ -16,7 +18,7 @@ use tauri::{AppHandle, Manager};
 use super::{model::Meeting, notifications, state::MeetingSchedulerState};
 use crate::{
     app::now_ms,
-    platform::calendar,
+    platform::{calendar, notifications as platform_notifications},
     recording::RecorderState,
     settings::{AppSettings, SettingsState},
 };
@@ -25,7 +27,11 @@ const POLL_INTERVAL: Duration = Duration::from_secs(15);
 const LOOK_BACK_MS: u64 = 15 * 60 * 1000;
 const LOOK_AHEAD_MS: u64 = 12 * 60 * 60 * 1000;
 
-pub(crate) fn spawn(app: AppHandle, sync_prompt: impl Fn(&AppHandle) + Send + 'static) {
+pub(crate) fn spawn(
+    app: AppHandle,
+    start_recording: impl Fn(&AppHandle, &str) + Send + 'static,
+    sync_prompt: impl Fn(&AppHandle) + Send + 'static,
+) {
     let (wake_sender, wake_receiver) = mpsc::sync_channel(1);
     calendar::observe_changes(move || {
         let _ = wake_sender.try_send(());
@@ -34,7 +40,13 @@ pub(crate) fn spawn(app: AppHandle, sync_prompt: impl Fn(&AppHandle) + Send + 's
         let mut read_status = CalendarReadStatus::default();
         loop {
             let started_at = Instant::now();
-            report_calendar_transition(read_status.update(&tick(&app)));
+            let tick_result = tick(&app);
+            report_calendar_transition(
+                read_status.update(&tick_result.as_ref().map(|_| ()).map_err(Clone::clone)),
+            );
+            if let Ok(Some(request_id)) = tick_result {
+                start_recording(&app, &request_id);
+            }
             sync_prompt(&app);
             let remaining = next_poll_delay(started_at.elapsed());
             if matches!(
@@ -51,40 +63,37 @@ fn next_poll_delay(elapsed: Duration) -> Duration {
     POLL_INTERVAL.saturating_sub(elapsed)
 }
 
-fn tick(app: &AppHandle) -> Result<(), String> {
+fn tick(app: &AppHandle) -> Result<Option<String>, String> {
     let settings = app.state::<SettingsState>().snapshot();
     let scheduler = app.state::<MeetingSchedulerState>().inner().clone();
     if !settings.meeting_reminders_enabled {
         notifications::remove(&scheduler.reset());
-        return Ok(());
+        return Ok(None);
     }
 
     let active_session_id = reconcile_active_recording(app, &scheduler);
+    let notifications_authorized = platform_notifications::automation_authorized().unwrap_or(false);
 
     let Ok(now) = now_ms() else {
-        return Ok(());
+        return Ok(None);
     };
     run_calendar_cycle(
         || {
             // End reminders depend only on the active recording and local
             // scheduler state, not on the EventKit refresh result.
-            if settings.meeting_end_reminders {
-                if let Some((request_id, meeting)) = active_session_id
-                    .and_then(|session_id| scheduler.due_end_prompt(now, session_id))
-                {
-                    let retry_scheduler = scheduler.clone();
-                    let retry_request_id = request_id.clone();
-                    notifications::show_end_prompt(&request_id, &meeting.title, move |error| {
-                        eprintln!(
-                            "end reminder {retry_request_id} could not be delivered: {error}"
-                        );
-                        retry_scheduler.retry_end_prompt(&retry_request_id);
-                    });
-                }
-            }
+            end::check(
+                app,
+                &scheduler,
+                active_session_id,
+                now,
+                notifications_authorized,
+            );
         },
         || refresh_start_prompts(&settings, &scheduler, now),
-    )
+    )?;
+    Ok(notifications_authorized
+        .then(|| scheduler.take_due_auto_start(now))
+        .flatten())
 }
 
 fn run_calendar_cycle(

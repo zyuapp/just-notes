@@ -6,15 +6,18 @@ use objc2::runtime::{Bool, NSObjectProtocol, ProtocolObject};
 use objc2::{define_class, msg_send, AnyThread, DefinedClass};
 use objc2_foundation::{NSArray, NSError, NSObject, NSSet, NSString};
 use objc2_user_notifications::{
-    UNAuthorizationOptions, UNAuthorizationStatus, UNMutableNotificationContent, UNNotification,
+    UNAlertStyle, UNAuthorizationOptions, UNAuthorizationStatus, UNNotification,
     UNNotificationAction, UNNotificationActionOptions, UNNotificationCategory,
-    UNNotificationCategoryOptions, UNNotificationPresentationOptions, UNNotificationRequest,
-    UNNotificationResponse, UNNotificationSettings, UNNotificationSound, UNUserNotificationCenter,
+    UNNotificationCategoryOptions, UNNotificationPresentationOptions, UNNotificationResponse,
+    UNNotificationSetting, UNNotificationSettings, UNUserNotificationCenter,
     UNUserNotificationCenterDelegate,
 };
 use tauri::AppHandle;
 
 use super::permission_request_result;
+
+mod delivery;
+pub(crate) use delivery::{remove, show, show_with_completion_handler, show_with_error_handler};
 
 #[derive(Clone, Debug)]
 pub(crate) struct NotificationResponseAction {
@@ -98,16 +101,37 @@ pub(crate) fn initialize(
 }
 
 pub(crate) fn authorization_status() -> Result<String, String> {
+    query_settings(
+        |settings| notification_status_label(settings.authorizationStatus()),
+        "Timed out reading notification permission",
+    )
+}
+
+pub(crate) fn automation_authorized() -> Result<bool, String> {
+    query_settings(
+        |settings| {
+            settings.authorizationStatus() == UNAuthorizationStatus::Authorized
+                && settings.alertSetting() == UNNotificationSetting::Enabled
+                && settings.alertStyle() != UNAlertStyle::None
+        },
+        "Timed out reading notification automation permission",
+    )
+}
+
+fn query_settings<T: Send + 'static>(
+    project: impl Fn(&UNNotificationSettings) -> T + Send + Sync + 'static,
+    timeout_message: &'static str,
+) -> Result<T, String> {
     let center = UNUserNotificationCenter::currentNotificationCenter();
     let (sender, receiver) = mpsc::channel();
     let completion = RcBlock::new(move |settings: std::ptr::NonNull<UNNotificationSettings>| {
-        let status = unsafe { settings.as_ref() }.authorizationStatus();
-        let _ = sender.send(notification_status_label(status));
+        let settings = unsafe { settings.as_ref() };
+        let _ = sender.send(project(settings));
     });
     center.getNotificationSettingsWithCompletionHandler(&completion);
     receiver
         .recv_timeout(Duration::from_secs(5))
-        .map_err(|_| "Timed out reading notification permission".to_string())
+        .map_err(|_| timeout_message.to_string())
 }
 
 pub(crate) fn request_access(app: &AppHandle) -> Result<(), String> {
@@ -133,54 +157,6 @@ fn request_access_on_main(sender: mpsc::Sender<Result<(), String>>) {
         &completion,
     );
     std::mem::forget(completion);
-}
-
-pub(crate) fn show(request_id: &str, title: &str, body: &str, category: &str) {
-    let logged_request_id = request_id.to_string();
-    show_with_error_handler(request_id, title, body, category, move |error| {
-        eprintln!("notification {logged_request_id} could not be delivered: {error}");
-    });
-}
-
-pub(crate) fn show_with_error_handler(
-    request_id: &str,
-    title: &str,
-    body: &str,
-    category: &str,
-    on_error: impl Fn(String) + Send + Sync + 'static,
-) {
-    let content = UNMutableNotificationContent::new();
-    content.setTitle(&NSString::from_str(title));
-    content.setBody(&NSString::from_str(body));
-    content.setCategoryIdentifier(&NSString::from_str(category));
-    content.setSound(Some(&UNNotificationSound::defaultSound()));
-    let request = UNNotificationRequest::requestWithIdentifier_content_trigger(
-        &NSString::from_str(request_id),
-        &content,
-        None,
-    );
-    let completion = RcBlock::new(move |error: *mut NSError| {
-        let Some(error) = (unsafe { error.as_ref() }) else {
-            return;
-        };
-        on_error(error.localizedDescription().to_string());
-    });
-    UNUserNotificationCenter::currentNotificationCenter()
-        .addNotificationRequest_withCompletionHandler(&request, Some(&completion));
-}
-
-pub(crate) fn remove(request_ids: &[String]) {
-    if request_ids.is_empty() {
-        return;
-    }
-    let identifiers = request_ids
-        .iter()
-        .map(|request_id| NSString::from_str(request_id))
-        .collect::<Vec<_>>();
-    let identifiers = NSArray::from_retained_slice(&identifiers);
-    let center = UNUserNotificationCenter::currentNotificationCenter();
-    center.removePendingNotificationRequestsWithIdentifiers(&identifiers);
-    center.removeDeliveredNotificationsWithIdentifiers(&identifiers);
 }
 
 fn register_categories(

@@ -52,18 +52,41 @@ pub(super) fn show_start_prompt(request_id: &str, meeting_title: &str, timing: &
     );
 }
 
+pub(super) fn show_automatic_start_prompt(
+    request_id: &str,
+    meeting_title: &str,
+    timing: &str,
+    on_complete: impl Fn(Result<(), String>) + Send + Sync + 'static,
+) {
+    notifications::show_with_completion_handler(
+        request_id,
+        "Meeting recording scheduled",
+        &format!("{meeting_title} starts {timing}. Recording will start automatically."),
+        START_CATEGORY,
+        on_complete,
+    );
+}
+
 pub(super) fn show_end_prompt(
     request_id: &str,
     meeting_title: &str,
+    auto_stop: bool,
     on_error: impl Fn(String) + Send + Sync + 'static,
 ) {
-    notifications::show_with_error_handler(
-        request_id,
-        "Meeting scheduled to end",
-        &format!("{meeting_title} was scheduled to end. Stop recording?"),
-        END_CATEGORY,
-        on_error,
-    );
+    let (title, body) = if auto_stop {
+        (
+            "Recording stops in one minute",
+            format!(
+                "{meeting_title} is scheduled to end. Keep recording if the meeting runs over."
+            ),
+        )
+    } else {
+        (
+            "Meeting scheduled to end",
+            format!("{meeting_title} was scheduled to end. Stop recording?"),
+        )
+    };
+    notifications::show_with_error_handler(request_id, title, &body, END_CATEGORY, on_error);
 }
 
 pub(crate) fn show_start_failure(request_id: &str, meeting_title: &str, error: &str) {

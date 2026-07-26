@@ -23,6 +23,19 @@ pub(crate) fn stop_recording(
     stop_recording_inner(app, recorder)
 }
 
+pub(crate) fn stop_recording_session(
+    app: AppHandle,
+    recorder: RecorderState,
+    expected_session_id: u64,
+) -> Result<Option<ThreadDetail>, String> {
+    let operation_recorder = recorder.clone();
+    let _operation_guard = operation_recorder.lock_operation()?;
+    if recorder.active_session_id() != Some(expected_session_id) {
+        return Ok(None);
+    }
+    stop_recording_inner(app, recorder).map(Some)
+}
+
 fn stop_recording_inner(app: AppHandle, recorder: RecorderState) -> Result<ThreadDetail, String> {
     recorder.ensure_not_starting()?;
     let session = recorder.take_session()?;

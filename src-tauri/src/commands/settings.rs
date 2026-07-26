@@ -16,12 +16,13 @@ pub(crate) fn update_settings(
     app: AppHandle,
     paths: State<'_, AppPaths>,
     state: State<'_, SettingsState>,
-    settings: AppSettings,
+    mut settings: AppSettings,
 ) -> Result<AppSettings, String> {
     let previous = state.snapshot();
+    meetings::normalize_settings(&mut settings);
     save_settings(&paths.data_dir, &settings)?;
-    state.replace(settings.clone());
     meetings::settings_updated(&app, &previous, &settings);
+    state.replace(settings.clone());
     meeting_surfaces::sync_current(&app);
     Ok(settings)
 }

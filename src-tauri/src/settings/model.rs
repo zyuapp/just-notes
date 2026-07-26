@@ -8,6 +8,9 @@ pub(crate) struct AppSettings {
     pub(crate) meeting_calendar_ids: Vec<String>,
     pub(crate) meeting_reminder_minutes: u16,
     pub(crate) meeting_end_reminders: bool,
+    pub(crate) meeting_auto_record_enabled: bool,
+    pub(crate) meeting_auto_stop_enabled: bool,
+    pub(crate) meeting_auto_record_requires_attendees: bool,
 }
 
 impl Default for AppSettings {
@@ -19,6 +22,9 @@ impl Default for AppSettings {
             meeting_calendar_ids: Vec::new(),
             meeting_reminder_minutes: 5,
             meeting_end_reminders: true,
+            meeting_auto_record_enabled: false,
+            meeting_auto_stop_enabled: true,
+            meeting_auto_record_requires_attendees: true,
         }
     }
 }

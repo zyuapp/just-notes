@@ -4,6 +4,7 @@ import { hasWatchedCalendar } from "../lib/meetingCalendars";
 import { meetingPromptsBlocked } from "../lib/permissionStatus";
 import { Button } from "./Button";
 import { CalendarPicker } from "./CalendarPicker";
+import { MeetingAutomationControls } from "./MeetingAutomationControls";
 import { MeetingReminderControls } from "./MeetingReminderControls";
 import { SettingsBanner } from "./SettingsBanner";
 import { SettingsRow } from "./SettingsRow";
@@ -75,6 +76,21 @@ export function MeetingSettingsConnected(props: MeetingSettingsConnectedProps) {
         onToggleReminders={props.onToggleReminders}
         onSetReminderMinutes={props.onSetReminderMinutes}
         onToggleEndReminders={props.onToggleEndReminders}
+      />
+
+      <MeetingAutomationControls
+        settings={settings}
+        canAutomate={canRemind && settings.meetingRemindersEnabled}
+        blockedReason={
+          !settings.meetingRemindersEnabled
+            ? "Turn on recording reminders first."
+            : notificationsBlocked
+              ? "Blocked by notification permission."
+              : "Watch at least one calendar to enable automation."
+        }
+        onToggleAutoRecord={props.onToggleAutoRecord}
+        onToggleAutoStop={props.onToggleAutoStop}
+        onToggleRequireAttendees={props.onToggleRequireAttendees}
       />
 
       {!hasSelectedCalendar && settings.meetingRemindersEnabled && (

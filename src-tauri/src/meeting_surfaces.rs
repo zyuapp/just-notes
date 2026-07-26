@@ -54,6 +54,7 @@ pub(crate) fn to_payload(prompt: MeetingPrompt) -> MeetingPromptPayload {
         title: prompt.meeting.title,
         start_at_ms: prompt.meeting.start_at_ms,
         end_at_ms: prompt.meeting.end_at_ms,
+        auto_start: prompt.auto_start,
     }
 }
 
