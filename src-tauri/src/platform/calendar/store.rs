@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 
+use objc2::{msg_send, rc::Retained};
 use objc2_app_kit::NSColorSpace;
 use objc2_event_kit::{
     EKCalendar, EKEntityType, EKEvent, EKEventAvailability, EKEventStatus, EKEventStore,
     EKParticipant, EKParticipantStatus,
 };
-use objc2_foundation::{NSArray, NSDate};
+use objc2_foundation::{NSArray, NSDate, NSURL};
 
 use super::{CalendarEvent, CalendarInfo, CalendarParticipant};
 
@@ -123,9 +124,12 @@ fn read_participants(event: &EKEvent) -> Vec<CalendarParticipant> {
         .collect()
 }
 
-/// The invite address, parsed out of the participant's `mailto:` URL.
+/// The invite address, parsed out of the participant's `mailto:` URL. EventKit
+/// declares `URL` non-null but returns nil for attendees without an address, so
+/// the result is read as optional.
 fn participant_email(participant: &EKParticipant) -> Option<String> {
-    let url = unsafe { participant.URL() }.absoluteString()?.to_string();
+    let url: Option<Retained<NSURL>> = unsafe { msg_send![participant, URL] };
+    let url = url?.absoluteString()?.to_string();
     Some(url.strip_prefix("mailto:").unwrap_or(&url).to_string())
 }
 
