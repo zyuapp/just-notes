@@ -14,7 +14,6 @@ export function useMeetingSettingsController(
   dispatch: AppDispatch,
   updateSettings: (update: SettingsUpdater) => Promise<void>,
 ) {
-  const accessRequestInFlight = useRef(false);
   const accessRefreshRef = useRef<ReturnType<typeof createMeetingAccessRefresh> | null>(null);
   if (accessRefreshRef.current === null) {
     accessRefreshRef.current = createMeetingAccessRefresh((meetingAccess) => {
@@ -63,9 +62,7 @@ export function useMeetingSettingsController(
     async (request: () => Promise<MeetingAccessPayload>) => {
       // A second request would stack another system dialog, so this gesture stays
       // guarded rather than queued.
-      if (accessRequestInFlight.current) return;
-      accessRequestInFlight.current = true;
-      accessRefresh.beginPermissionRequest();
+      if (!accessRefresh.beginPermissionRequest()) return;
       setRequestingAccess(true);
       try {
         await runMeetingAccessRequest({
@@ -74,8 +71,7 @@ export function useMeetingSettingsController(
           refresh: api.meetings.getAccessStatus,
         });
       } finally {
-        accessRefresh.endPermissionRequest();
-        accessRequestInFlight.current = false;
+        void accessRefresh.endPermissionRequest().catch(() => undefined);
         setRequestingAccess(false);
       }
     },
