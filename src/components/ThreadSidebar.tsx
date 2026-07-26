@@ -13,8 +13,8 @@ type ThreadSidebarProps = {
   searchQuery: string;
   searching: boolean;
   // Owned by App so the transcript toolbar's archive triggers the same flight.
-  iconRef: RefObject<HTMLButtonElement>;
-  scopeRef: RefObject<HTMLElement>;
+  iconRef: RefObject<HTMLButtonElement | null>;
+  scopeRef: RefObject<HTMLElement | null>;
   onSearchChange: (query: string) => void;
   onCreateThread: () => void;
   onSelectThread: (threadId: string) => void;
