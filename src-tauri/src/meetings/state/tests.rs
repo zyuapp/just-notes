@@ -7,6 +7,7 @@ fn meeting() -> Meeting {
         title: "Design review".to_string(),
         start_at_ms: 1_000,
         end_at_ms: 2_000,
+        attendees: Vec::new(),
     }
 }
 

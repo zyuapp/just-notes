@@ -16,6 +16,7 @@ const payload = {
       snippet: "",
       hasAudio: false,
       path: "/threads/thread-1",
+      calendar: null,
     },
     segments: [],
     transcriptMarkdownPath: "/threads/thread-1/transcript.md",

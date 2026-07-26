@@ -10,6 +10,7 @@ pub(crate) mod transcript_store;
 
 pub(crate) use artifacts::RecordingAudioPaths;
 pub(crate) use model::{
-    ThreadDetail, ThreadMetadata, ThreadStatus, ThreadSummary, TranscriptSegment,
+    CalendarProvenance, ThreadDetail, ThreadMetadata, ThreadStatus, ThreadSummary,
+    TranscriptSegment,
 };
 pub(crate) use storage::StorageUsage;

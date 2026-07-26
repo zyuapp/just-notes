@@ -15,7 +15,7 @@ const thread: ThreadDetail = {
   summary: {
     id: "thread-1", title: "Design review", createdAtMs: 100, updatedAtMs: 100,
     segmentCount: 0, status: "recording", durationMs: 0, snippet: "", hasAudio: false,
-    path: "/threads/thread-1",
+    path: "/threads/thread-1", calendar: null,
   },
   segments: [],
   transcriptMarkdownPath: "/threads/thread-1/transcript.md",

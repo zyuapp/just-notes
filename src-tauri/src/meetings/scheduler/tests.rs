@@ -7,6 +7,7 @@ fn meeting(start_at_ms: u64) -> Meeting {
         title: "Design review".to_string(),
         start_at_ms,
         end_at_ms: start_at_ms + 30 * 60 * 1000,
+        attendees: Vec::new(),
     }
 }
 
@@ -21,6 +22,15 @@ fn calendar_event() -> calendar::CalendarEvent {
         canceled: false,
         free: false,
         current_user_declined: false,
+        participants: vec![named_participant("Alice"), named_participant("Bob")],
+    }
+}
+
+fn named_participant(name: &str) -> calendar::CalendarParticipant {
+    calendar::CalendarParticipant {
+        name: Some(name.to_string()),
+        email: Some(format!("{}@example.com", name.to_lowercase())),
+        is_current_user: false,
     }
 }
 
@@ -72,6 +82,50 @@ fn meeting_policy_excludes_non_meeting_calendar_events() {
     let mut declined = calendar_event();
     declined.current_user_declined = true;
     assert!(Meeting::try_from(declined).is_err());
+}
+
+#[test]
+fn eligible_meetings_keep_their_attendees() {
+    let meeting = Meeting::try_from(calendar_event()).unwrap();
+    assert_eq!(meeting.attendees, vec!["Alice", "Bob"]);
+}
+
+#[test]
+fn attendee_names_drop_the_current_user_and_keep_invite_order() {
+    let mut event = calendar_event();
+    event.participants.insert(
+        1,
+        calendar::CalendarParticipant {
+            name: Some("Me".to_string()),
+            email: Some("me@example.com".to_string()),
+            is_current_user: true,
+        },
+    );
+
+    let meeting = Meeting::try_from(event).unwrap();
+    assert_eq!(meeting.attendees, vec!["Alice", "Bob"]);
+}
+
+#[test]
+fn attendee_names_fall_back_to_the_invite_address_and_deduplicate() {
+    let mut event = calendar_event();
+    event.participants = vec![
+        calendar::CalendarParticipant {
+            name: None,
+            email: Some("carol@example.com".to_string()),
+            is_current_user: false,
+        },
+        calendar::CalendarParticipant {
+            name: Some("   ".to_string()),
+            email: None,
+            is_current_user: false,
+        },
+        named_participant("Alice"),
+        named_participant("Alice"),
+    ];
+
+    let meeting = Meeting::try_from(event).unwrap();
+    assert_eq!(meeting.attendees, vec!["carol@example.com", "Alice"]);
 }
 
 #[test]

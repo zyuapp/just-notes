@@ -26,6 +26,75 @@ fn seed_thread_with_status(paths: &AppPaths, id: &str, status: &str) {
     .unwrap();
 }
 
+fn seed_thread_with_calendar(paths: &AppPaths, id: &str) {
+    let dir = paths.thread_dir(id);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("thread.json"),
+        format!(
+            r#"{{"id":"{id}","title":"Pricing sync","createdAtMs":1,"updatedAtMs":1,"status":"idle","calendar":{{"eventId":"event-1:1000","calendarId":"calendar-1","attendees":["Alice","Bob"],"startAtMs":1000,"endAtMs":2000}}}}"#
+        ),
+    )
+    .unwrap();
+}
+
+#[test]
+fn listed_threads_carry_the_calendar_provenance_from_disk() {
+    let paths = temp_paths("calendar-provenance-listed");
+    seed_thread_with_calendar(&paths, "thread-1");
+
+    let threads = list_threads(&paths).unwrap();
+
+    let calendar = threads[0]
+        .calendar
+        .as_ref()
+        .expect("a meeting thread surfaces its calendar provenance");
+    assert_eq!(calendar.event_id, "event-1:1000");
+    assert_eq!(calendar.attendees, vec!["Alice", "Bob"]);
+    assert_eq!(calendar.start_at_ms, 1_000);
+
+    let _ = fs::remove_dir_all(&paths.data_dir);
+}
+
+#[test]
+fn a_thread_with_an_unrecognized_provenance_shape_still_lists() {
+    let paths = temp_paths("calendar-provenance-partial");
+    let dir = paths.thread_dir("thread-1");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("thread.json"),
+        r#"{"id":"thread-1","title":"Pricing sync","createdAtMs":1,"updatedAtMs":1,"status":"idle","calendar":{"attendees":["Alice"]}}"#,
+    )
+    .unwrap();
+
+    let threads = list_threads(&paths).unwrap();
+
+    assert_eq!(
+        threads.len(),
+        1,
+        "a partial provenance must not hide a thread"
+    );
+    let calendar = threads[0].calendar.as_ref().unwrap();
+    assert_eq!(calendar.attendees, vec!["Alice"]);
+    assert_eq!(calendar.event_id, "");
+    assert_eq!(calendar.start_at_ms, 0);
+
+    let _ = fs::remove_dir_all(&paths.data_dir);
+}
+
+#[test]
+fn threads_stored_before_calendar_provenance_still_load() {
+    let paths = temp_paths("calendar-provenance-absent");
+    seed_thread_with_status(&paths, "thread-1", "idle");
+
+    let threads = list_threads(&paths).unwrap();
+
+    assert_eq!(threads.len(), 1);
+    assert!(threads[0].calendar.is_none());
+
+    let _ = fs::remove_dir_all(&paths.data_dir);
+}
+
 #[test]
 fn transcribing_metadata_from_an_earlier_version_still_loads() {
     let paths = temp_paths("stale-transcribing-loads");

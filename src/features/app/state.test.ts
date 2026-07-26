@@ -15,6 +15,7 @@ const summary: ThreadSummary = {
   snippet: "",
   hasAudio: false,
   path: "/threads/thread-1",
+  calendar: null,
 };
 
 const detail: ThreadDetail = {

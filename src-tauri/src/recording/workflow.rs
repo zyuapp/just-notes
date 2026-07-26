@@ -5,7 +5,7 @@ use tauri::AppHandle;
 use super::{
     audio_sink::spawn_audio_sink,
     meter::spawn_meter_thread,
-    model::StartedRecording,
+    model::{ScheduledMeeting, StartedRecording},
     selection::{select_recording_thread, SelectedThread},
     state::{RecorderSession, RecorderState},
 };
@@ -41,7 +41,7 @@ struct RecordingStart {
     recorder: RecorderState,
     settings: AppSettings,
     requested_thread_id: Option<String>,
-    new_thread_title: Option<String>,
+    scheduled_meeting: Option<ScheduledMeeting>,
 }
 
 pub(super) struct RecordingRequest {
@@ -50,7 +50,7 @@ pub(super) struct RecordingRequest {
     pub(super) recorder: RecorderState,
     pub(super) settings_state: SettingsState,
     pub(super) requested_thread_id: Option<String>,
-    pub(super) new_thread_title: Option<String>,
+    pub(super) scheduled_meeting: Option<ScheduledMeeting>,
     pub(super) input_mode: RecordingInputMode,
 }
 
@@ -67,7 +67,7 @@ pub(super) fn start_recording_with_mode(
         recorder: request.recorder,
         settings,
         requested_thread_id: request.requested_thread_id,
-        new_thread_title: request.new_thread_title,
+        scheduled_meeting: request.scheduled_meeting,
     };
     prepare_recording_session(start, request.input_mode)
 }
@@ -82,7 +82,7 @@ fn prepare_recording_session(
         recorder,
         settings,
         requested_thread_id,
-        new_thread_title,
+        scheduled_meeting,
     } = start;
     recorder.ensure_idle()?;
     paths.ensure()?;
@@ -99,7 +99,7 @@ fn prepare_recording_session(
         thread,
         resume_offset_ms,
         newly_created,
-    } = select_recording_thread(&paths, requested_thread_id, new_thread_title.as_deref())?;
+    } = select_recording_thread(&paths, requested_thread_id, scheduled_meeting)?;
     let thread_id = thread.summary.id.clone();
     let thread_dir = paths.thread_dir(&thread_id);
     prepare_work_dir(&thread_dir)?;

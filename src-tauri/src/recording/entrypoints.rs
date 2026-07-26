@@ -1,6 +1,7 @@
 use tauri::AppHandle;
 
 use super::{
+    model::ScheduledMeeting,
     state::RecorderState,
     workflow::{start_recording_with_mode, RecordingRequest},
 };
@@ -19,7 +20,7 @@ pub(crate) fn start_recording(
         recorder,
         settings_state: settings,
         requested_thread_id: thread_id,
-        new_thread_title: None,
+        scheduled_meeting: None,
         input_mode: RecordingInputMode::Devices,
     })
 }
@@ -39,7 +40,7 @@ pub(crate) fn start_fixture_recording(
         recorder,
         settings_state: settings,
         requested_thread_id: thread_id,
-        new_thread_title: None,
+        scheduled_meeting: None,
         input_mode: RecordingInputMode::Fixture {
             mic_path: fixture_dir.join("qa-mic.wav"),
             system_path: fixture_dir.join("qa-system.wav"),
@@ -52,7 +53,7 @@ pub(crate) fn start_scheduled_recording(
     paths: AppPaths,
     recorder: RecorderState,
     settings: SettingsState,
-    meeting_title: String,
+    meeting: ScheduledMeeting,
 ) -> Result<super::StartedRecording, String> {
     start_recording_with_mode(RecordingRequest {
         app,
@@ -60,7 +61,7 @@ pub(crate) fn start_scheduled_recording(
         recorder,
         settings_state: settings,
         requested_thread_id: None,
-        new_thread_title: Some(meeting_title),
+        scheduled_meeting: Some(meeting),
         input_mode: RecordingInputMode::Devices,
     })
 }

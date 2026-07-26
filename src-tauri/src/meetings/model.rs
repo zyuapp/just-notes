@@ -20,6 +20,7 @@ pub(crate) struct Meeting {
     pub(crate) title: String,
     pub(crate) start_at_ms: u64,
     pub(crate) end_at_ms: u64,
+    pub(crate) attendees: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
