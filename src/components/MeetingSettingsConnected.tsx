@@ -89,8 +89,6 @@ export function MeetingSettingsConnected(props: MeetingSettingsConnectedProps) {
               : "Watch at least one calendar to enable automation."
         }
         onToggleAutoRecord={props.onToggleAutoRecord}
-        onToggleAutoStop={props.onToggleAutoStop}
-        onToggleRequireAttendees={props.onToggleRequireAttendees}
       />
 
       {!hasSelectedCalendar && settings.meetingRemindersEnabled && (

@@ -11,19 +11,5 @@ export function useMeetingAutomationSettings(
     }));
   }, [updateSettings]);
 
-  const toggleAutoStop = useCallback(async () => {
-    await updateSettings((settings) => ({
-      ...settings,
-      meetingAutoStopEnabled: !settings.meetingAutoStopEnabled,
-    }));
-  }, [updateSettings]);
-
-  const toggleRequireAttendees = useCallback(async () => {
-    await updateSettings((settings) => ({
-      ...settings,
-      meetingAutoRecordRequiresAttendees: !settings.meetingAutoRecordRequiresAttendees,
-    }));
-  }, [updateSettings]);
-
-  return { toggleAutoRecord, toggleAutoStop, toggleRequireAttendees };
+  return { toggleAutoRecord };
 }

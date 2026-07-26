@@ -40,7 +40,7 @@ Use this when changing where Just Notes stores data, threads, fixtures, or share
 
 ## `src-tauri/src/settings`
 
-- `store.rs`: persisted user preferences (`settings.json`), including raw-audio, Markdown-copy, meeting reminder, and meeting automation options.
+- `store.rs`: persisted user preferences (`settings.json`), including raw-audio, Markdown-copy, meeting reminder, and automatic recording options.
 - `mod.rs`: exports the settings API.
 
 Use this when adding or changing a user preference.

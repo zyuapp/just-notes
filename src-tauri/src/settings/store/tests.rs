@@ -17,8 +17,6 @@ fn settings_defaults_are_safe() {
     assert_eq!(defaults.meeting_reminder_minutes, 5);
     assert!(defaults.meeting_end_reminders);
     assert!(!defaults.meeting_auto_record_enabled);
-    assert!(defaults.meeting_auto_stop_enabled);
-    assert!(defaults.meeting_auto_record_requires_attendees);
     let _ = fs::remove_dir_all(&dir);
 }
 
@@ -34,8 +32,6 @@ fn settings_round_trip() {
         meeting_reminder_minutes: 10,
         meeting_end_reminders: false,
         meeting_auto_record_enabled: true,
-        meeting_auto_stop_enabled: false,
-        meeting_auto_record_requires_attendees: false,
     };
     save_settings(&dir, &custom).unwrap();
     let loaded = load_settings(&dir);
@@ -45,8 +41,6 @@ fn settings_round_trip() {
     assert_eq!(loaded.meeting_reminder_minutes, 10);
     assert!(!loaded.meeting_end_reminders);
     assert!(loaded.meeting_auto_record_enabled);
-    assert!(!loaded.meeting_auto_stop_enabled);
-    assert!(!loaded.meeting_auto_record_requires_attendees);
     let _ = fs::remove_dir_all(&dir);
 }
 
@@ -73,8 +67,6 @@ fn legacy_settings_keep_existing_values_and_receive_automation_defaults() {
     assert_eq!(loaded.meeting_reminder_minutes, 10);
     assert!(!loaded.meeting_end_reminders);
     assert!(!loaded.meeting_auto_record_enabled);
-    assert!(loaded.meeting_auto_stop_enabled);
-    assert!(loaded.meeting_auto_record_requires_attendees);
     let _ = fs::remove_dir_all(&dir);
 }
 

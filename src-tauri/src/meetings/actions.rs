@@ -76,7 +76,7 @@ pub(crate) fn start_meeting_recording(
         |prompt, _| {
             let app_settings = settings_state.snapshot();
             super::notifications::remove(&[request_id.to_string()]);
-            let auto_stop = prompt.auto_start && app_settings.meeting_auto_stop_enabled;
+            let auto_stop = prompt.auto_start;
             if app_settings.meeting_end_reminders || auto_stop {
                 if let Some(session_id) = recorder.active_session_id() {
                     scheduler.set_active(

@@ -106,8 +106,7 @@ pub(super) fn automatic_start_for_prompt(
 }
 
 pub(in crate::meetings) fn auto_record_eligible(settings: &AppSettings, meeting: &Meeting) -> bool {
-    settings.meeting_auto_record_enabled
-        && (!settings.meeting_auto_record_requires_attendees || !meeting.attendees.is_empty())
+    settings.meeting_auto_record_enabled && !meeting.attendees.is_empty()
 }
 
 pub(super) fn start_action_is_timely(meeting: &Meeting, now_ms: u64) -> bool {

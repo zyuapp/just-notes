@@ -1,9 +1,6 @@
 use tauri::{AppHandle, Manager};
 
-use crate::{
-    recording::{self, RecorderState},
-    settings::SettingsState,
-};
+use crate::recording::{self, RecorderState};
 
 use super::super::{notifications, state::MeetingSchedulerState};
 
@@ -48,15 +45,6 @@ fn stop_scheduled_recording(
     request_id: &str,
     expected_session_id: u64,
 ) {
-    let settings = app.state::<SettingsState>().snapshot();
-    if !settings.meeting_auto_stop_enabled {
-        scheduler.retry_auto_stop(request_id);
-        scheduler.update_active_end_settings(
-            false,
-            settings.meeting_reminders_enabled && settings.meeting_end_reminders,
-        );
-        return;
-    }
     let recorder = app.state::<RecorderState>().inner().clone();
     match recording::stop_recording_session(app.clone(), recorder, expected_session_id) {
         Ok(Some(_)) => {

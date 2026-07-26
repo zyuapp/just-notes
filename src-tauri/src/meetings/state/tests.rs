@@ -165,20 +165,8 @@ fn keeping_an_automatic_recording_cancels_automatic_stop() {
 fn end_reminder_changes_do_not_cancel_an_enabled_automatic_stop() {
     let state = MeetingSchedulerState::default();
     state.set_active(meeting(), 1, "end-1".to_string(), true);
-    assert_eq!(state.update_active_end_settings(true, false), None);
+    assert_eq!(state.update_active_end_reminders(false), None);
     assert_eq!(state.claim_due_auto_stop(2_000, 1), Some("end-1".into()));
-}
-
-#[test]
-fn disabling_automatic_stop_falls_back_to_an_enabled_end_reminder() {
-    let state = MeetingSchedulerState::default();
-    state.set_active(meeting(), 1, "end-1".to_string(), true);
-    assert_eq!(state.update_active_end_settings(false, true), None);
-    assert_eq!(state.claim_due_auto_stop(2_000, 1), None);
-    assert_eq!(
-        state.due_end_prompt(2_000, 1),
-        Some(end_prompt(meeting(), false))
-    );
 }
 
 #[test]
@@ -210,12 +198,12 @@ fn a_short_meeting_still_gets_one_minute_after_its_warning() {
 }
 
 #[test]
-fn disabling_every_end_behavior_clears_the_active_meeting() {
+fn disabling_end_reminders_clears_a_manually_started_meeting() {
     let state = MeetingSchedulerState::default();
-    state.set_active(meeting(), 1, "end-1".to_string(), true);
-    let removed = state.update_active_end_settings(false, false);
+    state.set_active(meeting(), 1, "end-1".to_string(), false);
+    let removed = state.update_active_end_reminders(false);
     assert_eq!(removed, Some("end-1".to_string()));
-    assert_eq!(state.claim_due_auto_stop(2_000, 1), None);
+    assert_eq!(state.due_end_prompt(2_000, 1), None);
 }
 
 #[test]

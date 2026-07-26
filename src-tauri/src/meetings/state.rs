@@ -64,9 +64,8 @@ impl MeetingSchedulerState {
         None
     }
 
-    pub(super) fn update_active_end_settings(
+    pub(super) fn update_active_end_reminders(
         &self,
-        auto_stop_enabled: bool,
         end_reminders_enabled: bool,
     ) -> Option<String> {
         let mut data = self.0.lock().ok()?;
@@ -74,12 +73,7 @@ impl MeetingSchedulerState {
         if active.auto_stop_claimed {
             return None;
         }
-        if active.auto_stop_at_ms.is_some() && auto_stop_enabled {
-            return None;
-        }
-        if active.auto_stop_at_ms.take().is_some() && end_reminders_enabled {
-            active.next_prompt_at_ms = active.meeting.end_at_ms;
-            active.prompted = false;
+        if active.auto_stop_at_ms.is_some() {
             return None;
         }
         if end_reminders_enabled {

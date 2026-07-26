@@ -6,8 +6,6 @@ type MeetingAutomationControlsProps = {
   canAutomate: boolean;
   blockedReason: string;
   onToggleAutoRecord: () => void;
-  onToggleAutoStop: () => void;
-  onToggleRequireAttendees: () => void;
 };
 
 export function MeetingAutomationControls({
@@ -15,11 +13,7 @@ export function MeetingAutomationControls({
   canAutomate,
   blockedReason,
   onToggleAutoRecord,
-  onToggleAutoStop,
-  onToggleRequireAttendees,
 }: MeetingAutomationControlsProps) {
-  const automationEnabled = canAutomate && settings.meetingAutoRecordEnabled;
-
   return (
     <section className="meeting-settings-group">
       <h3>Automation</h3>
@@ -27,26 +21,12 @@ export function MeetingAutomationControls({
         label="Automatically record meetings"
         description={
           canAutomate
-            ? "Start recording at the scheduled meeting time."
+            ? "Starts recording meetings with other attendees, then stops at the scheduled end. You can skip or keep recording."
             : blockedReason
         }
-        checked={automationEnabled}
+        checked={canAutomate && settings.meetingAutoRecordEnabled}
         onToggle={onToggleAutoRecord}
         disabled={!canAutomate}
-      />
-      <SettingsToggle
-        label="Only meetings with other attendees"
-        description="Ignore focus blocks and personal calendar events."
-        checked={settings.meetingAutoRecordRequiresAttendees}
-        onToggle={onToggleRequireAttendees}
-        disabled={!automationEnabled}
-      />
-      <SettingsToggle
-        label="Stop at the scheduled end"
-        description="Warn one minute before stopping so you can keep recording."
-        checked={settings.meetingAutoStopEnabled}
-        onToggle={onToggleAutoStop}
-        disabled={!automationEnabled}
       />
     </section>
   );

@@ -25,8 +25,6 @@ export type MeetingSettingsActions = {
   onSetReminderMinutes: (minutes: number) => void;
   onToggleEndReminders: () => void;
   onToggleAutoRecord: () => void;
-  onToggleAutoStop: () => void;
-  onToggleRequireAttendees: () => void;
 };
 
 export type StorageActions = {

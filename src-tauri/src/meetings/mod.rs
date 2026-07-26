@@ -74,23 +74,17 @@ pub(crate) fn settings_updated(
         != current.meeting_reminders_enabled
         || previous.meeting_calendar_ids != current.meeting_calendar_ids
         || previous.meeting_reminder_minutes != current.meeting_reminder_minutes
-        || previous.meeting_auto_record_enabled != current.meeting_auto_record_enabled
-        || previous.meeting_auto_record_requires_attendees
-            != current.meeting_auto_record_requires_attendees;
+        || previous.meeting_auto_record_enabled != current.meeting_auto_record_enabled;
     if start_settings_changed {
         platform_notifications::remove(&state.clear_start_prompts());
     }
-    let end_settings_changed = previous.meeting_end_reminders != current.meeting_end_reminders
-        || previous.meeting_auto_stop_enabled != current.meeting_auto_stop_enabled;
+    let end_settings_changed = previous.meeting_end_reminders != current.meeting_end_reminders;
     if !current.meeting_reminders_enabled {
         if let Some(request_id) = state.clear_active() {
             platform_notifications::remove(&[request_id]);
         }
     } else if end_settings_changed {
-        if let Some(request_id) = state.update_active_end_settings(
-            current.meeting_auto_stop_enabled,
-            current.meeting_end_reminders,
-        ) {
+        if let Some(request_id) = state.update_active_end_reminders(current.meeting_end_reminders) {
             platform_notifications::remove(&[request_id]);
         }
     }
