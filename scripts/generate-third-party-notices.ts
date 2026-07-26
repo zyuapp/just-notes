@@ -107,7 +107,7 @@ function spdxLicenseFiles(expression: string | null): string[] {
 function nativeComponents(): Component[] {
   const manifestPath = join(root, "src-tauri/resources/licenses/native/manifest.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
-    archive: { name: string; sha256: string };
+    archive: { name: string; sha256: string; source: string; githubAssetDigest: string };
     components: Array<{ name: string; version: string; license: string; libraries: string[]; files: string[] }>;
     excluded: Array<{ libraries: string[] }>;
   };
@@ -125,13 +125,20 @@ function nativeComponents(): Component[] {
 }
 
 function validateNativeManifest(manifest: {
-  archive: { name: string; sha256: string };
+  archive: { name: string; sha256: string; source: string; githubAssetDigest: string };
   components: Array<{ libraries: string[] }>;
   excluded: Array<{ libraries: string[] }>;
 }) {
   const buildScript = readFileSync(join(root, "src-tauri/vendor/sherpa-onnx-sys/build.rs"), "utf8");
   if (!buildScript.includes(manifest.archive.name) || !buildScript.includes(manifest.archive.sha256)) {
     throw new Error("Native notice manifest archive does not match the verified sherpa-onnx build input");
+  }
+  if (
+    manifest.archive.githubAssetDigest !== `sha256:${manifest.archive.sha256}` ||
+    !manifest.archive.source.startsWith("https://github.com/k2-fsa/sherpa-onnx/releases/download/") ||
+    !manifest.archive.source.endsWith(`/${manifest.archive.name}`)
+  ) {
+    throw new Error("Native notice manifest does not retain the verified official release provenance");
   }
   const staticList = buildScript.match(/const SHERPA_ONNX_STATIC_LIBS[^=]*= &\[(.*?)\];/s)?.[1];
   if (!staticList) throw new Error("Could not read sherpa-onnx static library inventory");

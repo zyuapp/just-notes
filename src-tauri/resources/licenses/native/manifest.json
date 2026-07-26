@@ -1,12 +1,14 @@
 {
   "archive": {
-    "name": "sherpa-onnx-v1.13.3-osx-arm64-static-lib.tar.bz2",
-    "sha256": "8a524849ea13db3abe667f5f785280b2396dee17856c912e22cb24d0344b9a5a"
+    "name": "sherpa-onnx-v1.13.4-osx-arm64-static-lib.tar.bz2",
+    "sha256": "57801db2bbb786a5d343f515a38ff210b401842338bdc804fa075312d1cd2404",
+    "source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.4/sherpa-onnx-v1.13.4-osx-arm64-static-lib.tar.bz2",
+    "githubAssetDigest": "sha256:57801db2bbb786a5d343f515a38ff210b401842338bdc804fa075312d1cd2404"
   },
   "components": [
     {
       "name": "sherpa-onnx native core",
-      "version": "1.13.3",
+      "version": "1.13.4",
       "license": "Apache-2.0 (also inventoried from Cargo)",
       "libraries": ["sherpa-onnx-c-api", "sherpa-onnx-core"],
       "files": ["../../../vendor/sherpa-onnx-sys/LICENSE"]
@@ -48,14 +50,14 @@
     },
     {
       "name": "piper-phonemize",
-      "version": "78a788e0",
+      "version": "f3ff95af",
       "license": "MIT and bundled uni-algo terms",
       "libraries": ["piper_phonemize"],
       "files": ["piper-phonemize-LICENSE.md", "piper-uni-algo-LICENSE.md"]
     },
     {
       "name": "ONNX Runtime",
-      "version": "1.24.4",
+      "version": "1.27.0",
       "license": "MIT with third-party notices",
       "libraries": ["onnxruntime"],
       "files": ["../onnxruntime-LICENSE.txt", "../onnxruntime-ThirdPartyNotices.txt"]
