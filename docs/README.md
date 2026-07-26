@@ -6,4 +6,5 @@ Start with:
 
 - [Backend Architecture](backend-architecture.md) for the DDD-style bounded contexts and dependency direction.
 - [Backend Module Map](backend-module-map.md) for the purpose of each Rust module and where common changes should go.
+- [macOS Permission Prompts](macos-permission-prompts.md) for why microphone and system-audio prompts reappear locally, and how signing keeps a grant.
 
