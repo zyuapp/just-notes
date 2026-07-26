@@ -48,8 +48,8 @@ Rust: core-foundation-sys 0.8.7 — MIT OR Apache-2.0 — authors: The Servo Pro
 Rust: core-foundation 0.10.1 — MIT OR Apache-2.0 — authors: The Servo Project Developers — License-20, License-39
 Rust: core-graphics-types 0.2.0 — MIT OR Apache-2.0 — authors: The Servo Project Developers — License-20, License-39
 Rust: core-graphics 0.25.0 — MIT OR Apache-2.0 — authors: The Servo Project Developers — License-20, License-39
-Rust: coreaudio-rs 0.14.1 — MIT/Apache-2.0 — authors: mitchmindtree <mitchell.nordine@gmail.com>, yupferris <jake@fusetools.com> — License-20, License-40
-Rust: cpal 0.17.3 — Apache-2.0 — License-5
+Rust: coreaudio-rs 0.14.2 — MIT/Apache-2.0 — authors: mitchmindtree <mitchell.nordine@gmail.com>, yupferris <jake@fusetools.com> — License-20, License-40
+Rust: cpal 0.18.1 — Apache-2.0 — License-5
 Rust: cpufeatures 0.2.17 — MIT OR Apache-2.0 — authors: RustCrypto Developers — License-26, License-41
 Rust: cpufeatures 0.3.0 — MIT OR Apache-2.0 — authors: RustCrypto Developers — License-26, License-41
 Rust: crc32fast 1.5.0 — MIT OR Apache-2.0 — authors: Sam Rijs <srijs@airpost.net>, Alex Crichton <alex@alexcrichton.com> — License-42, License-43
@@ -149,7 +149,7 @@ Rust: litemap 0.8.2 — Unicode-3.0 — authors: The ICU4X Project Developers �
 Rust: lock_api 0.4.14 — MIT OR Apache-2.0 — authors: Amanieu d'Antras <amanieu@gmail.com> — License-20, License-110
 Rust: log 0.4.29 — MIT OR Apache-2.0 — authors: The Rust Project Developers — License-20, License-25
 Rust: lru-slab 0.1.2 — MIT OR Apache-2.0 OR Zlib — authors: Benjamin Saunders <ben.e.saunders@gmail.com> — License-5, License-111, License-112
-Rust: mach2 0.5.0 — BSD-2-Clause OR MIT OR Apache-2.0 — License-19, License-113, License-114
+Rust: mach2 0.6.0 — BSD-2-Clause OR MIT OR Apache-2.0 — License-19, License-113, License-114
 Rust: markup5ever 0.38.0 — MIT OR Apache-2.0 — authors: The html5ever Project Developers — License-20, License-81
 Rust: memchr 2.8.0 — Unlicense OR MIT — authors: Andrew Gallant <jamslam@gmail.com>, bluss — License-16, License-17
 Rust: mime 0.3.17 — MIT OR Apache-2.0 — authors: Sean McArthur <sean@seanmonstar.com> — License-20, License-115
