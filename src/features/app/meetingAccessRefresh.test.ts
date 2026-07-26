@@ -38,8 +38,11 @@ test("the latest meeting access refresh wins", async () => {
   expect(onAccess.mock.calls).toEqual([[currentAccess]]);
 });
 
-test("a permission request invalidates and blocks automatic refreshes", async () => {
-  const onAccess = mock();
+test("a refresh queued during a permission request runs when the request ends", async () => {
+  let visibleAccess = oldAccess;
+  const onAccess = mock((access: MeetingAccessPayload) => {
+    visibleAccess = access;
+  });
   const load = mock(async () => currentAccess);
   const refresh = createMeetingAccessRefresh(onAccess);
   const pending = deferredAccess();
@@ -52,10 +55,80 @@ test("a permission request invalidates and blocks automatic refreshes", async ()
 
   expect(load).not.toHaveBeenCalled();
   expect(onAccess).not.toHaveBeenCalled();
+  expect(visibleAccess).toBe(oldAccess);
 
-  refresh.endPermissionRequest();
-  await refresh.refresh(load);
+  await refresh.endPermissionRequest();
+  expect(load).toHaveBeenCalledTimes(1);
   expect(onAccess.mock.calls).toEqual([[currentAccess]]);
+  expect(visibleAccess).toBe(currentAccess);
+});
+
+test("multiple refreshes during one permission request coalesce", async () => {
+  const onAccess = mock();
+  const load = mock(async () => currentAccess);
+  const refresh = createMeetingAccessRefresh(onAccess);
+
+  refresh.beginPermissionRequest();
+  await Promise.all([refresh.refresh(load), refresh.refresh(load), refresh.refresh(load)]);
+  await refresh.endPermissionRequest();
+
+  expect(load).toHaveBeenCalledTimes(1);
+  expect(onAccess.mock.calls).toEqual([[currentAccess]]);
+});
+
+test("invalidation prevents a late queued refresh from updating state", async () => {
+  const onAccess = mock();
+  const refresh = createMeetingAccessRefresh(onAccess);
+  const pending = deferredAccess();
+  const load = mock(() => pending.promise);
+
+  refresh.beginPermissionRequest();
+  await refresh.refresh(load);
+  const ending = refresh.endPermissionRequest();
+  expect(load).toHaveBeenCalledTimes(1);
+
+  refresh.invalidate();
+  pending.resolve(currentAccess);
+  await ending;
+
+  expect(onAccess).not.toHaveBeenCalled();
+});
+
+test("invalidation clears a queued refresh before the request ends", async () => {
+  const onAccess = mock();
+  const load = mock(async () => currentAccess);
+  const refresh = createMeetingAccessRefresh(onAccess);
+
+  refresh.beginPermissionRequest();
+  await refresh.refresh(load);
+  refresh.invalidate();
+  await refresh.endPermissionRequest();
+
+  expect(load).not.toHaveBeenCalled();
+  expect(onAccess).not.toHaveBeenCalled();
+});
+
+test("a failed queued refresh leaves the coordinator ready", async () => {
+  const onAccess = mock();
+  const refresh = createMeetingAccessRefresh(onAccess);
+
+  refresh.beginPermissionRequest();
+  await refresh.refresh(async () => {
+    throw new Error("Status refresh failed");
+  });
+  await expect(refresh.endPermissionRequest()).rejects.toThrow("Status refresh failed");
+  await refresh.refresh(async () => currentAccess);
+
+  expect(onAccess.mock.calls).toEqual([[currentAccess]]);
+});
+
+test("ending without a queued refresh releases the request guard", async () => {
+  const refresh = createMeetingAccessRefresh(mock());
+
+  expect(refresh.beginPermissionRequest()).toBe(true);
+  await refresh.endPermissionRequest();
+
+  expect(refresh.beginPermissionRequest()).toBe(true);
 });
 
 test("invalidation prevents a late refresh from updating state", async () => {
