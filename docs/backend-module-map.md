@@ -40,7 +40,7 @@ Use this when changing where Just Notes stores data, threads, fixtures, or share
 
 ## `src-tauri/src/settings`
 
-- `store.rs`: persisted user preferences (`settings.json`), including raw-audio, Markdown-copy, and meeting reminder options.
+- `store.rs`: persisted user preferences (`settings.json`), including raw-audio, Markdown-copy, meeting reminder, and automatic recording options.
 - `mod.rs`: exports the settings API.
 
 Use this when adding or changing a user preference.
@@ -56,12 +56,12 @@ Keep this free of domain knowledge; it only shells out to the OS.
 ## `src-tauri/src/meetings`
 
 - `model.rs`: calendar-access payloads and the internal meeting model.
-- `state.rs`: prompt deduplication, current-prompt selection, and the active meeting-recording association.
-- `scheduler.rs`: EventKit-change-driven and periodic calendar refresh, start/end prompt timing, refresh-health logging, and prompt-surface synchronization.
+- `state.rs`: scheduler state plus the active meeting-recording association; `state/start.rs` owns prompt deduplication, current-prompt selection, and one-shot automatic-start selection.
+- `scheduler.rs`: EventKit-change-driven and periodic calendar refresh, start timing, refresh-health logging, and prompt-surface synchronization; `scheduler/end.rs` owns end prompts and permission-gated automatic stops.
 - `actions.rs`: meeting start/stop orchestration into the recording domain for notification, tray, and frontend adapters.
 - `mod.rs`: meeting-context facade used by commands and app setup.
 
-Use this when changing which calendar events qualify, when meeting reminders appear, or how their actions start and stop recordings.
+Use this when changing which calendar events qualify, when meeting reminders or automation run, or how calendar actions start and stop recordings.
 
 ## `src-tauri/src/tray`
 

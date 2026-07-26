@@ -60,9 +60,13 @@ fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
             },
         );
     });
-    meetings::spawn_scheduler(app.handle().clone(), |app| {
-        meeting_surfaces::sync_current(app);
-    });
+    meetings::spawn_scheduler(
+        app.handle().clone(),
+        meeting_surfaces::start_native_meeting_now,
+        |app| {
+            meeting_surfaces::sync_current(app);
+        },
+    );
     // The minWidth/minHeight from tauri.conf.json is not enforced on
     // macOS; the layout needs at least this much room.
     if let Some(window) = app.get_webview_window("main") {

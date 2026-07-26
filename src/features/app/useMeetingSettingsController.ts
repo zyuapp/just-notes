@@ -5,6 +5,7 @@ import { hasWatchedCalendar, toggleCalendarSelection } from "../../lib/meetingCa
 import { createMeetingAccessRefresh } from "./meetingAccessRefresh";
 import { runMeetingAccessRequest } from "./meetingAccessRequest";
 import type { AppAction, AppState } from "./state";
+import { useMeetingAutomationSettings } from "./useMeetingAutomationSettings";
 import type { SettingsUpdater } from "./useSettingsController";
 
 type AppDispatch = (action: AppAction) => void;
@@ -23,6 +24,7 @@ export function useMeetingSettingsController(
   const accessRefresh = accessRefreshRef.current;
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [pendingCalendarIds, setPendingCalendarIds] = useState<string[]>([]);
+  const automationSettings = useMeetingAutomationSettings(updateSettings);
 
   const refreshAccess = useCallback(async () => {
     try {
@@ -137,6 +139,7 @@ export function useMeetingSettingsController(
   }, [updateSettings]);
 
   return {
+    ...automationSettings,
     pendingCalendarIds,
     requestingAccess,
     requestCalendarAccess,

@@ -43,6 +43,7 @@ export function AppSettingsOverlay({
         onToggleReminders: () => void meetingSettings.toggleReminders(),
         onSetReminderMinutes: (minutes) => void meetingSettings.setReminderMinutes(minutes),
         onToggleEndReminders: () => void meetingSettings.toggleEndReminders(),
+        onToggleAutoRecord: () => void meetingSettings.toggleAutoRecord(),
       }}
       storage={{
         clearing: storage.clearing,

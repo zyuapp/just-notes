@@ -27,4 +27,7 @@ pub(crate) struct Meeting {
 pub(crate) struct MeetingPrompt {
     pub(crate) request_id: String,
     pub(crate) meeting: Meeting,
+    pub(crate) auto_start: bool,
+    pub(crate) auto_start_after_ms: Option<u64>,
+    pub(crate) auto_start_revision: u64,
 }

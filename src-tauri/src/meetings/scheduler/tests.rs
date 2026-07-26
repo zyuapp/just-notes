@@ -56,6 +56,37 @@ fn start_actions_expire_with_the_late_start_window() {
 }
 
 #[test]
+fn automatic_recording_only_arms_for_meetings_with_other_attendees() {
+    let settings = AppSettings {
+        meeting_auto_record_enabled: true,
+        ..AppSettings::default()
+    };
+    let mut scheduled = meeting(1_000_000);
+
+    assert!(!prompts::auto_record_eligible(&settings, &scheduled));
+    scheduled.attendees.push("Alice".to_string());
+    assert!(prompts::auto_record_eligible(&settings, &scheduled));
+}
+
+#[test]
+fn automatic_eligibility_is_sticky_but_cannot_begin_after_the_meeting_starts() {
+    let settings = AppSettings {
+        meeting_auto_record_enabled: true,
+        ..AppSettings::default()
+    };
+    let scheduler = MeetingSchedulerState::default();
+    let mut scheduled = meeting(1_000_000);
+    scheduled.attendees.push("Alice".to_string());
+    assert!(!prompts::automatic_start_for_prompt(
+        &scheduler, "start-1", &settings, &scheduled, 1_000_000
+    ));
+    assert!(scheduler.upsert_start_prompt("start-1".to_string(), scheduled.clone(), true));
+    assert!(prompts::automatic_start_for_prompt(
+        &scheduler, "start-1", &settings, &scheduled, 1_000_000
+    ));
+}
+
+#[test]
 fn notification_ids_are_stable_and_kind_specific() {
     assert_eq!(
         notification_id("start", "meeting-1"),

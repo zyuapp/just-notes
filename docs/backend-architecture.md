@@ -20,7 +20,7 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Meetings
 
-`meetings` owns calendar-driven recording reminders. It filters eligible events, deduplicates start prompts, exposes the current prompt to user-facing adapters, associates a meeting-started recording with its event, schedules end prompts, and handles prompt actions. It coordinates `platform`, `recording`, and `settings` without putting meeting policy into those contexts.
+`meetings` owns calendar-driven recording reminders and automation. It filters eligible events, deduplicates start prompts, decides when an opted-in meeting should start automatically, exposes the current prompt to user-facing adapters, associates a meeting-started recording with its event, and schedules end prompts or automatic stops. It coordinates `platform`, `recording`, and `settings` without putting meeting policy into those contexts.
 
 ### Tray
 

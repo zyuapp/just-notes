@@ -9,6 +9,7 @@ const prompt: MeetingPromptPayload = {
   title: "Design review",
   startAtMs: 200,
   endAtMs: 300,
+  autoStart: false,
 };
 
 const thread: ThreadDetail = {

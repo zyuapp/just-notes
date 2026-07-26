@@ -14,7 +14,7 @@ import type {
 const SECTION_COPY: Record<SettingsSectionId, { title: string; description: string }> = {
   storage: { title: "Storage", description: "See where recordings live and choose which files are kept." },
   transcription: { title: "Transcription", description: "Process every recording locally on this Mac." },
-  meetings: { title: "Meetings", description: "Get a prompt when a calendar meeting is about to begin or end." },
+  meetings: { title: "Meetings", description: "Choose when calendar meetings prompt or record automatically." },
   permissions: { title: "Permissions", description: "Review the system access Just Notes uses." },
   privacy: { title: "Privacy & Legal", description: "See how local data and third-party software are handled." },
   about: { title: "About", description: "Version and storage details for this copy of Just Notes." },

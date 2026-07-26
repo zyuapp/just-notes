@@ -7,6 +7,7 @@ const oldPrompt: MeetingPromptPayload = {
   title: "Old meeting",
   startAtMs: 100,
   endAtMs: 200,
+  autoStart: false,
 };
 
 const currentPrompt: MeetingPromptPayload = {

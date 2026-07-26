@@ -26,17 +26,18 @@ export function MeetingPromptCard({ prompt, onStart, onDismiss }: MeetingPromptC
       </span>
       <div className="meeting-prompt-copy">
         <span>
-          Meeting {formatMeetingTiming(prompt.startAtMs, now)} ·{" "}
+          {prompt.autoStart ? "Recording starts" : "Meeting"}{" "}
+          {formatMeetingTiming(prompt.startAtMs, now)} ·{" "}
           {formatTimeOfDay(prompt.startAtMs)}
         </span>
         <strong>{prompt.title}</strong>
       </div>
       <div className="meeting-prompt-actions">
         <Button variant="quiet" onClick={onDismiss}>
-          Dismiss
+          {prompt.autoStart ? "Skip" : "Dismiss"}
         </Button>
         <Button onClick={onStart}>
-          Start recording
+          {prompt.autoStart ? "Start now" : "Start recording"}
         </Button>
       </div>
     </aside>

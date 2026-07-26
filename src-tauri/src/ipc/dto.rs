@@ -87,4 +87,5 @@ pub(crate) struct MeetingPromptPayload {
     pub(crate) title: String,
     pub(crate) start_at_ms: u64,
     pub(crate) end_at_ms: u64,
+    pub(crate) auto_start: bool,
 }
