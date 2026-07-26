@@ -80,7 +80,7 @@ export function ThreadContextMenu({
         }}
       >
         <FolderOpen size={14} aria-hidden="true" />
-        <span>Reveal in Finder</span>
+        <span>Show in Finder</span>
       </button>
       <div className="thread-menu-divider" />
       <button
