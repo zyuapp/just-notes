@@ -205,8 +205,33 @@ impl TryFrom<calendar::CalendarEvent> for Meeting {
             },
             start_at_ms: event.start_at_ms,
             end_at_ms: event.end_at_ms,
+            attendees: attendee_names(event.participants),
         })
     }
+}
+
+/// Names to remember a meeting by: everyone but the current user, who appears in
+/// every meeting and so cannot narrow a search. Falls back to the invite address
+/// when a participant has no display name, and keeps invite order.
+fn attendee_names(participants: Vec<calendar::CalendarParticipant>) -> Vec<String> {
+    let mut names = Vec::new();
+    for participant in participants {
+        if participant.is_current_user {
+            continue;
+        }
+        let name = participant
+            .name
+            .filter(|name| !name.trim().is_empty())
+            .or(participant.email)
+            .map(|name| name.trim().to_string())
+            .filter(|name| !name.is_empty());
+        if let Some(name) = name {
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+    }
+    names
 }
 
 #[cfg(test)]

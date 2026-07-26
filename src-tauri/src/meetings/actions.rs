@@ -3,6 +3,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 use super::{
+    model::Meeting,
     notifications::{KEEP_ACTION, SKIP_ACTION, START_ACTION, STOP_ACTION},
     scheduler::{meeting_is_current, notification_id},
     state::MeetingSchedulerState,
@@ -10,7 +11,7 @@ use super::{
 use crate::{
     app::{now_ms, AppPaths},
     platform::notifications::NotificationResponseAction,
-    recording::{self, RecorderState},
+    recording::{self, RecorderState, ScheduledMeeting},
     settings::SettingsState,
 };
 
@@ -63,7 +64,7 @@ pub(crate) fn start_meeting_recording(
                 paths.inner().clone(),
                 recorder.clone(),
                 settings_state.inner().clone(),
-                meeting.title.clone(),
+                scheduled_meeting(meeting),
             )
         },
         |meeting, _| {
@@ -79,6 +80,19 @@ pub(crate) fn start_meeting_recording(
             }
         },
     )
+}
+
+/// Hands the recording context the calendar facts a thread should remember it
+/// was created from.
+fn scheduled_meeting(meeting: &Meeting) -> ScheduledMeeting {
+    ScheduledMeeting {
+        title: meeting.title.clone(),
+        event_id: meeting.id.clone(),
+        calendar_id: meeting.calendar_id.clone(),
+        attendees: meeting.attendees.clone(),
+        start_at_ms: meeting.start_at_ms,
+        end_at_ms: meeting.end_at_ms,
+    }
 }
 
 fn orchestrate_start<T>(

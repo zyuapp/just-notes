@@ -2,11 +2,12 @@ use std::collections::HashSet;
 
 use objc2_app_kit::NSColorSpace;
 use objc2_event_kit::{
-    EKCalendar, EKEntityType, EKEventAvailability, EKEventStatus, EKEventStore, EKParticipantStatus,
+    EKCalendar, EKEntityType, EKEvent, EKEventAvailability, EKEventStatus, EKEventStore,
+    EKParticipant, EKParticipantStatus,
 };
 use objc2_foundation::{NSArray, NSDate};
 
-use super::{CalendarEvent, CalendarInfo};
+use super::{CalendarEvent, CalendarInfo, CalendarParticipant};
 
 const UNKNOWN_ACCOUNT: &str = "Other";
 const FALLBACK_COLOR: &str = "#8a929a";
@@ -91,18 +92,41 @@ pub(super) fn read_upcoming_events(
                 canceled: unsafe { event.status() } == EKEventStatus::Canceled,
                 free: unsafe { event.availability() } == EKEventAvailability::Free,
                 current_user_declined: current_user_declined(&event),
+                participants: read_participants(&event),
             })
         })
         .collect()
 }
 
-fn current_user_declined(event: &objc2_event_kit::EKEvent) -> bool {
+fn current_user_declined(event: &EKEvent) -> bool {
     unsafe { event.attendees() }.is_some_and(|attendees| {
         attendees.iter().any(|participant| {
             (unsafe { participant.isCurrentUser() })
                 && (unsafe { participant.participantStatus() } == EKParticipantStatus::Declined)
         })
     })
+}
+
+/// Invitees in invite order, as reported. Which of them matter, and which
+/// identity to show, is the calling domain's decision.
+fn read_participants(event: &EKEvent) -> Vec<CalendarParticipant> {
+    let Some(attendees) = (unsafe { event.attendees() }) else {
+        return Vec::new();
+    };
+    attendees
+        .iter()
+        .map(|participant| CalendarParticipant {
+            name: unsafe { participant.name() }.map(|name| name.to_string()),
+            email: participant_email(&participant),
+            is_current_user: unsafe { participant.isCurrentUser() },
+        })
+        .collect()
+}
+
+/// The invite address, parsed out of the participant's `mailto:` URL.
+fn participant_email(participant: &EKParticipant) -> Option<String> {
+    let url = unsafe { participant.URL() }.absoluteString()?.to_string();
+    Some(url.strip_prefix("mailto:").unwrap_or(&url).to_string())
 }
 
 fn date_ms(date: &NSDate) -> u64 {

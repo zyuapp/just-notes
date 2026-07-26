@@ -21,6 +21,15 @@ pub(crate) struct CalendarInfo {
     pub(crate) color: String,
 }
 
+/// One invitee as EventKit reports it. Both identity forms are surfaced so the
+/// caller can decide which to prefer and who to keep.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct CalendarParticipant {
+    pub(crate) name: Option<String>,
+    pub(crate) email: Option<String>,
+    pub(crate) is_current_user: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct CalendarEvent {
     pub(crate) id: String,
@@ -32,6 +41,7 @@ pub(crate) struct CalendarEvent {
     pub(crate) canceled: bool,
     pub(crate) free: bool,
     pub(crate) current_user_declined: bool,
+    pub(crate) participants: Vec<CalendarParticipant>,
 }
 
 pub(crate) fn authorization_status() -> String {

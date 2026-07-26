@@ -14,6 +14,7 @@ function thread(id: string, updatedAtMs: number): ThreadSummary {
     snippet: "",
     hasAudio: false,
     path: `/threads/${id}`,
+    calendar: null,
   };
 }
 

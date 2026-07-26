@@ -8,7 +8,20 @@ fn meeting() -> Meeting {
         title: "Design review".to_string(),
         start_at_ms: 1_000,
         end_at_ms: 2_000,
+        attendees: vec!["Alice".to_string()],
     }
+}
+
+#[test]
+fn a_meeting_hands_the_recording_context_its_calendar_facts() {
+    let scheduled = scheduled_meeting(&meeting());
+
+    assert_eq!(scheduled.title, "Design review");
+    assert_eq!(scheduled.event_id, "meeting-1");
+    assert_eq!(scheduled.calendar_id, "calendar-1");
+    assert_eq!(scheduled.attendees, vec!["Alice"]);
+    assert_eq!(scheduled.start_at_ms, 1_000);
+    assert_eq!(scheduled.end_at_ms, 2_000);
 }
 
 #[test]

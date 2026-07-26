@@ -71,7 +71,7 @@ describe("buildRecordButtonControl", () => {
           summary: {
             id: "thread", title: "Thread", createdAtMs: 0, updatedAtMs: 0,
             status: "idle", segmentCount: 1, durationMs: 100, snippet: "Hello",
-            hasAudio: true, path: "/thread",
+            hasAudio: true, path: "/thread", calendar: null,
           },
           segments: [{ speaker: "You", source: "mic", startMs: 0, endMs: 100, text: "Hello" }],
           transcriptMarkdownPath: "/thread/transcript.md",

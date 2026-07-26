@@ -204,6 +204,7 @@ fn load_thread_summary(thread_dir: &Path) -> Result<ThreadSummary, String> {
             .unwrap_or_default(),
         has_audio: thread_has_audio(thread_dir),
         path: thread_dir.display().to_string(),
+        calendar: metadata.calendar,
     })
 }
 

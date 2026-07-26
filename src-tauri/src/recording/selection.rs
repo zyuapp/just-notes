@@ -1,4 +1,7 @@
-use super::state::{classify_selected_thread, ThreadSelection};
+use super::{
+    model::ScheduledMeeting,
+    state::{classify_selected_thread, ThreadSelection},
+};
 use crate::{
     app::AppPaths,
     threads::{
@@ -15,14 +18,19 @@ pub(super) struct SelectedThread {
 pub(super) fn select_recording_thread(
     paths: &AppPaths,
     requested_thread_id: Option<String>,
-    new_thread_title: Option<&str>,
+    scheduled_meeting: Option<ScheduledMeeting>,
 ) -> Result<SelectedThread, String> {
     let Some(thread_id) = requested_thread_id else {
+        // A blank title falls back to the thread domain's own default.
+        let (title, calendar) = match scheduled_meeting {
+            Some(meeting) => {
+                let (title, provenance) = meeting.into_thread_parts();
+                (title, Some(provenance))
+            }
+            None => (String::new(), None),
+        };
         return Ok(SelectedThread {
-            thread: create_thread_with_external_title(
-                paths,
-                new_thread_title.unwrap_or("Untitled thread"),
-            )?,
+            thread: create_thread_with_external_title(paths, &title, calendar)?,
             resume_offset_ms: None,
             newly_created: true,
         });
