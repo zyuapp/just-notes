@@ -24,7 +24,7 @@ export function AboutSection({ appInfo, onCopyVersion, onRevealDataFolder }: Abo
         description={<span className="settings-path">{appInfo?.dataDir ?? "…"}</span>}
       >
         <Button size="compact" onClick={onRevealDataFolder} disabled={!appInfo}>
-          Reveal
+          Show in Finder
         </Button>
       </SettingsRow>
     </section>

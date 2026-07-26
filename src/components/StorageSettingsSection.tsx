@@ -35,7 +35,7 @@ export function StorageSettingsSection(props: StorageSettingsSectionProps) {
         }
       >
         <Button size="compact" onClick={props.onRevealFolder}>
-          Reveal
+          Show in Finder
         </Button>
         <Button size="compact" variant="quiet" onClick={props.onCopyFolderPath}>
           Copy path
