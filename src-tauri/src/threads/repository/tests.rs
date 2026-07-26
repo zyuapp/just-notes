@@ -57,6 +57,32 @@ fn listed_threads_carry_the_calendar_provenance_from_disk() {
 }
 
 #[test]
+fn a_thread_with_an_unrecognized_provenance_shape_still_lists() {
+    let paths = temp_paths("calendar-provenance-partial");
+    let dir = paths.thread_dir("thread-1");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("thread.json"),
+        r#"{"id":"thread-1","title":"Pricing sync","createdAtMs":1,"updatedAtMs":1,"status":"idle","calendar":{"attendees":["Alice"]}}"#,
+    )
+    .unwrap();
+
+    let threads = list_threads(&paths).unwrap();
+
+    assert_eq!(
+        threads.len(),
+        1,
+        "a partial provenance must not hide a thread"
+    );
+    let calendar = threads[0].calendar.as_ref().unwrap();
+    assert_eq!(calendar.attendees, vec!["Alice"]);
+    assert_eq!(calendar.event_id, "");
+    assert_eq!(calendar.start_at_ms, 0);
+
+    let _ = fs::remove_dir_all(&paths.data_dir);
+}
+
+#[test]
 fn threads_stored_before_calendar_provenance_still_load() {
     let paths = temp_paths("calendar-provenance-absent");
     seed_thread_with_status(&paths, "thread-1", "idle");

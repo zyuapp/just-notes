@@ -1,8 +1,11 @@
 /// Where a thread came from, when it was started from a calendar event. Carried
 /// so the thread can be found by who was in it and when, without reading the
 /// transcript. `None` for manually started threads.
-#[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Debug, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+// Every field defaults. A `thread.json` holding an unrecognized provenance shape
+// degrades to partial data instead of failing to deserialize, which would drop
+// the whole thread from the library listing.
+#[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default)]
 #[ts(export)]
 pub(crate) struct CalendarProvenance {
     /// EventKit occurrence key: event identifier plus that occurrence's start.
