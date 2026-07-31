@@ -1,4 +1,0 @@
-interface:
-  display_name: "Write Implementation Plan"
-  short_description: "Create repo-grounded HTML implementation plans"
-  default_prompt: "Use $write-implementation-plan to turn our discovery discussion into a concise, repo-grounded HTML implementation plan."
