@@ -8,6 +8,7 @@ mock.module("@tauri-apps/api/core", () => ({
 }));
 
 const { invokeCommand } = await import("./transport");
+const { agentAccessApi } = await import("./agentAccess");
 const { meetingsApi } = await import("./meetings");
 
 describe("invokeCommand", () => {
@@ -57,5 +58,24 @@ describe("meetingsApi", () => {
     await meetingsApi.requestNotificationAccess();
 
     expect(invokeMock.mock.calls).toEqual([["request_meeting_notification_access", undefined]]);
+  });
+});
+
+describe("agentAccessApi", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    invokeMock.mockResolvedValue([]);
+  });
+
+  test("uses typed agent identifiers and backend-selected reveal paths", async () => {
+    await agentAccessApi.install(["codex", "claudeCode"]);
+    await agentAccessApi.remove("codex", true);
+    await agentAccessApi.reveal("claudeCode");
+
+    expect(invokeMock.mock.calls).toEqual([
+      ["install_agent_guides", { agents: ["codex", "claudeCode"] }],
+      ["remove_agent_guide", { agent: "codex", removeSharedMemory: true }],
+      ["reveal_agent_guide", { agent: "claudeCode" }],
+    ]);
   });
 });

@@ -1,10 +1,12 @@
 import type { AppInfo } from "../bindings/AppInfo";
+import type { AgentId } from "../bindings/AgentId";
 import type { AppSettings } from "../bindings/AppSettings";
 import type { MeetingAccessPayload } from "../bindings/MeetingAccessPayload";
 import type { PermissionsPayload } from "../bindings/PermissionsPayload";
 import type { StorageUsagePayload } from "../bindings/StorageUsagePayload";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { PrivacyPane } from "../lib/permissionStatus";
+import type { AgentAccessViewState } from "../features/app/useAgentAccessController";
 
 export type SettingsData = {
   settings: AppSettings;
@@ -48,4 +50,14 @@ export type SystemActions = {
   onOpenLegalDocument: (document: "privacy" | "notices") => void;
   onCopyVersion: () => void;
   onRevealDataFolder: () => void;
+};
+
+export type AgentAccessActions = {
+  viewState: AgentAccessViewState;
+  onInstall: (agents: AgentId[]) => void;
+  onRemove: (agent: AgentId) => void;
+  onReveal: (agent: AgentId) => void;
+  onRefresh: () => void;
+  onCancelConfirmation: () => void;
+  onConfirm: () => void;
 };

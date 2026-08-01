@@ -4,6 +4,7 @@ import { FullscreenView } from "./FullscreenView";
 import { SettingsNavigation, type SettingsSectionId } from "./SettingsNavigation";
 import { SettingsSectionContent } from "./SettingsSectionContent";
 import type {
+  AgentAccessActions,
   MeetingSettingsActions,
   ModelActions,
   SettingsData,
@@ -13,6 +14,7 @@ import type {
 
 const SECTION_COPY: Record<SettingsSectionId, { title: string; description: string }> = {
   storage: { title: "Storage", description: "See where recordings live and choose which files are kept." },
+  agentAccess: { title: "Agent Access", description: "Install read-only guides for local coding agents." },
   transcription: { title: "Transcription", description: "Process every recording locally on this Mac." },
   meetings: { title: "Meetings", description: "Choose when calendar meetings prompt or record automatically." },
   permissions: { title: "Permissions", description: "Review the system access Just Notes uses." },
@@ -22,6 +24,7 @@ const SECTION_COPY: Record<SettingsSectionId, { title: string; description: stri
 
 type SettingsViewProps = {
   data: SettingsData;
+  agentAccess: AgentAccessActions;
   meeting: MeetingSettingsActions;
   storage: StorageActions;
   model: ModelActions;
@@ -29,7 +32,7 @@ type SettingsViewProps = {
   onClose: () => void;
 };
 
-export function SettingsView({ data, meeting, storage, model, system, onClose }: SettingsViewProps) {
+export function SettingsView({ data, agentAccess, meeting, storage, model, system, onClose }: SettingsViewProps) {
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("storage");
   const activeSectionCopy = SECTION_COPY[activeSection];
   const attention = settingsAttention(data.permissions, data.meetingAccess);
@@ -53,6 +56,7 @@ export function SettingsView({ data, meeting, storage, model, system, onClose }:
       <SettingsSectionContent
         section={activeSection}
         data={data}
+        agentAccess={agentAccess}
         meeting={meeting}
         storage={storage}
         model={model}

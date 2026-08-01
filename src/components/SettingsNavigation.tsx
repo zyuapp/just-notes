@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   AudioLines,
+  Bot,
   CalendarDays,
   FileText,
   HardDrive,
@@ -11,6 +12,7 @@ import type { ReactNode } from "react";
 
 export type SettingsSectionId =
   | "storage"
+  | "agentAccess"
   | "transcription"
   | "meetings"
   | "permissions"
@@ -26,6 +28,7 @@ type SettingsNavigationProps = {
 
 const SECTIONS: { id: SettingsSectionId; label: string; icon: ReactNode }[] = [
   { id: "storage", label: "Storage", icon: <HardDrive size={16} /> },
+  { id: "agentAccess", label: "Agent Access", icon: <Bot size={16} /> },
   { id: "transcription", label: "Transcription", icon: <AudioLines size={16} /> },
   { id: "meetings", label: "Meetings", icon: <CalendarDays size={16} /> },
   { id: "permissions", label: "Permissions", icon: <ShieldCheck size={16} /> },

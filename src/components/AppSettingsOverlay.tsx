@@ -1,4 +1,5 @@
 import type { AppState } from "../features/app/state";
+import type { useAgentAccessController } from "../features/app/useAgentAccessController";
 import type { useJustNotesController } from "../features/app/useJustNotesController";
 import type { useMeetingSettingsController } from "../features/app/useMeetingSettingsController";
 import type { SettingsActions } from "../features/app/useSettingsController";
@@ -8,6 +9,7 @@ import { SettingsView } from "./SettingsView";
 
 type Props = {
   state: AppState;
+  agentAccess: ReturnType<typeof useAgentAccessController>;
   actions: ReturnType<typeof useJustNotesController>;
   meetingSettings: ReturnType<typeof useMeetingSettingsController>;
   settings: SettingsActions;
@@ -17,6 +19,7 @@ type Props = {
 
 export function AppSettingsOverlay({
   state,
+  agentAccess,
   actions,
   meetingSettings,
   settings,
@@ -33,6 +36,15 @@ export function AppSettingsOverlay({
         permissions: state.permissions,
         meetingAccess: state.meetingAccess,
         storageUsage: state.storageUsage,
+      }}
+      agentAccess={{
+        viewState: agentAccess.viewState,
+        onInstall: agentAccess.requestInstall,
+        onRemove: agentAccess.requestRemove,
+        onReveal: (agent) => void agentAccess.reveal(agent),
+        onRefresh: () => void agentAccess.refresh(),
+        onCancelConfirmation: agentAccess.cancelConfirmation,
+        onConfirm: () => void agentAccess.confirm(),
       }}
       meeting={{
         pendingCalendarIds: meetingSettings.pendingCalendarIds,

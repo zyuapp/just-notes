@@ -1,3 +1,4 @@
+import { agentAccessApi } from "./agentAccess";
 import { appApi } from "./app";
 import { eventsApi } from "./events";
 import { meetingsApi } from "./meetings";
@@ -11,6 +12,7 @@ import { windowApi } from "./window";
 export { getApiErrorMessage, toApiError, ApiError } from "./errors";
 
 export const api = {
+  agentAccess: agentAccessApi,
   app: appApi,
   events: eventsApi,
   meetings: meetingsApi,
