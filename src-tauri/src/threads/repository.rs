@@ -34,7 +34,18 @@ pub(crate) fn thread_dirs_in(root: &Path) -> Result<Vec<PathBuf>, String> {
         .map_err(|err| format!("Failed to read {}: {err}", root.display()))?
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .filter(|path| metadata_path(path).is_file())
+        .filter(|path| {
+            let Ok(thread_metadata) = fs::symlink_metadata(path) else {
+                return false;
+            };
+            let Ok(file_metadata) = fs::symlink_metadata(metadata_path(path)) else {
+                return false;
+            };
+            !thread_metadata.file_type().is_symlink()
+                && thread_metadata.is_dir()
+                && !file_metadata.file_type().is_symlink()
+                && file_metadata.is_file()
+        })
         .collect())
 }
 
@@ -69,10 +80,6 @@ pub(crate) fn load_thread_by_id(paths: &AppPaths, thread_id: &str) -> Result<Thr
 
 pub(crate) fn set_thread_status(thread_dir: &Path, status: ThreadStatus) -> Result<(), String> {
     update_thread_metadata(thread_dir, |metadata| metadata.status = status)
-}
-
-pub(crate) fn set_thread_duration(thread_dir: &Path, duration_ms: u64) -> Result<(), String> {
-    update_thread_metadata(thread_dir, |metadata| metadata.duration_ms = duration_ms)
 }
 
 pub(crate) fn touch_thread(thread_dir: &Path) -> Result<(), String> {

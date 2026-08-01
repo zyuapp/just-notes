@@ -2,7 +2,10 @@ use std::{env, fs, time::UNIX_EPOCH};
 
 use super::{archive_thread, delete_thread, rename_thread, restore_thread};
 use crate::app::AppPaths;
-use crate::threads::repository::{list_archived_threads, list_threads};
+use crate::threads::{
+    repository::{list_archived_threads, list_threads, read_thread_metadata},
+    RetrievalReadiness,
+};
 
 fn temp_paths(name: &str) -> AppPaths {
     let stamp = UNIX_EPOCH.elapsed().unwrap().as_nanos();
@@ -43,6 +46,51 @@ fn archive_restore_delete_roundtrip_keeps_stores_separate() {
     assert!(list_archived_threads(&paths).unwrap().is_empty());
     assert_eq!(list_threads(&paths).unwrap().len(), 1);
 
+    let _ = fs::remove_dir_all(&paths.data_dir);
+}
+
+#[test]
+fn restoring_a_legacy_archive_resolves_retrieval_readiness_immediately() {
+    let paths = temp_paths("restore-legacy-readiness");
+    seed_thread(&paths, "thread-1");
+    fs::write(
+        paths.thread_dir("thread-1").join("transcript.jsonl"),
+        r#"{"speaker":"You","source":"mic","startMs":0,"endMs":1000,"text":"Hello"}
+"#,
+    )
+    .unwrap();
+    archive_thread(&paths, "thread-1").unwrap();
+
+    restore_thread(&paths, "thread-1").unwrap();
+
+    let metadata = read_thread_metadata(&paths.thread_dir("thread-1").join("thread.json")).unwrap();
+    assert_eq!(metadata.retrieval_readiness, RetrievalReadiness::Ready);
+    let _ = fs::remove_dir_all(&paths.data_dir);
+}
+
+#[test]
+fn restoring_an_archive_revalidates_previously_ready_content() {
+    let paths = temp_paths("restore-revalidates-readiness");
+    seed_thread(&paths, "thread-1");
+    fs::write(
+        paths.thread_dir("thread-1").join("thread.json"),
+        r#"{"id":"thread-1","title":"Test","createdAtMs":1,"updatedAtMs":1,"status":"idle","retrievalReadiness":"ready"}"#,
+    )
+    .unwrap();
+    fs::write(
+        paths.thread_dir("thread-1").join("transcript.jsonl"),
+        "not json\n",
+    )
+    .unwrap();
+    archive_thread(&paths, "thread-1").unwrap();
+
+    restore_thread(&paths, "thread-1").unwrap();
+
+    let metadata = read_thread_metadata(&paths.thread_dir("thread-1").join("thread.json")).unwrap();
+    assert_eq!(
+        metadata.retrieval_readiness,
+        RetrievalReadiness::Unavailable
+    );
     let _ = fs::remove_dir_all(&paths.data_dir);
 }
 

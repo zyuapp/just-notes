@@ -6,7 +6,7 @@ use super::{
     repository::{load_thread_detail, save_thread_metadata},
     title::{normalized_external_title, validated_title},
     transcript_store::write_text_atomic,
-    CalendarProvenance, ThreadDetail, ThreadMetadata, ThreadStatus,
+    CalendarProvenance, RetrievalReadiness, ThreadDetail, ThreadMetadata, ThreadStatus,
 };
 
 type ThreadDirectory = (String, PathBuf);
@@ -30,6 +30,7 @@ pub(crate) fn create_thread_with_title(
         created_at_ms: now,
         updated_at_ms: now,
         status: ThreadStatus::Idle,
+        retrieval_readiness: RetrievalReadiness::Unavailable,
         duration_ms: 0,
         calendar,
     };

@@ -24,6 +24,7 @@ block2 = "0.6.2"
 cpal = "0.18.1"
 hound = "3.5.1"
 reqwest = { version = "0.12.15", default-features = false, features = ["blocking", "rustls-tls"] }
+rustix = { version = "1.1.4", features = ["fs"] }
 objc2 = "0.6.4"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSAlert", "NSApplication", "NSColor", "NSColorSpace", "NSPasteboard", "NSResponder", "NSWindow", "NSWorkspace"] }
 objc2-av-foundation = { version = "0.3.2", default-features = false, features = ["AVCaptureDevice", "AVMediaFormat", "block2", "std"] }

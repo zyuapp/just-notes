@@ -19,7 +19,7 @@ use app::{AppPaths, DataRootMigration, DataRootMigrationError};
 use meetings::MeetingSchedulerState;
 use recording::RecorderState;
 use settings::SettingsState;
-use threads::repository::reset_stale_recording_threads;
+use threads::{readiness::migrate_retrieval_readiness, repository::reset_stale_recording_threads};
 use transcription::ModelDownloadState;
 
 type SetupResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -53,6 +53,7 @@ fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
     }
     let paths = app.state::<AppPaths>();
     paths.cleanup_abandoned_import_staging()?;
+    migrate_retrieval_readiness(&paths)?;
     reset_stale_recording_threads(&paths)?;
     build_main_window(app)?;
     tray::init_tray(

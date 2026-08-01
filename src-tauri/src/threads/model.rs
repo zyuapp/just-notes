@@ -26,9 +26,22 @@ pub(crate) struct ThreadMetadata {
     pub(crate) updated_at_ms: u64,
     pub(crate) status: ThreadStatus,
     #[serde(default)]
+    pub(crate) retrieval_readiness: RetrievalReadiness,
+    #[serde(default)]
     pub(crate) duration_ms: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) calendar: Option<CalendarProvenance>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum RetrievalReadiness {
+    /// Metadata written before retrieval readiness existed. Startup migration
+    /// replaces this with an explicit durable state.
+    #[default]
+    Unknown,
+    Unavailable,
+    Ready,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS, Clone, Copy, PartialEq, Eq)]

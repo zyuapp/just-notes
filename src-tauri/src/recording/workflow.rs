@@ -14,8 +14,8 @@ use crate::{
     capture::{prepare_audio_input, start_audio_capture, PreparedAudioInput, RecordingInputMode},
     settings::{AppSettings, SettingsState},
     threads::{
-        repository::{load_thread_by_id, prepare_work_dir, set_thread_status},
-        ThreadStatus,
+        readiness::{mark_recording_aborted, mark_recording_started},
+        repository::{load_thread_by_id, prepare_work_dir},
     },
     transcription::{
         finalization_transcription_selection, spawn_live_transcription, transcription_status,
@@ -105,7 +105,7 @@ fn prepare_recording_session(
     prepare_work_dir(&thread_dir)?;
 
     let started = Instant::now();
-    set_thread_status(&thread_dir, ThreadStatus::Recording)?;
+    mark_recording_started(&thread_dir)?;
 
     let config = RecordingSessionConfig {
         app: app.clone(),
@@ -121,7 +121,7 @@ fn prepare_recording_session(
         if newly_created {
             crate::threads::create::discard_failed_thread(&thread_dir);
         } else {
-            let _ = set_thread_status(&thread_dir, ThreadStatus::Idle);
+            let _ = mark_recording_aborted(&thread_dir);
         }
         return Err(err);
     }

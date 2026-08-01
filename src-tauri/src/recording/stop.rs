@@ -5,12 +5,7 @@ use tauri::{AppHandle, Emitter};
 use super::state::{RecorderSession, RecorderState};
 use crate::{
     capture::stop_audio_capture,
-    threads::{
-        repository::{
-            load_thread_by_id, render_thread_markdown, set_thread_duration, set_thread_status,
-        },
-        ThreadDetail, ThreadStatus,
-    },
+    threads::{readiness::mark_recording_finished, repository::load_thread_by_id, ThreadDetail},
     tray,
 };
 
@@ -109,10 +104,6 @@ fn persist_stopped_thread(
     duration_ms: u64,
     markdown_copy: bool,
 ) -> Result<(), String> {
-    set_thread_duration(thread_dir, duration_ms)?;
-    set_thread_status(thread_dir, ThreadStatus::Idle)?;
-    if markdown_copy {
-        render_thread_markdown(thread_dir)?;
-    }
+    let _ = mark_recording_finished(thread_dir, duration_ms, markdown_copy)?;
     Ok(())
 }
