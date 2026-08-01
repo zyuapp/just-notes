@@ -20,6 +20,7 @@ bun run verify     # build, lint, and test (frontend + Rust)
 ```sh
 bun run app:build      # produce a .app bundle
 bun run app:install    # build and install to /Applications
+bun run app:release    # Developer ID-sign, notarize, and archive a direct release
 ```
 
 ## Docs

@@ -14,9 +14,8 @@ pub(crate) struct AppPaths {
 }
 
 impl AppPaths {
-    /// Builds the application's filesystem layout below the platform-provided
-    /// app data directory. Production startup should obtain this directory
-    /// from Tauri's path resolver so a sandboxed build uses its container.
+    /// Builds the application's filesystem layout below the resolved data root.
+    /// Production startup migrates the legacy sandbox root before calling this.
     pub(crate) fn from_data_dir(data_dir: PathBuf) -> Self {
         Self {
             threads_dir: data_dir.join("threads"),

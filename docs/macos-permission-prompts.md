@@ -24,8 +24,8 @@ tccd: AUTHREQ_PROMPTING: service=kTCCServiceMicrophone, subject=<app>
 `scripts/build-app.sh` signs with an Apple Development certificate instead,
 which produces a requirement that survives rebuilds. One grant, kept.
 
-Mac App Store packaging is unaffected: `scripts/build-mac-app-store.sh` runs
-`tauri build` directly with its own distribution identity.
+Direct releases use a Developer ID Application certificate, hardened runtime,
+and notarization through `bun run app:release`.
 
 ## `tauri dev` is attributed to the terminal
 

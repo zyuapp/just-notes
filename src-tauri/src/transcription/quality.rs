@@ -5,7 +5,7 @@
 //! metrics to a committed baseline.
 //!
 //! Fixtures live in `~/.just-notes/quality-fixtures` (see
-//! `scripts/setup-quality-fixtures.sh`). The model is read from the sandbox
+//! `scripts/setup-quality-fixtures.sh`). The model is read from the direct-build
 //! app-data directory, or `JUST_NOTES_QUALITY_DATA_DIR` when set. The baseline is
 //! `src-tauri/quality/baseline.json`. Run via `bun run test:quality`, and
 //! rerun with `UPDATE_QUALITY_BASELINE=1` to accept improved numbers.
