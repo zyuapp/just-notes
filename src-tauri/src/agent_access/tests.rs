@@ -9,6 +9,7 @@ use super::{
     AgentAccessPaths, AgentGuideState, AgentId, GuideLifecycle,
 };
 
+mod reconciliation;
 mod safety;
 
 struct TestRoots {

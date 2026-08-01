@@ -119,7 +119,7 @@ impl GuideLifecycle {
             .collect()
     }
 
-    fn status_unlocked(&self, agent: AgentId) -> Result<AgentGuideStatus, String> {
+    pub(super) fn status_unlocked(&self, agent: AgentId) -> Result<AgentGuideStatus, String> {
         let path = self.paths.guide_dir(agent);
         let parent = match self.parent_state(agent)? {
             ParentState::Missing => {

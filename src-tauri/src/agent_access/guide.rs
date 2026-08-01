@@ -71,11 +71,27 @@ pub(super) fn update_managed_guide(
     memory_file: &Path,
 ) -> Result<(), String> {
     validate_managed_guide(guide, agent, memory_file)?;
-    guide.write_atomic(GUIDE_NAME, "just-notes-guide", GUIDE_CONTENT.as_bytes())?;
+    guide
+        .write_atomic(GUIDE_NAME, "just-notes-guide", GUIDE_CONTENT.as_bytes())?
+        .require_sync()?;
     if guide.entry_kind(MEMORY_NAME)? == EntryKind::Missing {
         guide.create_symlink(MEMORY_NAME, memory_file)?;
     }
     write_manifest(guide, agent)
+}
+
+pub(super) fn reconcile_managed_guide(
+    guide: &SafeDirectory,
+    agent: AgentId,
+    memory_file: &Path,
+) -> Result<Option<super::entry::AtomicWriteOutcome>, String> {
+    validate_managed_guide(guide, agent, memory_file)?;
+    if guide.read_regular(GUIDE_NAME)?.as_deref() == Some(GUIDE_CONTENT.as_bytes()) {
+        return Ok(None);
+    }
+    guide
+        .write_atomic(GUIDE_NAME, "just-notes-guide", GUIDE_CONTENT.as_bytes())
+        .map(Some)
 }
 
 pub(super) fn install_new_guide(
@@ -90,7 +106,9 @@ pub(super) fn install_new_guide(
     let staging_name = format!(".just-notes-install-{}-{sequence}", std::process::id());
     let staging = parent.create_child_exclusive(&staging_name)?;
     let setup_result = (|| {
-        staging.write_atomic(GUIDE_NAME, "just-notes-guide", GUIDE_CONTENT.as_bytes())?;
+        staging
+            .write_atomic(GUIDE_NAME, "just-notes-guide", GUIDE_CONTENT.as_bytes())?
+            .require_sync()?;
         staging.create_symlink(MEMORY_NAME, memory_file)?;
         write_manifest(&staging, agent)
     })();
@@ -150,7 +168,9 @@ fn write_manifest(guide: &SafeDirectory, agent: AgentId) -> Result<(), String> {
     let mut json = serde_json::to_vec_pretty(&InstallManifest::expected(agent))
         .map_err(|error| format!("Failed to encode the Agent Access manifest: {error}"))?;
     json.push(b'\n');
-    guide.write_atomic(MANIFEST_NAME, "just-notes-manifest", &json)
+    guide
+        .write_atomic(MANIFEST_NAME, "just-notes-manifest", &json)?
+        .require_sync()
 }
 
 fn recovery_error(original: String, manifest: Option<String>, rename: Option<String>) -> String {

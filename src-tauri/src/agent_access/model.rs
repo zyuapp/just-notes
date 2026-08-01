@@ -16,7 +16,7 @@ pub(crate) enum AgentId {
 impl AgentId {
     pub(super) const ALL: [Self; 2] = [Self::Codex, Self::ClaudeCode];
 
-    pub(super) fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> &'static str {
         match self {
             Self::Codex => "Codex",
             Self::ClaudeCode => "Claude Code",
@@ -39,6 +39,31 @@ pub(crate) struct AgentGuideStatus {
     pub(crate) state: AgentGuideState,
     pub(crate) path: String,
     pub(crate) detail: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct GuideReconciliationOutcome {
+    pub(crate) changed_agents: Vec<AgentId>,
+    pub(crate) failures: Vec<String>,
+}
+
+impl GuideReconciliationOutcome {
+    pub(super) fn changed(&mut self, agent: AgentId) {
+        self.changed_agents.push(agent);
+    }
+
+    pub(super) fn changed_with_warning(&mut self, agent: AgentId, error: String) {
+        self.changed(agent);
+        self.failures.push(format!(
+            "{} guide was updated, but its directory did not sync: {error}",
+            agent.label()
+        ));
+    }
+
+    pub(super) fn failed(&mut self, agent: AgentId, error: String) {
+        self.failures
+            .push(format!("{} guide update failed: {error}", agent.label()));
+    }
 }
 
 impl AgentGuideStatus {

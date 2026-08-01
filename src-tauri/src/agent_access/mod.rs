@@ -7,9 +7,10 @@ mod lifecycle;
 mod memory;
 mod model;
 mod paths;
+mod reconcile;
 
 pub(crate) use lifecycle::GuideLifecycle;
-pub(crate) use model::{AgentGuideState, AgentGuideStatus, AgentId};
+pub(crate) use model::{AgentGuideState, AgentGuideStatus, AgentId, GuideReconciliationOutcome};
 pub(crate) use paths::AgentAccessPaths;
 
 #[cfg(test)]

@@ -1,6 +1,7 @@
 use tauri::{AppHandle, Builder, Emitter, Manager, WebviewWindowBuilder, Wry};
 
 mod agent_access;
+mod agent_access_surfaces;
 mod app;
 mod app_menu;
 mod capture;
@@ -75,6 +76,7 @@ fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
             },
         );
     });
+    agent_access_surfaces::reconcile_on_launch(app);
     meetings::spawn_scheduler(
         app.handle().clone(),
         meeting_surfaces::start_native_meeting_now,

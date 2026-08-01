@@ -23,6 +23,10 @@ Commands here stay thin: they resolve state handles and delegate to the owning d
 
 Thin adapter that synchronizes the current meeting prompt to frontend events and the menu-bar item, and translates native meeting-start outcomes into recording events or failure notifications. Meeting eligibility and prompt lifecycle remain in the `meetings` context.
 
+## `src-tauri/src/agent_access_surfaces.rs`
+
+Thin adapter that runs the Agent Access domain's launch reconciliation and translates changed-guide outcomes into one native notification. Filesystem ownership and update policy remain in `agent_access`; notification delivery remains in `platform`.
+
 ## `src-tauri/src/app_menu.rs`
 
 Native application-menu adapter. It builds the standard macOS menus.
@@ -33,7 +37,7 @@ Neutral adapter that converts the recording domain's start result into the IPC p
 
 ## `src-tauri/src/app`
 
-- `paths.rs`: constructs the container-relative app filesystem layout, including active and archived thread directories, and clears abandoned staging data from the retired importer.
+- `paths.rs`: constructs the direct app-data filesystem layout, including active and archived thread directories, and clears abandoned staging data from the retired importer.
 - `time.rs`: shared wall-clock helpers.
 - `mod.rs`: exports the app context API.
 
@@ -41,14 +45,15 @@ Use this when changing where Just Notes stores data, threads, fixtures, or share
 
 ## `src-tauri/src/agent_access`
 
-- `model.rs`: supported agent identifiers, filesystem guide state, status, and ownership manifest.
+- `model.rs`: supported agent identifiers, filesystem guide state, status, ownership manifest, and launch-reconciliation outcome.
 - `paths.rs`: Codex, Claude Code, and shared-memory destinations derived from resolved roots.
 - `entry.rs` / `filesystem.rs`: file-kind modeling plus descriptor-relative no-follow inspection, exclusive creation, atomic writes, and scoped removal.
-- `guide.rs`: bundled guide content plus owned-folder validation, installation, updates, and removal.
+- `guide.rs`: bundled guide content plus owned-folder validation, installation, atomic content reconciliation, and removal.
 - `install.rs`: batch preflight, per-agent install outcomes, and guide update orchestration.
 - `memory.rs`: creation, preservation, validation, and confirmed final removal of shared `MEMORY.md`.
 - `lifecycle.rs`: serialized status/install/remove workflows across both agent destinations.
-- `tests.rs`: guide ownership, conflict, shared-memory, removal, and symlink safety coverage.
+- `reconcile.rs`: launch-time comparison and update of recognized installed guides only.
+- `tests.rs`: guide ownership, conflict, shared-memory, reconciliation, removal, and symlink safety coverage.
 
 Use this when changing local agent guide discovery or lifecycle. It receives paths from app setup and must not depend on transcript or platform domains.
 

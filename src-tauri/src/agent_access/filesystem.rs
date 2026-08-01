@@ -1,23 +1,20 @@
 use std::{
     ffi::{OsStr, OsString},
     fs::File,
-    io::{Read, Write},
+    io::Read,
     os::{fd::OwnedFd, unix::ffi::OsStrExt},
     path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
 };
 
 use rustix::{
     fs::{
-        fstat, mkdirat, open, openat, readlinkat, renameat, renameat_with, statat, symlinkat,
-        unlinkat, AtFlags, Dir, FileType, Mode, OFlags, RenameFlags,
+        fstat, mkdirat, open, openat, readlinkat, renameat_with, statat, symlinkat, unlinkat,
+        AtFlags, Dir, FileType, Mode, OFlags, RenameFlags,
     },
     io::Errno,
 };
 
 use super::entry::{EntryKind, RenameChildOutcome};
-
-static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 type OptionalFileBytes = Option<Vec<u8>>;
 pub(super) struct SafeDirectory {
     pub(super) fd: OwnedFd,
@@ -126,36 +123,6 @@ impl SafeDirectory {
         file.read_to_end(&mut bytes)
             .map_err(|error| format!("Failed to read {}/{}: {error}", self.path.display(), name))?;
         Ok(Some(bytes))
-    }
-
-    pub(super) fn write_atomic(&self, name: &str, label: &str, bytes: &[u8]) -> Result<(), String> {
-        let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-        let temp_name = format!(".{label}-{}-{sequence}.tmp", std::process::id());
-        let flags =
-            OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-        let fd = openat(&self.fd, temp_name.as_str(), flags, Mode::RUSR | Mode::WUSR).map_err(
-            |error| {
-                format!(
-                    "Failed to create update in {}: {error}",
-                    self.path.display()
-                )
-            },
-        )?;
-        let result = (|| {
-            let mut file = File::from(fd);
-            file.write_all(bytes)
-                .map_err(|error| format!("Failed to write {name}: {error}"))?;
-            file.sync_all()
-                .map_err(|error| format!("Failed to sync {name}: {error}"))?;
-            drop(file);
-            renameat(&self.fd, temp_name.as_str(), &self.fd, name)
-                .map_err(|error| format!("Failed to replace {name}: {error}"))?;
-            self.sync()
-        })();
-        if result.is_err() {
-            let _ = unlinkat(&self.fd, temp_name.as_str(), AtFlags::empty());
-        }
-        result
     }
 
     pub(super) fn create_empty_file(&self, name: &str) -> Result<(), String> {

@@ -21,6 +21,10 @@ pub(crate) fn show(request_id: &str, title: &str, body: &str, category: &str) {
     });
 }
 
+pub(crate) fn show_informational(request_id: &str, title: &str, body: &str) {
+    show(request_id, title, body, "");
+}
+
 pub(crate) fn show_with_error_handler(
     request_id: &str,
     title: &str,
