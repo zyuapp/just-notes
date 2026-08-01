@@ -1,8 +1,15 @@
 use std::{
     error::Error,
-    fmt, fs,
+    fmt,
     path::{Path, PathBuf},
 };
+
+mod filesystem;
+mod lock;
+use filesystem::{
+    inspect_directory, move_inspected_directory_no_replace, prepare_empty_destination,
+};
+use lock::MigrationLock;
 
 const LEGACY_RELATIVE_DATA_ROOT: &str =
     "Library/Containers/dev.just-notes/Data/Library/Application Support/dev.just-notes";
@@ -59,35 +66,18 @@ impl DataRootMigration {
             return Ok(self.direct_root);
         }
 
-        let direct_has_data = directory_has_data(&self.direct_root)?;
-        let legacy_has_data = directory_has_data(&self.legacy_root)?;
+        let _migration_lock = MigrationLock::acquire(&self.direct_root)?;
+        let direct = inspect_directory(&self.direct_root)?;
+        let legacy = inspect_directory(&self.legacy_root)?;
 
-        match (direct_has_data, legacy_has_data) {
+        match (direct.has_data(), legacy.has_data()) {
             (true, true) => Err(DataRootMigrationError::Conflict {
                 direct_root: self.direct_root,
                 legacy_root: self.legacy_root,
             }),
             (false, true) => {
-                replace_empty_destination(&self.direct_root)?;
-                let parent = self.direct_root.parent().ok_or_else(|| {
-                    DataRootMigrationError::FileSystem(format!(
-                        "Direct data root has no parent: {}",
-                        self.direct_root.display()
-                    ))
-                })?;
-                fs::create_dir_all(parent).map_err(|error| {
-                    DataRootMigrationError::FileSystem(format!(
-                        "Failed to prepare direct data location at {}: {error}",
-                        parent.display()
-                    ))
-                })?;
-                fs::rename(&self.legacy_root, &self.direct_root).map_err(|error| {
-                    DataRootMigrationError::FileSystem(format!(
-                        "Failed to migrate Just Notes data from {} to {}: {error}",
-                        self.legacy_root.display(),
-                        self.direct_root.display()
-                    ))
-                })?;
+                prepare_empty_destination(&self.direct_root, &direct)?;
+                move_inspected_directory_no_replace(&self.legacy_root, &legacy, &self.direct_root)?;
                 Ok(self.direct_root)
             }
             _ => Ok(self.direct_root),
@@ -95,57 +85,14 @@ impl DataRootMigration {
     }
 }
 
-fn directory_has_data(path: &Path) -> Result<bool, DataRootMigrationError> {
-    let metadata = match fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
-        Err(error) => {
-            return Err(DataRootMigrationError::FileSystem(format!(
-                "Failed to inspect data location at {}: {error}",
-                path.display()
-            )))
-        }
-    };
-
-    if metadata.file_type().is_symlink() || !metadata.is_dir() {
-        return Err(DataRootMigrationError::FileSystem(format!(
-            "Expected a regular data directory at {}, but found another file type",
-            path.display()
-        )));
-    }
-
-    let mut entries = fs::read_dir(path).map_err(|error| {
-        DataRootMigrationError::FileSystem(format!(
-            "Failed to read data location at {}: {error}",
-            path.display()
-        ))
-    })?;
-    Ok(entries
-        .next()
-        .transpose()
-        .map_err(|error| {
-            DataRootMigrationError::FileSystem(format!(
-                "Failed to inspect data location at {}: {error}",
-                path.display()
-            ))
-        })?
-        .is_some())
-}
-
-fn replace_empty_destination(path: &Path) -> Result<(), DataRootMigrationError> {
-    match fs::remove_dir(path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(DataRootMigrationError::FileSystem(format!(
-            "Failed to prepare empty direct data location at {}: {error}",
-            path.display()
-        ))),
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::DataRootMigration;
+    use super::{
+        filesystem::{
+            inspect_directory, move_inspected_directory_no_replace, prepare_empty_destination,
+        },
+        DataRootMigration,
+    };
     use std::{env, fs, path::PathBuf, time::UNIX_EPOCH};
 
     struct Fixture {
@@ -188,9 +135,7 @@ mod tests {
         let fixture = Fixture::new("move");
         fs::create_dir_all(fixture.legacy.join("threads/thread-1")).unwrap();
         fs::write(fixture.legacy.join("settings.json"), "{}").unwrap();
-
         let resolved = fixture.migration().resolve().unwrap();
-
         assert_eq!(resolved, fixture.direct);
         assert!(resolved.join("settings.json").is_file());
         assert!(resolved.join("threads/thread-1").is_dir());
@@ -200,28 +145,25 @@ mod tests {
     #[test]
     fn replaces_an_empty_direct_root_before_moving_legacy_data() {
         let fixture = Fixture::new("empty-direct");
-        fs::create_dir_all(&fixture.direct).unwrap();
+        fs::create_dir_all(fixture.direct.join("threads")).unwrap();
+        fs::create_dir_all(fixture.direct.join("engine")).unwrap();
         fs::create_dir_all(&fixture.legacy).unwrap();
         fs::write(fixture.legacy.join("settings.json"), "{}").unwrap();
-
         fixture.migration().resolve().unwrap();
-
         assert!(fixture.direct.join("settings.json").is_file());
     }
 
     #[test]
     fn refuses_to_merge_two_populated_roots() {
         let fixture = Fixture::new("conflict");
-        fs::create_dir_all(&fixture.direct).unwrap();
+        fs::create_dir_all(fixture.direct.join("threads")).unwrap();
         fs::create_dir_all(&fixture.legacy).unwrap();
-        fs::write(fixture.direct.join("settings.json"), "direct").unwrap();
+        fs::write(fixture.direct.join("threads/thread.json"), "direct").unwrap();
         fs::write(fixture.legacy.join("settings.json"), "legacy").unwrap();
-
         let error = fixture.migration().resolve().unwrap_err();
-
         assert!(error.to_string().contains("will not merge"));
         assert_eq!(
-            fs::read_to_string(fixture.direct.join("settings.json")).unwrap(),
+            fs::read_to_string(fixture.direct.join("threads/thread.json")).unwrap(),
             "direct"
         );
         assert_eq!(
@@ -233,14 +175,64 @@ mod tests {
     #[test]
     fn rejects_symlinked_roots() {
         use std::os::unix::fs::symlink;
-
         let fixture = Fixture::new("symlink");
         fs::create_dir_all(fixture.direct.parent().unwrap()).unwrap();
         fs::create_dir_all(fixture.root.join("elsewhere")).unwrap();
         symlink(fixture.root.join("elsewhere"), &fixture.direct).unwrap();
-
         let error = fixture.migration().resolve().unwrap_err();
-
         assert!(error.to_string().contains("regular data directory"));
+    }
+
+    #[test]
+    fn refuses_to_follow_symlinks_inside_the_direct_root() {
+        use std::os::unix::fs::symlink;
+        let fixture = Fixture::new("child-symlink");
+        let external = fixture.root.join("external");
+        fs::create_dir_all(&fixture.direct).unwrap();
+        fs::create_dir_all(&external).unwrap();
+        fs::create_dir_all(&fixture.legacy).unwrap();
+        fs::write(fixture.legacy.join("settings.json"), "legacy").unwrap();
+        symlink(&external, fixture.direct.join("engine")).unwrap();
+        let error = fixture.migration().resolve().unwrap_err();
+        assert!(error.is_conflict());
+        assert!(external.is_dir());
+        assert!(fixture.direct.join("engine").is_symlink());
+    }
+
+    #[test]
+    fn refuses_to_remove_a_replacement_destination() {
+        let fixture = Fixture::new("destination-replaced");
+        let original = fixture.root.join("original-direct");
+        fs::create_dir_all(fixture.direct.join("threads")).unwrap();
+        let inspection = inspect_directory(&fixture.direct).unwrap();
+        fs::rename(&fixture.direct, &original).unwrap();
+        fs::create_dir_all(&fixture.direct).unwrap();
+        let error = prepare_empty_destination(&fixture.direct, &inspection).unwrap_err();
+        assert!(error.to_string().contains("changed"));
+        assert!(fixture.direct.is_dir());
+        assert!(original.join("threads").is_dir());
+    }
+
+    #[test]
+    fn refuses_to_move_a_replacement_source() {
+        use std::os::unix::fs::symlink;
+        let fixture = Fixture::new("source-replaced");
+        let original = fixture.root.join("original-legacy");
+        fs::create_dir_all(&fixture.legacy).unwrap();
+        fs::write(fixture.legacy.join("settings.json"), "legacy").unwrap();
+        let inspection = inspect_directory(&fixture.legacy).unwrap();
+        fs::rename(&fixture.legacy, &original).unwrap();
+        symlink(&original, &fixture.legacy).unwrap();
+        fs::create_dir_all(fixture.direct.parent().unwrap()).unwrap();
+        let error =
+            move_inspected_directory_no_replace(&fixture.legacy, &inspection, &fixture.direct)
+                .unwrap_err();
+        assert!(error.to_string().contains("changed"));
+        assert!(fixture.legacy.is_symlink());
+        assert!(!fixture.direct.exists());
+        assert_eq!(
+            fs::read_to_string(original.join("settings.json")).unwrap(),
+            "legacy"
+        );
     }
 }
