@@ -1,6 +1,5 @@
 import type { AppInfo } from "../../bindings/AppInfo";
 import type { AppSettings } from "../../bindings/AppSettings";
-import type { AgentGuideStatusPayload } from "../../bindings/AgentGuideStatusPayload";
 import type { LiveTranscriptPayload } from "../../bindings/LiveTranscriptPayload";
 import type { MeterPayload } from "../../bindings/MeterPayload";
 import type { MeetingAccessPayload } from "../../bindings/MeetingAccessPayload";
@@ -19,7 +18,6 @@ export type RecorderState = "idle" | "starting" | "recording" | "stopping";
 
 export type AppState = {
   appInfo: AppInfo | null;
-  agentGuideStatuses: AgentGuideStatusPayload[] | null;
   threads: ThreadSummary[];
   selectedThreadId: string | null;
   recordingThreadId: string | null;
@@ -49,7 +47,6 @@ export const emptyMeters: MeterPayload = {
 
 export const initialAppState: AppState = {
   appInfo: null,
-  agentGuideStatuses: null,
   threads: [],
   selectedThreadId: null,
   recordingThreadId: null,
@@ -86,7 +83,6 @@ export type AppAction =
   | { type: "threadArchived"; summary: ThreadSummary }
   | { type: "archiveOpenChanged"; open: boolean }
   | { type: "settingsLoaded"; settings: AppSettings }
-  | { type: "agentGuideStatusesLoaded"; statuses: AgentGuideStatusPayload[] }
   | { type: "transcriptionStatusLoaded"; transcriptionStatus: TranscriptionStatusPayload }
   | { type: "permissionsLoaded"; permissions: PermissionsPayload }
   | { type: "meetingAccessLoaded"; meetingAccess: MeetingAccessPayload }

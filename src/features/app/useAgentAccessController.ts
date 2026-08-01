@@ -3,9 +3,7 @@ import { agentAccessApi } from "../../api/agentAccess";
 import { getApiErrorMessage } from "../../api/errors";
 import type { AgentGuideStatusPayload } from "../../bindings/AgentGuideStatusPayload";
 import type { AgentId } from "../../bindings/AgentId";
-import type { AppAction, AppState } from "./state";
 
-type AppDispatch = (action: AppAction) => void;
 type Destination = { agent: AgentId; path: string };
 
 export type AgentAccessConfirmation =
@@ -19,25 +17,31 @@ export type AgentAccessViewState = {
   error: string | null;
 };
 
-export function useAgentAccessController(state: AppState, dispatch: AppDispatch) {
-  const statusesRef = useRef(state.agentGuideStatuses);
+export function useAgentAccessController() {
+  const [statuses, setStatuses] = useState<AgentGuideStatusPayload[] | null>(null);
+  const statusesRef = useRef(statuses);
+  const statusRevisionRef = useRef(0);
   const [busy, setBusy] = useState<AgentAccessViewState["busy"]>(null);
   const [confirmation, setConfirmation] = useState<AgentAccessConfirmation | null>(null);
   const [error, setError] = useState<string | null>(null);
-  statusesRef.current = state.agentGuideStatuses;
+  statusesRef.current = statuses;
 
   const store = useCallback((statuses: AgentGuideStatusPayload[]) => {
     statusesRef.current = statuses;
-    dispatch({ type: "agentGuideStatusesLoaded", statuses });
-  }, [dispatch]);
+    setStatuses(statuses);
+  }, []);
 
   const refresh = useCallback(async () => {
+    const revision = ++statusRevisionRef.current;
     setBusy((current) => current ?? "loading");
     try {
-      store(await agentAccessApi.getStatuses());
-      setError(null);
+      const loaded = await agentAccessApi.getStatuses();
+      if (revision === statusRevisionRef.current) {
+        store(loaded);
+        setError(null);
+      }
     } catch (cause) {
-      setError(getApiErrorMessage(cause));
+      if (revision === statusRevisionRef.current) setError(getApiErrorMessage(cause));
     } finally {
       setBusy((current) => current === "loading" ? null : current);
     }
@@ -54,10 +58,12 @@ export function useAgentAccessController(state: AppState, dispatch: AppDispatch)
   }, []);
 
   const runRemove = useCallback(async (agent: AgentId, removeSharedMemory: boolean) => {
+    const revision = ++statusRevisionRef.current;
     setBusy(agent);
     setError(null);
     try {
-      store(await agentAccessApi.remove(agent, removeSharedMemory));
+      const loaded = await agentAccessApi.remove(agent, removeSharedMemory);
+      if (revision === statusRevisionRef.current) store(loaded);
     } catch (cause) {
       setError(getApiErrorMessage(cause));
     } finally {
@@ -84,8 +90,10 @@ export function useAgentAccessController(state: AppState, dispatch: AppDispatch)
     }
     setBusy(request.agents.length > 1 ? "both" : request.agents[0]);
     setError(null);
+    const revision = ++statusRevisionRef.current;
     try {
-      store(await agentAccessApi.install(request.agents));
+      const loaded = await agentAccessApi.install(request.agents);
+      if (revision === statusRevisionRef.current) store(loaded);
     } catch (cause) {
       setError(getApiErrorMessage(cause));
     } finally {
@@ -102,7 +110,7 @@ export function useAgentAccessController(state: AppState, dispatch: AppDispatch)
   }, []);
 
   return {
-    viewState: { statuses: state.agentGuideStatuses, busy, confirmation, error },
+    viewState: { statuses, busy, confirmation, error },
     cancelConfirmation: () => setConfirmation(null),
     confirm,
     refresh,

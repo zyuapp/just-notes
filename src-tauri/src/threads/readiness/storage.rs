@@ -13,7 +13,7 @@ use rustix::{
 
 use crate::app::now_ms;
 
-use super::super::{ThreadMetadata, TranscriptSegment};
+use super::super::{repository::render_thread_markdown_content, ThreadMetadata, TranscriptSegment};
 
 const METADATA_NAME: &str = "thread.json";
 const TRANSCRIPT_NAME: &str = "transcript.jsonl";
@@ -90,20 +90,7 @@ impl ThreadDirectory {
     pub(super) fn render_markdown(&self) -> Result<(), String> {
         let metadata = self.read_metadata()?;
         let segments = self.read_transcript()?;
-        let mut markdown = format!(
-            "# {}\n\nThread: `{}`\n\nDuration: `{}`\n\n",
-            metadata.title,
-            metadata.id,
-            format_transcript_time(metadata.duration_ms)
-        );
-        for segment in segments {
-            markdown.push_str(&format!(
-                "[{}] **{}:** {}\n\n",
-                format_transcript_time(segment.start_ms),
-                segment.speaker,
-                segment.text
-            ));
-        }
+        let markdown = render_thread_markdown_content(&metadata, &segments);
         self.write_text_atomic("transcript.md", "thread-markdown", &markdown)
     }
 
@@ -201,11 +188,4 @@ impl ThreadDirectory {
         }
         result
     }
-}
-
-fn format_transcript_time(ms: u64) -> String {
-    let total_seconds = ms / 1000;
-    let minutes = total_seconds / 60;
-    let seconds = total_seconds % 60;
-    format!("{minutes:02}:{seconds:02}")
 }

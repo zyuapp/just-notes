@@ -43,8 +43,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, archiveOpen: action.open };
     case "settingsLoaded":
       return { ...state, settings: action.settings };
-    case "agentGuideStatusesLoaded":
-      return { ...state, agentGuideStatuses: action.statuses };
     case "transcriptionStatusLoaded":
       return { ...state, transcriptionStatus: action.transcriptionStatus };
     case "permissionsLoaded":

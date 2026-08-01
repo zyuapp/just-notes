@@ -25,7 +25,7 @@ import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./lib/sidebarWidth";
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const actions = useJustNotesController(state, dispatch);
-  const agentAccessActions = useAgentAccessController(state, dispatch);
+  const agentAccessActions = useAgentAccessController();
   const threadActions = useThreadActions(state, dispatch, actions.refreshThreads);
   const settingsActions = useSettingsController(state, dispatch, actions.bootstrap);
   const meetingSettingsActions = useMeetingSettingsController(state, dispatch, settingsActions.updateSettings);

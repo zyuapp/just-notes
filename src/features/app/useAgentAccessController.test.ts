@@ -1,10 +1,9 @@
 import { expect, mock, test } from "bun:test";
 import { Window } from "happy-dom";
-import { act, createElement, useReducer } from "react";
+import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { agentAccessApi } from "../../api/agentAccess";
 import type { AgentGuideStatusPayload } from "../../bindings/AgentGuideStatusPayload";
-import { appReducer, initialAppState } from "./state";
 import { useAgentAccessController } from "./useAgentAccessController";
 
 const paths = {
@@ -16,7 +15,17 @@ function status(agent: "codex" | "claudeCode", state: "notInstalled" | "installe
   return { agent, state, path: paths[agent], detail: null } satisfies AgentGuideStatusPayload;
 }
 
-test("controller confirms exact install paths and final shared-memory removal", async () => {
+function deferred<T>() {
+  let resolve = (_value: T) => undefined;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+async function withController(
+  run: (getController: () => ReturnType<typeof useAgentAccessController>) => Promise<void>,
+) {
   const browserWindow = new Window({ url: "http://localhost/" });
   const previous = {
     window: globalThis.window,
@@ -31,19 +40,9 @@ test("controller confirms exact install paths and final shared-memory removal", 
     IS_REACT_ACT_ENVIRONMENT: true,
   });
   const originals = { ...agentAccessApi };
-  const initial = [status("codex", "notInstalled"), status("claudeCode", "notInstalled")];
-  const installed = [status("codex", "installed"), status("claudeCode", "installed")];
-  const claudeOnly = [status("codex", "notInstalled"), status("claudeCode", "installed")];
-  const getStatuses = mock(async () => initial);
-  const install = mock(async () => installed);
-  const remove = mock(async (agent: "codex" | "claudeCode") =>
-    agent === "codex" ? claudeOnly : initial);
-  Object.assign(agentAccessApi, { getStatuses, install, remove });
-
   let controller: ReturnType<typeof useAgentAccessController> | undefined;
   function Harness() {
-    const [state, dispatch] = useReducer(appReducer, { ...initialAppState, settingsOpen: true });
-    controller = useAgentAccessController(state, dispatch);
+    controller = useAgentAccessController();
     return null;
   }
 
@@ -53,28 +52,10 @@ test("controller confirms exact install paths and final shared-memory removal", 
       root.render(createElement(Harness));
       await Promise.resolve();
     });
-    await act(async () => controller?.refresh());
-    expect(controller?.viewState.statuses).toEqual(initial);
-
-    act(() => controller?.requestInstall(["codex", "claudeCode"]));
-    expect(controller?.viewState.confirmation).toEqual({
-      kind: "install",
-      agents: ["codex", "claudeCode"],
-      destinations: [
-        { agent: "codex", path: paths.codex },
-        { agent: "claudeCode", path: paths.claudeCode },
-      ],
+    await run(() => {
+      if (!controller) throw new Error("Agent Access controller was not rendered");
+      return controller;
     });
-    await act(async () => controller?.confirm());
-    expect(install).toHaveBeenCalledWith(["codex", "claudeCode"]);
-    expect(controller?.viewState.statuses).toEqual(installed);
-
-    await act(async () => controller?.requestRemove("codex"));
-    expect(remove).toHaveBeenLastCalledWith("codex", false);
-    await act(async () => controller?.requestRemove("claudeCode"));
-    expect(controller?.viewState.confirmation).toEqual({ kind: "removeFinal", agent: "claudeCode" });
-    await act(async () => controller?.confirm());
-    expect(remove).toHaveBeenLastCalledWith("claudeCode", true);
   } finally {
     await act(async () => root.unmount());
     browserWindow.close();
@@ -86,4 +67,87 @@ test("controller confirms exact install paths and final shared-memory removal", 
       IS_REACT_ACT_ENVIRONMENT: previous.act,
     });
   }
+}
+
+test("controller confirms exact install paths and final shared-memory removal", async () => {
+  await withController(async (getController) => {
+    const initial = [status("codex", "notInstalled"), status("claudeCode", "notInstalled")];
+    const installed = [status("codex", "installed"), status("claudeCode", "installed")];
+    const claudeOnly = [status("codex", "notInstalled"), status("claudeCode", "installed")];
+    const getStatuses = mock(async () => initial);
+    const install = mock(async () => installed);
+    const remove = mock(async (agent: "codex" | "claudeCode") =>
+      agent === "codex" ? claudeOnly : initial);
+    Object.assign(agentAccessApi, { getStatuses, install, remove });
+
+    await act(async () => getController().refresh());
+    expect(getController().viewState.statuses).toEqual(initial);
+
+    act(() => getController().requestInstall(["codex", "claudeCode"]));
+    expect(getController().viewState.confirmation).toEqual({
+      kind: "install",
+      agents: ["codex", "claudeCode"],
+      destinations: [
+        { agent: "codex", path: paths.codex },
+        { agent: "claudeCode", path: paths.claudeCode },
+      ],
+    });
+    await act(async () => getController().confirm());
+    expect(install).toHaveBeenCalledWith(["codex", "claudeCode"]);
+    expect(getController().viewState.statuses).toEqual(installed);
+
+    await act(async () => getController().requestRemove("codex"));
+    expect(remove).toHaveBeenLastCalledWith("codex", false);
+    await act(async () => getController().requestRemove("claudeCode"));
+    expect(getController().viewState.confirmation).toEqual({
+      kind: "removeFinal",
+      agent: "claudeCode",
+    });
+    await act(async () => getController().confirm());
+    expect(remove).toHaveBeenLastCalledWith("claudeCode", true);
+  });
+});
+
+test("older refreshes cannot replace install or remove results", async () => {
+  await withController(async (getController) => {
+    const initial = [status("codex", "notInstalled"), status("claudeCode", "notInstalled")];
+    const installed = [status("codex", "installed"), status("claudeCode", "installed")];
+    const claudeOnly = [status("codex", "notInstalled"), status("claudeCode", "installed")];
+    const installRefresh = deferred<AgentGuideStatusPayload[]>();
+    const removeRefresh = deferred<AgentGuideStatusPayload[]>();
+    const getStatuses = mock()
+      .mockResolvedValueOnce(initial)
+      .mockImplementationOnce(() => installRefresh.promise)
+      .mockImplementationOnce(() => removeRefresh.promise);
+    Object.assign(agentAccessApi, {
+      getStatuses,
+      install: mock(async () => installed),
+      remove: mock(async () => claudeOnly),
+    });
+
+    await act(async () => getController().refresh());
+    let staleRefresh: Promise<void>;
+    await act(async () => {
+      staleRefresh = getController().refresh();
+      await Promise.resolve();
+    });
+    act(() => getController().requestInstall(["codex", "claudeCode"]));
+    await act(async () => getController().confirm());
+    await act(async () => {
+      installRefresh.resolve(initial);
+      await staleRefresh!;
+    });
+    expect(getController().viewState.statuses).toEqual(installed);
+
+    await act(async () => {
+      staleRefresh = getController().refresh();
+      await Promise.resolve();
+    });
+    await act(async () => getController().requestRemove("codex"));
+    await act(async () => {
+      removeRefresh.resolve(installed);
+      await staleRefresh!;
+    });
+    expect(getController().viewState.statuses).toEqual(claudeOnly);
+  });
 });

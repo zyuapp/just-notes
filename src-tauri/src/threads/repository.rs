@@ -144,13 +144,20 @@ pub(crate) fn prepare_work_dir(thread_dir: &Path) -> Result<(), String> {
 pub(crate) fn render_thread_markdown(thread_dir: &Path) -> Result<(), String> {
     let metadata = read_thread_metadata(&thread_dir.join("thread.json"))?;
     let segments = read_transcript_jsonl(&thread_dir.join("transcript.jsonl"))?;
-    let duration_ms = metadata.duration_ms;
+    let markdown = render_thread_markdown_content(&metadata, &segments);
+    write_text_atomic(&thread_dir.join("transcript.md"), &markdown)
+}
+
+pub(super) fn render_thread_markdown_content(
+    metadata: &ThreadMetadata,
+    segments: &[super::TranscriptSegment],
+) -> String {
     let mut markdown = String::new();
     markdown.push_str(&format!("# {}\n\n", metadata.title));
     markdown.push_str(&format!("Thread: `{}`\n\n", metadata.id));
     markdown.push_str(&format!(
         "Duration: `{}`\n\n",
-        format_transcript_time(duration_ms)
+        format_transcript_time(metadata.duration_ms)
     ));
 
     for segment in segments {
@@ -162,7 +169,7 @@ pub(crate) fn render_thread_markdown(thread_dir: &Path) -> Result<(), String> {
         ));
     }
 
-    write_text_atomic(&thread_dir.join("transcript.md"), &markdown)
+    markdown
 }
 
 pub(crate) fn export_thread_markdown(paths: &AppPaths, thread_id: &str) -> Result<String, String> {
