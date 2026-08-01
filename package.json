@@ -26,8 +26,7 @@
     "tauri": "tauri",
     "app:build": "scripts/build-app.sh",
     "app:release": "JUST_NOTES_RELEASE=1 scripts/build-app.sh",
-    "app:install": "bun run app:build && scripts/install-app.sh",
-    "app:release:install": "bun run app:release && scripts/install-app.sh"
+    "app:install": "bun run app:build && scripts/install-app.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",

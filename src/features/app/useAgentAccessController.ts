@@ -24,8 +24,6 @@ export function useAgentAccessController() {
   const [busy, setBusy] = useState<AgentAccessViewState["busy"]>(null);
   const [confirmation, setConfirmation] = useState<AgentAccessConfirmation | null>(null);
   const [error, setError] = useState<string | null>(null);
-  statusesRef.current = statuses;
-
   const store = useCallback((statuses: AgentGuideStatusPayload[]) => {
     statusesRef.current = statuses;
     setStatuses(statuses);
