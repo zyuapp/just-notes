@@ -1,7 +1,29 @@
 use crate::{
+    agent_access::{AgentGuideState, AgentGuideStatus, AgentId},
     threads::{ThreadDetail, TranscriptSegment},
     transcription::TranscriptionStatusPayload,
 };
+
+#[derive(serde::Serialize, ts_rs::TS, Clone)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub(crate) struct AgentGuideStatusPayload {
+    pub(crate) agent: AgentId,
+    pub(crate) state: AgentGuideState,
+    pub(crate) path: String,
+    pub(crate) detail: Option<String>,
+}
+
+impl From<AgentGuideStatus> for AgentGuideStatusPayload {
+    fn from(status: AgentGuideStatus) -> Self {
+        Self {
+            agent: status.agent,
+            state: status.state,
+            path: status.path,
+            detail: status.detail,
+        }
+    }
+}
 
 #[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]

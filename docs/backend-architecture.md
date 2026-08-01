@@ -8,7 +8,11 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### App
 
-`app` owns application paths and filesystem locations. It builds the internal layout from Tauri's platform-provided app data directory so Mac App Store builds remain inside their sandbox container. Other contexts can depend on `AppPaths`.
+`app` owns application paths and filesystem locations. It builds the internal layout from Tauri's platform-provided app data directory so application data has one stable root. Other contexts can depend on `AppPaths`.
+
+### Agent Access
+
+`agent_access` owns the local Codex and Claude Code guide lifecycle: resolved destinations supplied by app setup, ownership manifests, filesystem status, safe installation and removal, the bundled guide, and preservation of shared user-managed memory. It is foundational and does not depend on thread retrieval behavior or platform surfaces.
 
 ### Settings
 
@@ -50,9 +54,11 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 The intended direction is:
 
-`lib.rs` -> `commands`, `meetings`, `recording`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
+`lib.rs` -> `commands`, `agent_access`, `meetings`, `recording`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
 
 `commands` -> any domain it adapts, but no business logic of its own
+
+`agent_access` -> local filesystem only; setup supplies resolved home and app-data roots
 
 `recording` -> `capture`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
 

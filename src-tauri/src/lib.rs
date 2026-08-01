@@ -1,5 +1,6 @@
 use tauri::{AppHandle, Builder, Emitter, Manager, WebviewWindowBuilder, Wry};
 
+mod agent_access;
 mod app;
 mod app_menu;
 mod capture;
@@ -15,6 +16,7 @@ mod threads;
 mod transcription;
 mod tray;
 
+use agent_access::{AgentAccessPaths, GuideLifecycle};
 use app::{AppPaths, DataRootMigration, DataRootMigrationError};
 use meetings::MeetingSchedulerState;
 use recording::RecorderState;
@@ -102,8 +104,8 @@ enum PersistentStateSetup {
 }
 
 fn manage_persistent_state(app: &mut tauri::App<Wry>) -> SetupResult<PersistentStateSetup> {
-    let migration =
-        DataRootMigration::for_home(app.path().app_data_dir()?, &app.path().home_dir()?);
+    let home_dir = app.path().home_dir()?;
+    let migration = DataRootMigration::for_home(app.path().app_data_dir()?, &home_dir);
     let data_dir = match migration.resolve() {
         Ok(data_dir) => data_dir,
         Err(error) if error.is_conflict() => {
@@ -114,8 +116,11 @@ fn manage_persistent_state(app: &mut tauri::App<Wry>) -> SetupResult<PersistentS
     let paths = AppPaths::from_data_dir(data_dir);
     paths.ensure().map_err(std::io::Error::other)?;
     let settings = settings::load_settings(&paths.data_dir);
+    let agent_access_paths =
+        AgentAccessPaths::from_roots(&paths.data_dir, &home_dir).map_err(std::io::Error::other)?;
     app.manage(paths);
     app.manage(SettingsState::new_state(settings));
+    app.manage(GuideLifecycle::new(agent_access_paths));
     Ok(PersistentStateSetup::Ready)
 }
 
@@ -139,6 +144,10 @@ fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
 macro_rules! command_handler {
     ($builder:expr $(, $extra:path)*) => {
         $builder.invoke_handler(tauri::generate_handler![
+        commands::agent_access::get_agent_guide_statuses,
+        commands::agent_access::install_agent_guides,
+        commands::agent_access::remove_agent_guide,
+        commands::agent_access::reveal_agent_guide,
         commands::system::get_app_info,
         commands::transcription::get_transcription_status,
         commands::transcription::start_transcription_model_download,

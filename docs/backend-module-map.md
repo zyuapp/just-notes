@@ -9,6 +9,7 @@ Thin Tauri shell. It registers commands, manages app state, runs startup cleanup
 ## `src-tauri/src/commands`
 
 - `mod.rs`: command adapter module declarations.
+- `agent_access.rs`: guide status/install/remove commands plus typed Finder reveal by agent identifier.
 - `threads.rs`: thread library commands (list, create, get, rename, archive, restore, delete, search, markdown export), plus library disk usage and raw-audio reclamation.
 - `recording.rs`: start/stop/fixture recording commands.
 - `transcription.rs`: model status plus model download start/cancel and local-model deletion.
@@ -37,6 +38,19 @@ Neutral adapter that converts the recording domain's start result into the IPC p
 - `mod.rs`: exports the app context API.
 
 Use this when changing where Just Notes stores data, threads, fixtures, or shared app-level utilities.
+
+## `src-tauri/src/agent_access`
+
+- `model.rs`: supported agent identifiers, filesystem guide state, status, and ownership manifest.
+- `paths.rs`: Codex, Claude Code, and shared-memory destinations derived from resolved roots.
+- `entry.rs` / `filesystem.rs`: file-kind modeling plus descriptor-relative no-follow inspection, exclusive creation, atomic writes, and scoped removal.
+- `guide.rs`: bundled guide content plus owned-folder validation, installation, updates, and removal.
+- `install.rs`: batch preflight, per-agent install outcomes, and guide update orchestration.
+- `memory.rs`: creation, preservation, validation, and confirmed final removal of shared `MEMORY.md`.
+- `lifecycle.rs`: serialized status/install/remove workflows across both agent destinations.
+- `tests.rs`: guide ownership, conflict, shared-memory, removal, and symlink safety coverage.
+
+Use this when changing local agent guide discovery or lifecycle. It receives paths from app setup and must not depend on transcript or platform domains.
 
 ## `src-tauri/src/settings`
 
@@ -78,7 +92,9 @@ Use this when frontend/backend payload shape changes are needed.
 
 ## `src-tauri/src/threads`
 
-- `model.rs`: thread metadata (including duration), thread summaries/details (including the `has_audio` flag), transcript segment model, and thread status (idle/recording/transcribing).
+- `model.rs`: thread metadata (including duration and durable retrieval readiness), summaries/details, transcript segments, and recording status.
+- `readiness.rs`: startup migration plus recording and restore transitions for external-agent retrieval eligibility.
+- `readiness/storage.rs`: descriptor-relative no-follow validation and atomic metadata/Markdown persistence for readiness transitions.
 - `storage.rs`: library disk footprint (total, raw-audio, reclaimable bytes) and deletion of raw audio belonging to idle threads.
 - `repository.rs`: thread-directory enumeration, active/archived listing, loading, status/duration updates, work directory setup, markdown rendering and `transcript.md` export, and stale-status cleanup.
 - `create.rs`: collision-safe thread directory creation plus internal and external title handling.
