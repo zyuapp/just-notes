@@ -17,7 +17,9 @@ use tauri::AppHandle;
 use super::permission_request_result;
 
 mod delivery;
-pub(crate) use delivery::{remove, show, show_with_completion_handler, show_with_error_handler};
+pub(crate) use delivery::{
+    remove, show, show_informational, show_with_completion_handler, show_with_error_handler,
+};
 
 #[derive(Clone, Debug)]
 pub(crate) struct NotificationResponseAction {

@@ -8,4 +8,4 @@ Local transcription requires a model that the user may choose to download from G
 
 Transcripts, settings, the transcription model, and any retained raw audio remain on the Mac until the user deletes them or removes the app's data. Calendar information is read to show meeting reminders and is not used to modify calendar events. Access to microphone, system audio, Calendar, and notifications can be changed in macOS System Settings.
 
-For privacy questions or requests, use the support contact on the Just Notes App Store product page. The current published privacy policy is available through the Privacy & Legal section in Just Notes and through the Privacy Policy link on its App Store product page.
+For privacy questions or requests, use the support contact published with the direct Just Notes release. The current privacy policy is also available through the Privacy & Legal section in Just Notes.

@@ -9,6 +9,7 @@ import { buildNotice } from "./features/app/buildNotice";
 import { buildRecordButtonControl } from "./features/app/recordButtonState";
 import { appReducer, getActiveThreadId, initialAppState } from "./features/app/state";
 import { useAppEvents } from "./features/app/useAppEvents";
+import { useAgentAccessController } from "./features/app/useAgentAccessController";
 import { useArchivedThreads } from "./features/app/useArchivedThreads";
 import { useJustNotesController } from "./features/app/useJustNotesController";
 import { useMeetingSettingsController } from "./features/app/useMeetingSettingsController";
@@ -24,6 +25,7 @@ import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "./lib/sidebarWidth";
 export default function App() {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const actions = useJustNotesController(state, dispatch);
+  const agentAccessActions = useAgentAccessController();
   const threadActions = useThreadActions(state, dispatch, actions.refreshThreads);
   const settingsActions = useSettingsController(state, dispatch, actions.bootstrap);
   const meetingSettingsActions = useMeetingSettingsController(state, dispatch, settingsActions.updateSettings);
@@ -31,8 +33,9 @@ export default function App() {
   const storageActions = useStorageController(dispatch);
   const refreshSettingsData = useCallback(() => {
     settingsActions.refreshPermissions();
+    void agentAccessActions.refresh();
     storageActions.refreshUsage();
-  }, [settingsActions.refreshPermissions, storageActions.refreshUsage]);
+  }, [agentAccessActions.refresh, settingsActions.refreshPermissions, storageActions.refreshUsage]);
   useWindowFocusRefresh(state.settingsOpen, refreshSettingsData);
   useSettingsShortcut(settingsActions.openSettings);
   const search = useThreadSearch(dispatch, state.threads);
@@ -116,7 +119,8 @@ export default function App() {
         onStartMeetingRecording={(id) => void meetingPromptActions.startMeetingRecording(id)}
         onDismissMeetingPrompt={(id) => void meetingPromptActions.dismissMeetingPrompt(id)}
       />
-      <AppSettingsOverlay state={state} actions={actions} meetingSettings={meetingSettingsActions}
+      <AppSettingsOverlay state={state} actions={actions} agentAccess={agentAccessActions}
+        meetingSettings={meetingSettingsActions}
         settings={settingsActions} storage={storageActions} threads={threadActions} />
       {state.archiveOpen && (
         <ArchivedView

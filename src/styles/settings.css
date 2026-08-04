@@ -1,4 +1,4 @@
-.settings-panel section {
+.settings-panel section:not(.modal-frame) {
   scroll-margin-top: 24px;
   margin: 0 0 28px;
   padding: 0;

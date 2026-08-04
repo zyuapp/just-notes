@@ -1,0 +1,134 @@
+.agent-access-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 18px;
+  padding: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+
+.agent-access-intro strong {
+  color: var(--text-primary);
+  font-size: var(--type-body);
+  font-weight: 500;
+}
+
+.agent-access-intro p,
+.agent-access-row p {
+  margin: 3px 0 0;
+  font-size: var(--type-control);
+  line-height: 1.45;
+}
+
+.agent-access-intro p {
+  color: var(--text-muted);
+}
+
+.agent-access-settings > .settings-banner {
+  display: block;
+  margin-top: 12px;
+  font-size: var(--type-control);
+}
+
+.agent-access-row {
+  display: grid;
+  min-height: 64px;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.agent-access-list {
+  margin-top: 16px;
+}
+
+.agent-access-row:first-child {
+  border-top: 1px solid var(--border-default);
+}
+
+.agent-access-row-copy {
+  min-width: 0;
+}
+
+.agent-access-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: var(--type-body);
+  font-weight: 500;
+}
+
+.agent-access-agent svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.agent-access-brand-icon-claude-code {
+  color: #d97757;
+}
+
+.agent-access-row .settings-row-actions {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.agent-access-loading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 18px 0;
+  color: var(--text-muted);
+  font-size: var(--type-control);
+}
+
+.agent-access-loading svg {
+  animation: agent-access-spin 0.9s linear infinite;
+}
+
+.agent-access-retry {
+  margin-top: 12px;
+}
+
+.agent-access-confirmation-copy > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--type-control);
+  line-height: 1.55;
+}
+
+.agent-access-confirmation-copy ul {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-access-confirmation-copy li {
+  display: grid;
+  gap: 3px;
+}
+
+.agent-access-confirmation-copy strong {
+  color: var(--text-subtle);
+  font-size: var(--type-caption);
+  font-weight: 500;
+}
+
+.agent-access-confirmation-copy code {
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: var(--type-caption);
+}
+
+@keyframes agent-access-spin {
+  to { transform: rotate(360deg); }
+}

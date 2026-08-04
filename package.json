@@ -25,14 +25,15 @@
     "verify": "bun run bindings:rs:check && bun run legal:notices:check && bun run deps:sherpa:check && bun run build && bun run lint:fe:boundary && bun run lint:fe:components && bun run lint:fe:files && bun run test:fe && bun run fmt:rs && bun run lint:rs && bun run lint:rs:domains && bun run lint:rs:files && bun run test:rs",
     "tauri": "tauri",
     "app:build": "scripts/build-app.sh",
-    "app:install": "bun run app:build && scripts/install-app.sh",
-    "app:store:package": "scripts/build-mac-app-store.sh"
+    "app:release": "JUST_NOTES_RELEASE=1 scripts/build-app.sh",
+    "app:install": "bun run app:build && scripts/install-app.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
     "lucide-react": "^0.468.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-icons": "^5.7.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.4",

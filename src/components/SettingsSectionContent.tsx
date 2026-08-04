@@ -1,4 +1,5 @@
 import { AboutSection } from "./AboutSection";
+import { AgentAccessSettingsSection } from "./AgentAccessSettingsSection";
 import { MeetingSettingsSection } from "./MeetingSettingsSection";
 import { PrivacyLegalSection } from "./PrivacyLegalSection";
 import { SettingsPermissionsSection } from "./SettingsPermissionsSection";
@@ -6,6 +7,7 @@ import { StorageSettingsSection } from "./StorageSettingsSection";
 import { TranscriptionSettingsSection } from "./TranscriptionSettingsSection";
 import type { SettingsSectionId } from "./SettingsNavigation";
 import type {
+  AgentAccessActions,
   MeetingSettingsActions,
   ModelActions,
   SettingsData,
@@ -16,6 +18,7 @@ import type {
 type SettingsSectionContentProps = {
   section: SettingsSectionId;
   data: SettingsData;
+  agentAccess: AgentAccessActions;
   meeting: MeetingSettingsActions;
   storage: StorageActions;
   model: ModelActions;
@@ -25,6 +28,7 @@ type SettingsSectionContentProps = {
 export function SettingsSectionContent({
   section,
   data,
+  agentAccess,
   meeting,
   storage,
   model,
@@ -40,6 +44,8 @@ export function SettingsSectionContent({
           {...storage}
         />
       );
+    case "agentAccess":
+      return <AgentAccessSettingsSection {...agentAccess} />;
     case "transcription":
       return (
         <div id="settings-transcription">

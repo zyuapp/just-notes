@@ -37,39 +37,42 @@ check_forbidden() {
 
 : > "$violations.tmp"
 
-check_forbidden "app" "capture|commands|indicator|ipc|meetings|platform|recording|settings|threads|transcription|tray" \
+check_forbidden "app" "agent_access|capture|commands|indicator|ipc|meetings|platform|recording|settings|threads|transcription|tray" \
   "app must stay foundational and must not depend on feature domains."
 
-check_forbidden "threads" "capture|commands|indicator|ipc|meetings|platform|recording|settings|transcription|tray" \
+check_forbidden "agent_access" "app|capture|commands|indicator|ipc|meetings|platform|recording|settings|threads|transcription|tray" \
+  "agent_access must own guide lifecycle without depending on application or feature domains."
+
+check_forbidden "threads" "agent_access|capture|commands|indicator|ipc|meetings|platform|recording|settings|transcription|tray" \
   "threads must persist note-thread data without depending on other feature domains."
 
-check_forbidden "capture" "commands|indicator|ipc|meetings|platform|recording|settings|threads|tray" \
+check_forbidden "capture" "agent_access|commands|indicator|ipc|meetings|platform|recording|settings|threads|tray" \
   "capture must own audio input without depending on ipc, recording, threads, or shell modules."
 
-check_forbidden "recording" "commands|meetings|platform" \
+check_forbidden "recording" "agent_access|commands|meetings|platform" \
   "recording must not depend on adapter or shell modules."
 run_check "recording" "crate::lib|super::super::lib" \
   "recording must not depend on the Tauri shell."
 
-check_forbidden "transcription" "commands|indicator|meetings|platform|recording|settings|tray" \
+check_forbidden "transcription" "agent_access|commands|indicator|meetings|platform|recording|settings|tray" \
   "transcription must not depend on orchestration or shell modules."
 
 check_forbidden "ipc" "app|capture|commands|indicator|meetings|platform|recording|settings|tray" \
   "ipc DTOs must not depend on app, capture, or orchestration contexts."
 
-check_forbidden "settings" "capture|commands|indicator|ipc|meetings|platform|recording|threads|transcription|tray" \
+check_forbidden "settings" "agent_access|capture|commands|indicator|ipc|meetings|platform|recording|threads|transcription|tray" \
   "settings must only build on app paths."
 
-check_forbidden "platform" "app|capture|commands|indicator|ipc|meetings|recording|settings|threads|transcription|tray" \
+check_forbidden "platform" "agent_access|app|capture|commands|indicator|ipc|meetings|recording|settings|threads|transcription|tray" \
   "platform shell helpers must stay free of domain dependencies."
 
-check_forbidden "tray" "app|capture|commands|indicator|ipc|meetings|platform|recording|settings|threads|transcription" \
+check_forbidden "tray" "agent_access|app|capture|commands|indicator|ipc|meetings|platform|recording|settings|threads|transcription" \
   "tray must stay a thin menu bar adapter without domain dependencies."
 
-check_forbidden "indicator" "app|capture|commands|ipc|platform|recording|settings|threads|transcription|tray" \
+check_forbidden "indicator" "agent_access|app|capture|commands|ipc|platform|recording|settings|threads|transcription|tray" \
   "indicator must stay a thin floating-window adapter without domain dependencies."
 
-check_forbidden "meetings" "capture|commands|indicator|ipc|threads|transcription|tray" \
+check_forbidden "meetings" "agent_access|capture|commands|indicator|ipc|threads|transcription|tray" \
   "meetings must keep calendar policy in its context and coordinate only app, platform, recording, and settings."
 
 rm -f "$violations.tmp"

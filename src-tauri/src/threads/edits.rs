@@ -4,6 +4,7 @@ use crate::app::AppPaths;
 
 use self::fs_move::move_thread_dir;
 use super::{
+    readiness::resolve_retrieval_readiness,
     repository::{
         list_threads, load_thread_by_id, load_thread_detail, read_thread_metadata,
         render_thread_markdown, update_thread_metadata_preserving_activity,
@@ -49,6 +50,7 @@ pub(crate) fn restore_thread(paths: &AppPaths, thread_id: &str) -> Result<(), St
     if !source.is_dir() {
         return Err(format!("Archived thread does not exist: {thread_id}"));
     }
+    resolve_retrieval_readiness(&source)?;
     move_thread_dir(&source, &paths.thread_dir(thread_id))
 }
 

@@ -2,17 +2,21 @@
 
 The Rust backend is split around domain responsibilities rather than technical layers alone. `src-tauri/src/lib.rs` should stay a thin Tauri adapter: it wires state, setup, the tray, and command registration. Command declarations live in the `commands` module (also part of the adapter layer), and business behavior lives in the domain modules below.
 
-`meeting_surfaces` is a small adapter that projects the meetings domain's current prompt into frontend events and the menu bar without making the domain depend on either surface.
+`meeting_surfaces` and `agent_access_surfaces` are small adapters that project domain outcomes into platform surfaces without making either domain depend on Tauri or macOS integration.
 
 ## Bounded Contexts
 
 ### App
 
-`app` owns application paths and filesystem locations. It builds the internal layout from Tauri's platform-provided app data directory so Mac App Store builds remain inside their sandbox container. Other contexts can depend on `AppPaths`.
+`app` owns application paths and filesystem locations. It builds the internal layout from Tauri's platform-provided app data directory so application data has one stable root. Other contexts can depend on `AppPaths`.
+
+### Agent Access
+
+`agent_access` owns the local Codex and Claude Code guide lifecycle: resolved destinations supplied by app setup, ownership manifests, filesystem status, safe installation, launch reconciliation and removal, the bundled guide, and preservation of shared user-managed memory. It is foundational and does not depend on thread retrieval behavior or platform surfaces.
 
 ### Settings
 
-`settings` owns persisted user preferences. Transcript storage is intentionally fixed to the app container and is not a user preference. It may depend on `app` only.
+`settings` owns persisted user preferences. Transcript storage is intentionally fixed to the direct app-data root and is not a user preference. It may depend on `app` only.
 
 ### Platform
 
@@ -50,9 +54,11 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 The intended direction is:
 
-`lib.rs` -> `commands`, `meetings`, `recording`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
+`lib.rs` -> adapter surfaces, `commands`, `agent_access`, `meetings`, `recording`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
 
 `commands` -> any domain it adapts, but no business logic of its own
+
+`agent_access` -> local filesystem only; setup supplies resolved home and app-data roots
 
 `recording` -> `capture`, `threads`, `transcription`, `settings`, `tray`, `ipc`, `app`
 

@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "create": false,
         "title": "Just Notes",
         "width": 1120,
         "height": 720,
@@ -52,6 +53,7 @@
     "macOS": {
       "minimumSystemVersion": "14.4",
       "entitlements": "./Entitlements.plist",
+      "hardenedRuntime": true,
       "signingIdentity": "-"
     }
   }

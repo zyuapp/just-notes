@@ -1,5 +1,7 @@
-use tauri::{AppHandle, Builder, Emitter, Manager, Wry};
+use tauri::{AppHandle, Builder, Emitter, Manager, WebviewWindowBuilder, Wry};
 
+mod agent_access;
+mod agent_access_surfaces;
 mod app;
 mod app_menu;
 mod capture;
@@ -15,11 +17,12 @@ mod threads;
 mod transcription;
 mod tray;
 
-use app::AppPaths;
+use agent_access::{AgentAccessPaths, GuideLifecycle};
+use app::{AppPaths, DataRootMigration, DataRootMigrationError};
 use meetings::MeetingSchedulerState;
 use recording::RecorderState;
 use settings::SettingsState;
-use threads::repository::reset_stale_recording_threads;
+use threads::{readiness::migrate_retrieval_readiness, repository::reset_stale_recording_threads};
 use transcription::ModelDownloadState;
 
 type SetupResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -39,10 +42,23 @@ pub fn run() {
 }
 
 fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
-    manage_persistent_state(app)?;
+    match manage_persistent_state(app)? {
+        PersistentStateSetup::Ready => {}
+        PersistentStateSetup::MigrationConflict(error) => {
+            platform::show_blocking_error(
+                "Just Notes could not open your notes",
+                &error.to_string(),
+            )
+            .map_err(std::io::Error::other)?;
+            app.handle().exit(1);
+            return Ok(());
+        }
+    }
     let paths = app.state::<AppPaths>();
     paths.cleanup_abandoned_import_staging()?;
+    migrate_retrieval_readiness(&paths)?;
     reset_stale_recording_threads(&paths)?;
+    build_main_window(app)?;
     tray::init_tray(
         app,
         start_recording_from_tray,
@@ -60,6 +76,7 @@ fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
             },
         );
     });
+    agent_access_surfaces::reconcile_on_launch(app);
     meetings::spawn_scheduler(
         app.handle().clone(),
         meeting_surfaces::start_native_meeting_now,
@@ -67,21 +84,46 @@ fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
             meeting_surfaces::sync_current(app);
         },
     );
-    // The minWidth/minHeight from tauri.conf.json is not enforced on
-    // macOS; the layout needs at least this much room.
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_min_size(Some(tauri::LogicalSize::new(900.0, 620.0)));
-    }
     Ok(())
 }
 
-fn manage_persistent_state(app: &mut tauri::App<Wry>) -> SetupResult {
-    let paths = AppPaths::from_data_dir(app.path().app_data_dir()?);
+fn build_main_window(app: &tauri::App<Wry>) -> SetupResult {
+    let config = app
+        .config()
+        .app
+        .windows
+        .first()
+        .ok_or_else(|| std::io::Error::other("Main window configuration is missing"))?;
+    let window = WebviewWindowBuilder::from_config(app.handle(), config)?.build()?;
+    // The configured minimum is not enforced on macOS.
+    window.set_min_size(Some(tauri::LogicalSize::new(900.0, 620.0)))?;
+    Ok(())
+}
+
+enum PersistentStateSetup {
+    Ready,
+    MigrationConflict(DataRootMigrationError),
+}
+
+fn manage_persistent_state(app: &mut tauri::App<Wry>) -> SetupResult<PersistentStateSetup> {
+    let home_dir = app.path().home_dir()?;
+    let migration = DataRootMigration::for_home(app.path().app_data_dir()?, &home_dir);
+    let data_dir = match migration.resolve() {
+        Ok(data_dir) => data_dir,
+        Err(error) if error.is_conflict() => {
+            return Ok(PersistentStateSetup::MigrationConflict(error))
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let paths = AppPaths::from_data_dir(data_dir);
     paths.ensure().map_err(std::io::Error::other)?;
     let settings = settings::load_settings(&paths.data_dir);
+    let agent_access_paths =
+        AgentAccessPaths::from_roots(&paths.data_dir, &home_dir).map_err(std::io::Error::other)?;
     app.manage(paths);
     app.manage(SettingsState::new_state(settings));
-    Ok(())
+    app.manage(GuideLifecycle::new(agent_access_paths));
+    Ok(PersistentStateSetup::Ready)
 }
 
 // A recording must be stopped (WAV headers finalized, duration persisted)
@@ -104,6 +146,10 @@ fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
 macro_rules! command_handler {
     ($builder:expr $(, $extra:path)*) => {
         $builder.invoke_handler(tauri::generate_handler![
+        commands::agent_access::get_agent_guide_statuses,
+        commands::agent_access::install_agent_guides,
+        commands::agent_access::remove_agent_guide,
+        commands::agent_access::reveal_agent_guide,
         commands::system::get_app_info,
         commands::transcription::get_transcription_status,
         commands::transcription::start_transcription_model_download,

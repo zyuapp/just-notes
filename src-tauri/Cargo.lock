@@ -1838,6 +1838,7 @@ dependencies = [
  "objc2-foundation",
  "objc2-user-notifications",
  "reqwest 0.12.28",
+ "rustix",
  "serde",
  "serde_json",
  "sha2 0.11.0",
