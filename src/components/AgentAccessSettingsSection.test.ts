@@ -55,12 +55,20 @@ test("announces Agent Access progress and failures", async () => {
 
     await act(async () => root.render(createElement(AgentAccessSettingsSection, {
       viewState: {
-        statuses: [{
-          agent: "codex",
-          state: "notInstalled",
-          path: "/Users/me/.agents/skills/just-notes",
-          detail: "Installation failed: permission denied",
-        }],
+        statuses: [
+          {
+            agent: "codex",
+            state: "notInstalled",
+            path: "/Users/me/.agents/skills/just-notes",
+            detail: "Installation failed: permission denied",
+          },
+          {
+            agent: "claudeCode",
+            state: "installed",
+            path: "/Users/me/.claude/skills/just-notes",
+            detail: null,
+          },
+        ],
         busy: null,
         confirmation: null,
         error: null,
@@ -68,6 +76,15 @@ test("announces Agent Access progress and failures", async () => {
       ...baseActions,
     })));
     expect(container.querySelector('[role="alert"]')?.textContent).toContain("permission denied");
+    const rows = container.querySelectorAll(".agent-access-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.querySelector(".agent-access-brand-icon-codex")).not.toBeNull();
+    expect(rows[1]?.querySelector(".agent-access-brand-icon-claude-code")).not.toBeNull();
+    for (const row of rows) {
+      const actions = row.querySelector(".settings-row-actions");
+      expect(actions?.querySelector(".status-pill")).not.toBeNull();
+      expect(actions?.querySelector("button")).not.toBeNull();
+    }
   } finally {
     await act(async () => root.unmount());
     browserWindow.close();

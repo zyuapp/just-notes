@@ -34,8 +34,11 @@
 
 .agent-access-row {
   display: grid;
-  gap: 7px;
-  padding: 15px 0;
+  min-height: 64px;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 9px 0;
   border-bottom: 1px solid var(--border-default);
 }
 
@@ -47,20 +50,32 @@
   border-top: 1px solid var(--border-default);
 }
 
-.agent-access-row-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.agent-access-row-copy {
+  min-width: 0;
 }
 
-.agent-access-row-heading > strong {
+.agent-access-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--text-primary);
   font-size: var(--type-body);
   font-weight: 500;
 }
 
+.agent-access-agent svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.agent-access-brand-icon-claude-code {
+  color: #d97757;
+}
+
 .agent-access-row .settings-row-actions {
+  align-items: center;
   justify-content: flex-end;
 }
 

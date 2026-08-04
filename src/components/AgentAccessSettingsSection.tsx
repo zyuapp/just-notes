@@ -1,9 +1,12 @@
 import { FolderOpen, LoaderCircle } from "lucide-react";
+import { BsOpenai } from "react-icons/bs";
+import { SiClaudecode } from "react-icons/si";
 import type { AgentGuideStatusPayload } from "../bindings/AgentGuideStatusPayload";
 import type { AgentId } from "../bindings/AgentId";
 import { Button } from "./Button";
 import type { AgentAccessActions } from "./settingsViewTypes";
 import { AgentAccessConfirmationDialog } from "./AgentAccessConfirmationDialog";
+import { StatusPill } from "./StatusPill";
 
 const AGENTS: { id: AgentId; label: string }[] = [
   { id: "codex", label: "Codex" },
@@ -78,16 +81,21 @@ function AgentRow({ status, label, operating, onInstall, onRemove, onReveal }: R
   const tone = status.state === "installed" ? "ok" : status.state === "conflict" ? "warning" : "idle";
   return (
     <div className="agent-access-row">
-      <div className="agent-access-row-heading">
-        <strong>{label}</strong>
-        <span className={`status-pill status-pill-${tone}`}><i />{stateLabel}</span>
+      <div className="agent-access-row-copy">
+        <strong className="agent-access-agent">
+          {status.agent === "codex"
+            ? <BsOpenai className="agent-access-brand-icon-codex" aria-hidden="true" />
+            : <SiClaudecode className="agent-access-brand-icon-claude-code" aria-hidden="true" />}
+          {label}
+        </strong>
+        <code className="settings-path">{status.path}</code>
+        {status.detail && <p role={status.state === "conflict" ? undefined : "alert"}
+          className={status.state === "conflict" ? "settings-hint-warning" : "settings-hint-danger"}>
+          {status.detail}
+        </p>}
       </div>
-      <code className="settings-path">{status.path}</code>
-      {status.detail && <p role={status.state === "conflict" ? undefined : "alert"}
-        className={status.state === "conflict" ? "settings-hint-warning" : "settings-hint-danger"}>
-        {status.detail}
-      </p>}
       <div className="settings-row-actions">
+        <StatusPill tone={tone} label={stateLabel} />
         {status.state === "notInstalled" && <Button size="compact" disabled={operating}
           onClick={() => onInstall([status.agent])}>Install</Button>}
         {status.state === "installed" && <Button size="compact" variant="danger" disabled={operating}
