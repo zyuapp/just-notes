@@ -4,9 +4,9 @@ Generated from the exact Cargo and JavaScript dependency graphs plus the bundled
 
 JavaScript: @tauri-apps/api 2.11.1 — Apache-2.0 OR MIT — License-1, License-2
 JavaScript: lucide-react 1.28.0 — ISC — License-3
-JavaScript: react-dom 19.2.7 — MIT — License-4
+JavaScript: react-dom 19.2.8 — MIT — License-4
 JavaScript: react-icons 5.7.0 — MIT — License-5
-JavaScript: react 19.2.7 — MIT — License-4
+JavaScript: react 19.2.8 — MIT — License-4
 JavaScript: scheduler 0.27.0 — MIT — License-4
 Native: Kaldi decoder 0.3.0 — Apache-2.0 — License-6
 Native: kaldi-native-fbank 1.22.3 — Apache-2.0 — License-6
