@@ -9,8 +9,10 @@ set -eu
 # Signing with a certificate keeps one grant valid across builds.
 #
 # Set JUST_NOTES_SIGNING_IDENTITY to override the certificate that is picked.
-# Set JUST_NOTES_RELEASE=1 and JUST_NOTES_NOTARY_PROFILE to create a notarized
-# release archive using a notarytool keychain profile.
+# Set JUST_NOTES_RELEASE=1 to create a notarized release archive. Notarization
+# authenticates with JUST_NOTES_NOTARY_PROFILE (a notarytool keychain profile)
+# or, where no keychain profile exists, with JUST_NOTES_NOTARY_KEY plus
+# JUST_NOTES_NOTARY_KEY_ID and JUST_NOTES_NOTARY_ISSUER.
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
@@ -58,11 +60,30 @@ if [ "$release" = 1 ]; then
     Developer\ ID\ Application:*) ;;
     *) echo "Direct releases must use a Developer ID Application identity: $identity" >&2; exit 1 ;;
   esac
-  if [ -z "${JUST_NOTES_NOTARY_PROFILE:-}" ]; then
-    echo "Missing required environment variable: JUST_NOTES_NOTARY_PROFILE" >&2
+  if [ -n "${JUST_NOTES_NOTARY_KEY:-}" ]; then
+    if [ -z "${JUST_NOTES_NOTARY_KEY_ID:-}" ] || [ -z "${JUST_NOTES_NOTARY_ISSUER:-}" ]; then
+      echo "JUST_NOTES_NOTARY_KEY requires JUST_NOTES_NOTARY_KEY_ID and JUST_NOTES_NOTARY_ISSUER" >&2
+      exit 1
+    fi
+  elif [ -z "${JUST_NOTES_NOTARY_PROFILE:-}" ]; then
+    echo "Set JUST_NOTES_NOTARY_PROFILE, or JUST_NOTES_NOTARY_KEY with its key id and issuer" >&2
     exit 1
   fi
 fi
+
+notarize() {
+  if [ -n "${JUST_NOTES_NOTARY_KEY:-}" ]; then
+    /usr/bin/xcrun notarytool submit "$1" \
+      --key "$JUST_NOTES_NOTARY_KEY" \
+      --key-id "$JUST_NOTES_NOTARY_KEY_ID" \
+      --issuer "$JUST_NOTES_NOTARY_ISSUER" \
+      --wait
+  else
+    /usr/bin/xcrun notarytool submit "$1" \
+      --keychain-profile "$JUST_NOTES_NOTARY_PROFILE" \
+      --wait
+  fi
+}
 
 echo "Signing with: $identity"
 APPLE_SIGNING_IDENTITY="$identity"
@@ -110,9 +131,7 @@ archive="$output_dir/Just-Notes-$version.zip"
 mkdir -p "$output_dir"
 submission_archive="$release_workspace/Just-Notes-$version-submission.zip"
 /usr/bin/ditto -c -k --keepParent "$app" "$submission_archive"
-/usr/bin/xcrun notarytool submit "$submission_archive" \
-  --keychain-profile "$JUST_NOTES_NOTARY_PROFILE" \
-  --wait
+notarize "$submission_archive"
 /usr/bin/xcrun stapler staple "$app"
 /usr/bin/xcrun stapler validate "$app"
 /usr/sbin/spctl --assess --type execute --verbose=2 "$app"
