@@ -11,12 +11,14 @@ use filesystem::{
 };
 use lock::MigrationLock;
 
-const LEGACY_RELATIVE_DATA_ROOT: &str =
-    "Library/Containers/dev.just-notes/Data/Library/Application Support/dev.just-notes";
+const LEGACY_RELATIVE_DATA_ROOTS: [&str; 2] = [
+    "Library/Application Support/dev.just-notes",
+    "Library/Containers/dev.just-notes/Data/Library/Application Support/dev.just-notes",
+];
 
 pub(crate) struct DataRootMigration {
     direct_root: PathBuf,
-    legacy_root: PathBuf,
+    legacy_roots: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -57,30 +59,53 @@ impl DataRootMigration {
     pub(crate) fn for_home(direct_root: PathBuf, home_dir: &Path) -> Self {
         Self {
             direct_root,
-            legacy_root: home_dir.join(LEGACY_RELATIVE_DATA_ROOT),
+            legacy_roots: LEGACY_RELATIVE_DATA_ROOTS
+                .iter()
+                .map(|relative| home_dir.join(relative))
+                .collect(),
         }
     }
 
     pub(crate) fn resolve(self) -> Result<PathBuf, DataRootMigrationError> {
-        if self.direct_root == self.legacy_root {
+        let legacy_roots: Vec<PathBuf> = self
+            .legacy_roots
+            .into_iter()
+            .filter(|root| *root != self.direct_root)
+            .collect();
+        if legacy_roots.is_empty() {
             return Ok(self.direct_root);
         }
 
         let _migration_lock = MigrationLock::acquire(&self.direct_root)?;
         let direct = inspect_directory(&self.direct_root)?;
-        let legacy = inspect_directory(&self.legacy_root)?;
+        let mut populated = Vec::new();
+        for root in legacy_roots {
+            let inspection = inspect_directory(&root)?;
+            if inspection.has_data() {
+                populated.push((root, inspection));
+            }
+        }
 
-        match (direct.has_data(), legacy.has_data()) {
-            (true, true) => Err(DataRootMigrationError::Conflict {
+        match (direct.has_data(), populated.len()) {
+            (_, 0) => Ok(self.direct_root),
+            (true, _) => Err(DataRootMigrationError::Conflict {
                 direct_root: self.direct_root,
-                legacy_root: self.legacy_root,
+                legacy_root: populated.remove(0).0,
             }),
-            (false, true) => {
+            (false, 1) => {
+                let (legacy_root, legacy) = populated.remove(0);
                 prepare_empty_destination(&self.direct_root, &direct)?;
-                move_inspected_directory_no_replace(&self.legacy_root, &legacy, &self.direct_root)?;
+                move_inspected_directory_no_replace(&legacy_root, &legacy, &self.direct_root)?;
                 Ok(self.direct_root)
             }
-            _ => Ok(self.direct_root),
+            (false, _) => {
+                let (first, _) = populated.remove(0);
+                let (second, _) = populated.remove(0);
+                Err(DataRootMigrationError::Conflict {
+                    direct_root: first,
+                    legacy_root: second,
+                })
+            }
         }
     }
 }
@@ -100,6 +125,7 @@ mod tests {
         home: PathBuf,
         direct: PathBuf,
         legacy: PathBuf,
+        legacy_direct: PathBuf,
     }
 
     impl Fixture {
@@ -107,15 +133,17 @@ mod tests {
             let stamp = UNIX_EPOCH.elapsed().unwrap().as_nanos();
             let root = env::temp_dir().join(format!("just-notes-migration-{name}-{stamp}"));
             let home = root.join("home");
-            let direct = home.join("Library/Application Support/dev.just-notes");
+            let direct = home.join("Library/Application Support/com.zyu.just-notes");
             let legacy = home.join(
                 "Library/Containers/dev.just-notes/Data/Library/Application Support/dev.just-notes",
             );
+            let legacy_direct = home.join("Library/Application Support/dev.just-notes");
             Self {
                 root,
                 home,
                 direct,
                 legacy,
+                legacy_direct,
             }
         }
 
@@ -140,6 +168,32 @@ mod tests {
         assert!(resolved.join("settings.json").is_file());
         assert!(resolved.join("threads/thread-1").is_dir());
         assert!(!fixture.legacy.exists());
+    }
+
+    #[test]
+    fn moves_previous_identifier_data_when_the_direct_root_is_unused() {
+        let fixture = Fixture::new("move-previous-id");
+        fs::create_dir_all(fixture.legacy_direct.join("threads/thread-1")).unwrap();
+        fs::write(fixture.legacy_direct.join("settings.json"), "{}").unwrap();
+        let resolved = fixture.migration().resolve().unwrap();
+        assert_eq!(resolved, fixture.direct);
+        assert!(resolved.join("settings.json").is_file());
+        assert!(resolved.join("threads/thread-1").is_dir());
+        assert!(!fixture.legacy_direct.exists());
+    }
+
+    #[test]
+    fn refuses_to_pick_between_two_populated_legacy_roots() {
+        let fixture = Fixture::new("two-legacy");
+        fs::create_dir_all(&fixture.legacy).unwrap();
+        fs::create_dir_all(&fixture.legacy_direct).unwrap();
+        fs::write(fixture.legacy.join("settings.json"), "container").unwrap();
+        fs::write(fixture.legacy_direct.join("settings.json"), "direct").unwrap();
+        let error = fixture.migration().resolve().unwrap_err();
+        assert!(error.is_conflict());
+        assert!(!fixture.direct.exists());
+        assert!(fixture.legacy.join("settings.json").is_file());
+        assert!(fixture.legacy_direct.join("settings.json").is_file());
     }
 
     #[test]
