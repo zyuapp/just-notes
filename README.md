@@ -33,7 +33,7 @@ Run the [release workflow](.github/workflows/release.yml) from the Actions tab
 with a patch/minor/major bump. It bumps the version in `package.json`,
 `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`, builds on macOS, signs
 with Developer ID, notarizes, then pushes the release commit and tag and
-attaches the archive to a GitHub release.
+attaches the zip archive and dmg installer to a GitHub release.
 
 ## License
 

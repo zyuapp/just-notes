@@ -136,9 +136,19 @@ notarize "$submission_archive"
 /usr/bin/xcrun stapler validate "$app"
 /usr/sbin/spctl --assess --type execute --verbose=2 "$app"
 
+dmg_work="$release_workspace/Just-Notes-$version.dmg"
+scripts/create-dmg.sh "$app" "$dmg_work"
+/usr/bin/codesign --force --timestamp --sign "$identity" "$dmg_work"
+notarize "$dmg_work"
+/usr/bin/xcrun stapler staple "$dmg_work"
+/usr/bin/xcrun stapler validate "$dmg_work"
+/usr/sbin/spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg_work"
+
 final_staging_dir=$(mktemp -d "$output_dir/.just-notes-release.XXXXXX")
 staged_archive="$final_staging_dir/Just-Notes-$version.zip"
 /usr/bin/ditto -c -k --keepParent "$app" "$staged_archive"
 /bin/mv -f "$staged_archive" "$archive"
+/bin/mv -f "$dmg_work" "$output_dir/Just-Notes-$version.dmg"
 
 echo "Created notarized direct release: $archive"
+echo "Created notarized installer: $output_dir/Just-Notes-$version.dmg"
