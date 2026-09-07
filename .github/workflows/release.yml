@@ -96,6 +96,8 @@ jobs:
           JUST_NOTES_NOTARY_KEY: ${{ runner.temp }}/apple.p8
           JUST_NOTES_NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           JUST_NOTES_NOTARY_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: bun run app:release
 
       - name: Remove signing credentials
@@ -122,6 +124,8 @@ jobs:
           path: |
             dist/direct/*.zip
             dist/direct/*.dmg
+            dist/direct/*.tar.gz
+            dist/direct/latest.json
           if-no-files-found: error
 
   publish:
@@ -175,4 +179,4 @@ jobs:
               --title "Just Notes $TAG" \
               --generate-notes \
               --verify-tag
-          gh release upload "$TAG" release/*.zip release/*.dmg --clobber
+          gh release upload "$TAG" release/* --clobber

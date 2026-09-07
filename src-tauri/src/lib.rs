@@ -16,6 +16,7 @@ mod settings;
 mod threads;
 mod transcription;
 mod tray;
+mod updates;
 
 use agent_access::{AgentAccessPaths, GuideLifecycle};
 use app::{AppPaths, DataRootMigration, DataRootMigrationError};
@@ -29,10 +30,16 @@ type SetupResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 pub fn run() {
     let builder = Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(RecorderState::default())
         .manage(ModelDownloadState::default())
         .manage(MeetingSchedulerState::default())
         .menu(app_menu::build)
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == updates::CHECK_FOR_UPDATES_MENU_ID {
+                updates::check_requested(app);
+            }
+        })
         .setup(setup_app);
 
     register_commands(builder)
@@ -84,6 +91,7 @@ fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
             meeting_surfaces::sync_current(app);
         },
     );
+    updates::check_on_launch(app.handle());
     Ok(())
 }
 

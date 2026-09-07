@@ -29,6 +29,14 @@
       "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIwNzM0MDIwQzc5QzdGRjYKUldUMmY1ekhJRUJ6SUpVTC9kOG9RdUxuNkhGNDJ1bVdIemYwRkJpb0tDS1dUK0xQNTg0c0duYmwK",
+      "endpoints": [
+        "https://github.com/zyuapp/just-notes/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": [
