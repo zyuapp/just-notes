@@ -13,6 +13,7 @@ import type {
 } from "./settingsViewTypes";
 
 const SECTION_COPY: Record<SettingsSectionId, { title: string; description: string }> = {
+  appearance: { title: "Appearance", description: "Use your Mac’s appearance or choose light or dark." },
   storage: { title: "Storage", description: "See where recordings live and choose which files are kept." },
   agentAccess: { title: "Agent Access", description: "Install read-only guides for local coding agents." },
   transcription: { title: "Transcription", description: "Process every recording locally on this Mac." },
@@ -33,7 +34,7 @@ type SettingsViewProps = {
 };
 
 export function SettingsView({ data, agentAccess, meeting, storage, model, system, onClose }: SettingsViewProps) {
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>("storage");
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>("appearance");
   const activeSectionCopy = SECTION_COPY[activeSection];
   const attention = settingsAttention(data.permissions, data.meetingAccess);
 

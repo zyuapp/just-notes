@@ -25,11 +25,11 @@
 
 .settings-row {
   display: grid;
-  min-height: 56px;
+  min-height: 72px;
   align-items: center;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
-  padding: 7px 0;
+  padding: 13px 0;
   border-bottom: 1px solid var(--border-default);
 }
 

@@ -1,4 +1,5 @@
 @import "./base.css";
+@import "./appearance.css";
 @import "./ui-controls.css";
 @import "./modal.css";
 @import "./layout.css";

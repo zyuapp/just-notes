@@ -1,3 +1,4 @@
+import { Mic, Volume2 } from "lucide-react";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
@@ -32,39 +33,54 @@ export function CaptureBar({
       : transcriptionStatus.ready
         ? null
         : transcriptionStatus.message;
-  const status = capturing ? "Recording — transcript ready when you stop" : idleStatus;
+  const statusLabel = recorderState === "stopping" ? "Finishing recording"
+    : isRecording ? "Recording" : recorderState === "starting" ? "Starting recording"
+      : transcriptionStatus?.ready ? "Ready" : "Transcription";
 
   return (
-    <footer className={isRecording ? "capture-bar recording" : "capture-bar"}>
-      <button
-        type="button"
-        className="record-button"
-        onClick={recordButtonControl.onClick}
-        disabled={recordButtonControl.disabled}
-        aria-label={recordButtonControl.ariaLabel}
-      >
-        <span className="record-glyph" aria-hidden="true" />
-        <span>
-          {recordButtonControl.progressPercent != null ? (
-            <DownloadingLabel percent={recordButtonControl.progressPercent} />
-          ) : (
-            recordButtonControl.label
-          )}
-        </span>
-      </button>
-      {recordButtonControl.onCancelDownload && (
-        <Button onClick={recordButtonControl.onCancelDownload}>
-          Cancel
-        </Button>
-      )}
-      {capturing && <time className="capture-elapsed">{formatDuration(meters.elapsedMs)}</time>}
-      {capturing && (
-        <div className="capture-meters">
-          <CaptureMeter label="Mic" level={meters.micLevel} />
-          <CaptureMeter label="Sys" level={meters.systemLevel} />
+    <footer className="capture-footer">
+      <div className={isRecording ? "capture-bar recording" : "capture-bar"}>
+        <div className="capture-state">
+          <span className={transcriptionStatus?.ready ? "capture-indicator ready" : "capture-indicator"} aria-hidden="true" />
+          <div className="capture-copy">
+            <strong>{statusLabel}</strong>
+            {!capturing && idleStatus && <span className="capture-status">{idleStatus}</span>}
+          </div>
+          {capturing && <time className="capture-elapsed">{formatDuration(meters.elapsedMs)}</time>}
         </div>
-      )}
-      {status && <span className="capture-status">{status}</span>}
+        {capturing ? (
+          <div className="capture-meters">
+            <CaptureMeter label="Mic" level={meters.micLevel} />
+            <CaptureMeter label="Sys" level={meters.systemLevel} />
+          </div>
+        ) : (
+          <div className="capture-sources">
+            <span><Mic size={13} aria-hidden="true" />Microphone</span>
+            <span><Volume2 size={13} aria-hidden="true" />System audio</span>
+          </div>
+        )}
+        <div className="capture-actions">
+          <button
+            type="button"
+            className="record-button"
+            onClick={recordButtonControl.onClick}
+            disabled={recordButtonControl.disabled}
+            aria-label={recordButtonControl.ariaLabel}
+          >
+            <span className="record-glyph" aria-hidden="true" />
+            <span>
+              {recordButtonControl.progressPercent != null ? (
+                <DownloadingLabel percent={recordButtonControl.progressPercent} />
+              ) : (
+                recordButtonControl.label
+              )}
+            </span>
+          </button>
+          {recordButtonControl.onCancelDownload && (
+            <Button onClick={recordButtonControl.onCancelDownload}>Cancel</Button>
+          )}
+        </div>
+      </div>
       {fixtureMode && (
         <button
           type="button"

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Clock } from "lucide-react";
 import type { MeterPayload } from "../bindings/MeterPayload";
 import type { MeetingPromptPayload } from "../bindings/MeetingPromptPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
@@ -15,6 +16,7 @@ import { MeetingPromptCard } from "./MeetingPromptCard";
 import { ThreadTitle } from "./ThreadTitle";
 import { TranscriptSurface } from "./TranscriptSurface";
 import { TranscriptToolbar } from "./TranscriptToolbar";
+import { TranscriptActions } from "./TranscriptActions";
 
 type TranscriptPanelProps = {
   error: string | null;
@@ -59,37 +61,42 @@ export function TranscriptPanel({
 
   return (
     <section className="thread-panel" aria-label="Transcript">
-      <header className="panel-head" data-tauri-drag-region="">
-        <ThreadTitle
-          title={summary?.title ?? null}
-          canRename={canModify}
-          onRename={(title) => void threadActions.renameThread(title)}
-        />
-        <p className="eyebrow">
-          <span className={isRecording ? "status-dot live" : "status-dot"} />
-          {summary ? (
-            <>
-              <span>{formatThreadDate(summary.createdAtMs)}</span>
-              {summary.durationMs > 0 && (
-                <>
-                  <i>·</i>
-                  <time>{formatCompactDuration(summary.durationMs)}</time>
-                </>
-              )}
-            </>
-          ) : (
-            <span>Local</span>
-          )}
-        </p>
+      <div className="panel-chrome" data-tauri-drag-region="" />
+      <header className={summary ? "panel-head" : "panel-head panel-head-empty"} data-tauri-drag-region="">
+        <div className="panel-heading">
+          <ThreadTitle
+            title={summary?.title ?? null}
+            canRename={canModify}
+            onRename={(title) => void threadActions.renameThread(title)}
+          />
+          <p className="eyebrow">
+            {isRecording && <span className="status-dot live" />}
+            {summary ? (
+              <>
+                <span>{formatThreadDate(summary.createdAtMs)}</span>
+                {summary.durationMs > 0 && (
+                  <>
+                    <Clock size={12} aria-hidden="true" />
+                    <time>{formatCompactDuration(summary.durationMs)}</time>
+                  </>
+                )}
+              </>
+            ) : (
+              <span>Local</span>
+            )}
+          </p>
+        </div>
+        {selectedThread && hasSegments && (
+          <TranscriptActions canModify={canModify}
+            onCopy={() => void threadActions.copyTranscript()}
+            onArchive={() => onArchiveThread(selectedThread.summary.id)} />
+        )}
       </header>
 
       {selectedThread && hasSegments && (
         <TranscriptToolbar
           query={query}
-          canModify={canModify}
           onQueryChange={setQuery}
-          onCopy={() => void threadActions.copyTranscript()}
-          onArchive={() => onArchiveThread(selectedThread.summary.id)}
         />
       )}
 

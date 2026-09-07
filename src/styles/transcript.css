@@ -2,89 +2,25 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px 28px 28px;
+  padding: 13px var(--panel-gutter) 24px;
 }
-
-.transcript-measure {
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-/* The left padding reserves the rail gutter on every segment, so mic and system
-   speech keep one text origin and the reading column never shifts. */
+.transcript-measure { max-width: var(--reading-width); margin: 0 auto; }
 .segment {
-  position: relative;
-  padding: 8px 12px 8px 15px;
-  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 65px minmax(0, 1fr);
+  column-gap: 20px;
+  padding: 11px 0;
+  margin-bottom: 5px;
+  border-radius: 5px;
 }
-
-.segment:hover {
-  background: var(--surface-hover);
-}
-
-.segment.continuation {
-  padding-top: 2px;
-}
-
-/* Runs out to the segment edges so consecutive mic segments draw one unbroken
-   rail; the run's outer edges inset to sit level with the label and last line. */
-.segment.you::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 3px;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--speaker-you-rail);
-}
-
-.segment.you:not(.continuation)::before {
-  top: 7px;
-}
-
-.segment.you.run-end::before {
-  bottom: 7px;
-}
-
-.segment-head {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  margin-bottom: 2px;
-}
-
-.segment-head strong {
-  color: var(--text-strong);
-  font-size: var(--type-control);
-  font-weight: 600;
-}
-
-.segment.you .segment-head strong {
-  color: var(--speaker-you);
-}
-
-.segment-head time {
-  color: var(--text-subtle);
-  font-size: var(--type-caption);
-  font-variant-numeric: tabular-nums;
-}
-
-.segment p {
-  min-width: 0;
-  margin: 0;
-  color: var(--text-primary);
-  font-size: var(--type-reading);
-  line-height: 1.62;
-  overflow-wrap: anywhere;
-}
-
-.segment.active p {
-  color: var(--text-strong);
-}
-
-.transcript-no-match {
-  margin: 40px 15px;
-  color: var(--text-subtle);
-  font-size: var(--type-body);
-}
+.segment:hover { background: var(--surface-sunken); }
+.segment-head { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding-top: 2px; }
+.segment-head strong { color: var(--text-strong); font-size: 11px; line-height: 1.5; font-weight: 600; overflow-wrap: anywhere; }
+.segment.you .segment-head strong { color: var(--speaker-you); }
+.segment-head time { color: var(--text-muted); font: 10px/1.5 var(--mono); font-variant-numeric: tabular-nums; }
+.segment p { min-width: 0; margin: 0; color: var(--text-primary); font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; }
+.segment-text.active { color: var(--text-strong); }
+.segment mark { background: var(--accent-soft); color: var(--speaker-you); border-radius: 2px; }
+.transcript-no-match { margin: 25px 15px; color: var(--text-muted); font-size: var(--type-body); }
+@container (max-width: 730px) { .segment { grid-template-columns: 55px minmax(0, 1fr); column-gap: 15px; } }
+@container (max-width: 500px) { .segment { grid-template-columns: 44px minmax(0, 1fr); column-gap: 12px; } }

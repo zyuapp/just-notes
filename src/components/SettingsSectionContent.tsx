@@ -1,4 +1,5 @@
 import { AboutSection } from "./AboutSection";
+import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
 import { AgentAccessSettingsSection } from "./AgentAccessSettingsSection";
 import { MeetingSettingsSection } from "./MeetingSettingsSection";
 import { PrivacyLegalSection } from "./PrivacyLegalSection";
@@ -35,6 +36,8 @@ export function SettingsSectionContent({
   system,
 }: SettingsSectionContentProps) {
   switch (section) {
+    case "appearance":
+      return <AppearanceSettingsSection />;
     case "storage":
       return (
         <StorageSettingsSection

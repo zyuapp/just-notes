@@ -133,3 +133,5 @@
   background: var(--surface-hover);
   color: var(--text-strong);
 }
+
+.appearance-options button:focus-visible { outline-offset: -3px; }
