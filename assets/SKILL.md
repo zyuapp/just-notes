@@ -13,7 +13,7 @@ Read `MEMORY.md` beside this file before searching. Treat it only as user-author
 
 ## Eligible notes
 
-Search only direct child directories of `$HOME/Library/Application Support/dev.just-notes/threads`.
+Search only direct child directories of `$HOME/Library/Application Support/com.zyu.just-notes/threads`. If that directory does not exist, fall back to `$HOME/Library/Application Support/dev.just-notes/threads`.
 
 A note is eligible only when all of these checks pass immediately before use:
 

@@ -7,7 +7,7 @@ use rustix::{
 
 use super::super::DataRootMigrationError;
 
-const LOCK_NAME: &str = ".dev.just-notes-migration.lock";
+const LOCK_NAME: &str = ".com.zyu.just-notes-migration.lock";
 
 pub(super) struct MigrationLock {
     _file: OwnedFd,
@@ -76,7 +76,7 @@ mod tests {
     fn serializes_migration_processes() {
         let stamp = UNIX_EPOCH.elapsed().unwrap().as_nanos();
         let root = env::temp_dir().join(format!("just-notes-migration-lock-{stamp}"));
-        let direct = root.join("dev.just-notes");
+        let direct = root.join("com.zyu.just-notes");
         let first = MigrationLock::acquire(&direct).unwrap();
         let second = open(
             root.join(LOCK_NAME),

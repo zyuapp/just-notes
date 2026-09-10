@@ -1,4 +1,4 @@
-import { Archive, Plus, Settings } from "lucide-react";
+import { Archive, FileText, Plus, Settings } from "lucide-react";
 import { type RefObject, useState } from "react";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
 import { Button } from "./Button";
@@ -57,8 +57,8 @@ export function ThreadSidebar({
         <Button
           variant="icon"
           onClick={onCreateThread}
-          aria-label="New thread"
-          title="New thread"
+          aria-label="New recording"
+          title="New recording"
         >
           <Plus size={15} aria-hidden="true" />
         </Button>
@@ -71,6 +71,18 @@ export function ThreadSidebar({
         onChange={onSearchChange}
       />
 
+      <div className="sidebar-library">
+        <div className="sidebar-library-label">
+          <FileText size={15} aria-hidden="true" />
+          <span>{searching ? "Search results" : "All recordings"}</span>
+          <span className="sidebar-count">{threads.length}</span>
+        </div>
+        <Button ref={iconRef} variant="quiet" className="sidebar-archive"
+          onClick={onOpenArchive} aria-label="Archived recordings">
+          <Archive size={15} aria-hidden="true" />Archived
+        </Button>
+      </div>
+
       <ThreadList
         activeThreadId={activeThreadId}
         selectedThreadId={selectedThreadId}
@@ -82,21 +94,12 @@ export function ThreadSidebar({
 
       <footer className="sidebar-foot">
         <Button
-          ref={iconRef}
-          variant="icon"
-          onClick={onOpenArchive}
-          aria-label="Archived recordings"
-          title="Archived recordings"
-        >
-          <Archive size={15} aria-hidden="true" />
-        </Button>
-        <Button
-          variant="icon"
+          variant="quiet"
           onClick={onOpenSettings}
           aria-label="Settings"
           title="Settings"
         >
-          <Settings size={15} aria-hidden="true" />
+          <Settings size={15} aria-hidden="true" />Settings
         </Button>
       </footer>
 
@@ -120,8 +123,8 @@ function BrandMark() {
     <svg
       className="brand-mark"
       viewBox="0 0 16 16"
-      width="15"
-      height="15"
+      width="22"
+      height="22"
       aria-hidden="true"
       focusable="false"
     >

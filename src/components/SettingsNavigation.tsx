@@ -6,11 +6,13 @@ import {
   FileText,
   HardDrive,
   Info,
+  Palette,
   ShieldCheck,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type SettingsSectionId =
+  | "appearance"
   | "storage"
   | "agentAccess"
   | "transcription"
@@ -27,6 +29,7 @@ type SettingsNavigationProps = {
 };
 
 const SECTIONS: { id: SettingsSectionId; label: string; icon: ReactNode }[] = [
+  { id: "appearance", label: "Appearance", icon: <Palette size={16} /> },
   { id: "storage", label: "Storage", icon: <HardDrive size={16} /> },
   { id: "agentAccess", label: "Agent Access", icon: <Bot size={16} /> },
   { id: "transcription", label: "Transcription", icon: <AudioLines size={16} /> },

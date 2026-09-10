@@ -136,9 +136,47 @@ notarize "$submission_archive"
 /usr/bin/xcrun stapler validate "$app"
 /usr/sbin/spctl --assess --type execute --verbose=2 "$app"
 
+dmg_work="$release_workspace/Just-Notes-$version.dmg"
+scripts/create-dmg.sh "$app" "$dmg_work"
+/usr/bin/codesign --force --timestamp --sign "$identity" "$dmg_work"
+notarize "$dmg_work"
+/usr/bin/xcrun stapler staple "$dmg_work"
+/usr/bin/xcrun stapler validate "$dmg_work"
+/usr/sbin/spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg_work"
+
+updater_name="Just-Notes-$version.app.tar.gz"
+updater_bundle=
+if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}${TAURI_SIGNING_PRIVATE_KEY_PATH:-}" ]; then
+  updater_bundle="$release_workspace/$updater_name"
+  /usr/bin/tar -czf "$updater_bundle" -C "$(dirname "$app")" "Just Notes.app"
+  bun tauri signer sign "$updater_bundle"
+  signature=$(cat "$updater_bundle.sig")
+  pub_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  printf '{
+  "version": "%s",
+  "pub_date": "%s",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "%s",
+      "url": "https://github.com/zyuapp/just-notes/releases/download/v%s/%s"
+    }
+  }
+}
+' "$version" "$pub_date" "$signature" "$version" "$updater_name" > "$release_workspace/latest.json"
+else
+  echo "TAURI_SIGNING_PRIVATE_KEY is not set; skipping the OTA updater artifact" >&2
+fi
+
 final_staging_dir=$(mktemp -d "$output_dir/.just-notes-release.XXXXXX")
 staged_archive="$final_staging_dir/Just-Notes-$version.zip"
 /usr/bin/ditto -c -k --keepParent "$app" "$staged_archive"
 /bin/mv -f "$staged_archive" "$archive"
+/bin/mv -f "$dmg_work" "$output_dir/Just-Notes-$version.dmg"
+if [ -n "$updater_bundle" ]; then
+  /bin/mv -f "$updater_bundle" "$output_dir/$updater_name"
+  /bin/mv -f "$release_workspace/latest.json" "$output_dir/latest.json"
+  echo "Created OTA update artifact: $output_dir/$updater_name"
+fi
 
 echo "Created notarized direct release: $archive"
+echo "Created notarized installer: $output_dir/Just-Notes-$version.dmg"

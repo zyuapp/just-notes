@@ -1,6 +1,6 @@
 import { AudioLines } from "lucide-react";
 import type { ThreadSummary } from "../bindings/ThreadSummary";
-import { formatDuration, formatTimeOfDay } from "../lib/format";
+import { formatCompactDuration, formatTimeOfDay } from "../lib/format";
 import { groupThreadsByDay } from "../lib/threads";
 
 type ThreadListProps = {
@@ -61,18 +61,13 @@ type ThreadItemProps = {
 
 function ThreadItem({ thread, active, selected, onSelect, onOpenMenu }: ThreadItemProps) {
   const transcribing = thread.status === "transcribing";
-  const metaParts = [];
-  if (thread.durationMs > 0) metaParts.push(formatDuration(thread.durationMs));
-  metaParts.push(
-    transcribing
-      ? "Transcribing…"
-      : `${thread.segmentCount} segment${thread.segmentCount === 1 ? "" : "s"}`,
-  );
+  const segmentCount = `${thread.segmentCount} segment${thread.segmentCount === 1 ? "" : "s"}`;
 
   return (
     <button
       type="button"
       className={selected ? "thread-item selected" : "thread-item"}
+      aria-current={selected ? "page" : undefined}
       data-thread-id={thread.id}
       onClick={onSelect}
       onContextMenu={(event) => {
@@ -85,16 +80,18 @@ function ThreadItem({ thread, active, selected, onSelect, onOpenMenu }: ThreadIt
           <span className={active ? "thread-dot live" : "thread-dot transcribing"} />
         )}
         <span className="thread-title">{thread.title}</span>
-        <time className="thread-time">{formatTimeOfDay(thread.updatedAtMs)}</time>
       </span>
       {thread.snippet && <span className="thread-snippet">{thread.snippet}</span>}
-      <span className="thread-meta">
-        {metaParts.join(" · ")}
+      <span className="thread-meta" title={segmentCount}>
         {thread.hasAudio && (
           <span className="thread-audio" title="Raw audio saved">
             <AudioLines size={11} aria-hidden="true" />
           </span>
         )}
+        <span>{thread.durationMs > 0 ? formatCompactDuration(thread.durationMs) : segmentCount}</span>
+        <span aria-hidden="true">·</span>
+        <time className="thread-time">{formatTimeOfDay(thread.updatedAtMs)}</time>
+        {transcribing && <span>· Transcribing…</span>}
       </span>
     </button>
   );

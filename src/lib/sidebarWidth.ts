@@ -1,4 +1,4 @@
-export const DEFAULT_SIDEBAR_WIDTH = 248;
+export const DEFAULT_SIDEBAR_WIDTH = 228;
 export const MIN_SIDEBAR_WIDTH = 208;
 export const MAX_SIDEBAR_WIDTH = 420;
 
