@@ -13,8 +13,8 @@ use tar::Archive;
 
 const RELEASE_BASE_URL: &str = "https://github.com/k2-fsa/sherpa-onnx/releases/download";
 const TRUSTED_ARCHIVE_SHA256: &[(&str, &str)] = &[(
-    "sherpa-onnx-v1.13.4-osx-arm64-static-lib.tar.bz2",
-    "57801db2bbb786a5d343f515a38ff210b401842338bdc804fa075312d1cd2404",
+    "sherpa-onnx-v1.13.5-osx-arm64-static-lib.tar.bz2",
+    "339c8fc19bb4b26e118c80792bbc4546eb263040fac36ef0cc027ec29c756b44",
 )];
 const SHERPA_ONNX_STATIC_LIBS: &[&str] = &[
     "sherpa-onnx-c-api",

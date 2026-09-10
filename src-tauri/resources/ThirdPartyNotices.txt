@@ -12,10 +12,10 @@ Native: Kaldi decoder 0.3.0 — Apache-2.0 — License-6
 Native: kaldi-native-fbank 1.22.3 — Apache-2.0 — License-6
 Native: kaldifst 1.8.0 — Apache-2.0 — License-7
 Native: KissFFT febd4cae — BSD-3-Clause — License-8
-Native: ONNX Runtime 1.27.0 — MIT with third-party notices — License-9, License-10
-Native: OpenFST 1.8.5-2026-04-11 — Apache-2.0 — License-11
+Native: ONNX Runtime 1.27.1 — MIT with third-party notices — License-9, License-10
+Native: OpenFST 1.8.5-2026-07-09 — Apache-2.0 — License-11
 Native: piper-phonemize f3ff95af — MIT and bundled uni-algo terms — License-12, License-13
-Native: sherpa-onnx native core 1.13.4 — Apache-2.0 (also inventoried from Cargo) — License-6
+Native: sherpa-onnx native core 1.13.5 — Apache-2.0 (also inventoried from Cargo) — License-6
 Native: simple-sentencepiece 0.7 — Apache-2.0 — License-6
 Rust: adler2 2.0.1 — 0BSD OR MIT OR Apache-2.0 — authors: Jonas Schievink <jonasschievink@gmail.com>, oyvindln <oyvindln@users.noreply.github.com> — License-14, License-15, License-16
 Rust: aho-corasick 1.1.4 — Unlicense OR MIT — authors: Andrew Gallant <jamslam@gmail.com> — License-17, License-18
@@ -51,7 +51,7 @@ Rust: core-foundation 0.9.4 — MIT OR Apache-2.0 — authors: The Servo Project
 Rust: core-graphics-types 0.2.0 — MIT OR Apache-2.0 — authors: The Servo Project Developers — License-21, License-40
 Rust: core-graphics 0.25.0 — MIT OR Apache-2.0 — authors: The Servo Project Developers — License-21, License-40
 Rust: coreaudio-rs 0.14.2 — MIT/Apache-2.0 — authors: mitchmindtree <mitchell.nordine@gmail.com>, yupferris <jake@fusetools.com> — License-21, License-41
-Rust: cpal 0.18.1 — Apache-2.0 — License-6
+Rust: cpal 0.18.2 — Apache-2.0 — License-6
 Rust: cpufeatures 0.2.17 — MIT OR Apache-2.0 — authors: RustCrypto Developers — License-27, License-42
 Rust: cpufeatures 0.3.0 — MIT OR Apache-2.0 — authors: RustCrypto Developers — License-27, License-42
 Rust: crc32fast 1.5.0 — MIT OR Apache-2.0 — authors: Sam Rijs <srijs@airpost.net>, Alex Crichton <alex@alexcrichton.com> — License-43, License-44
@@ -249,8 +249,8 @@ Rust: serialize-to-javascript 0.1.2 — MIT OR Apache-2.0 — authors: Chip Reed
 Rust: servo_arc 0.4.3 — MIT OR Apache-2.0 — authors: The Servo Project Developers — License-21, License-16
 Rust: sha2 0.10.9 — MIT OR Apache-2.0 — authors: RustCrypto Developers — License-27, License-162
 Rust: sha2 0.11.0 — MIT OR Apache-2.0 — authors: RustCrypto Developers — License-27, License-163
-Rust: sherpa-onnx-sys 1.13.4 — Apache-2.0 — License-6
-Rust: sherpa-onnx 1.13.4 — Apache-2.0 — License-6
+Rust: sherpa-onnx-sys 1.13.5 — Apache-2.0 — License-6
+Rust: sherpa-onnx 1.13.5 — Apache-2.0 — License-6
 Rust: simd-adler32 0.3.9 — MIT — authors: Marvin Countryman <me@maar.vin> — License-164
 Rust: siphasher 1.0.2 — MIT/Apache-2.0 — authors: Frank Denis <github@pureftpd.org> — License-165
 Rust: slab 0.4.12 — MIT — authors: Carl Lerche <me@carllerche.com> — License-166
