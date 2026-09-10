@@ -3,7 +3,7 @@ Just Notes Third-Party Software Notices
 Generated from the exact Cargo and JavaScript dependency graphs plus the bundled native runtime.
 
 JavaScript: @tauri-apps/api 2.11.1 — Apache-2.0 OR MIT — License-1, License-2
-JavaScript: lucide-react 1.28.0 — ISC — License-3
+JavaScript: lucide-react 1.40.0 — ISC — License-3
 JavaScript: react-dom 19.2.8 — MIT — License-4
 JavaScript: react-icons 5.7.0 — MIT — License-5
 JavaScript: react 19.2.8 — MIT — License-4
