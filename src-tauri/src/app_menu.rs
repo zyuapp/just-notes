@@ -7,6 +7,11 @@ pub(crate) fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let app_menu = SubmenuBuilder::new(app, "Just Notes")
         .about(None)
         .separator()
+        .text(
+            crate::updates::CHECK_FOR_UPDATES_MENU_ID,
+            "Check for Updates…",
+        )
+        .separator()
         .services()
         .separator()
         .hide()

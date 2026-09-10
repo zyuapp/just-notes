@@ -3,7 +3,7 @@ import type { ThreadDetail } from "../bindings/ThreadDetail";
 import type { TranscriptSegment } from "../bindings/TranscriptSegment";
 import type { TranscriptionStatusPayload } from "../bindings/TranscriptionStatusPayload";
 import type { RecorderState } from "../features/app/state";
-import { mergeLiveSegments, speakerRunEdges, visibleSegments } from "../lib/transcript";
+import { type IndexedSegment, mergeLiveSegments, speakerRunEdges, visibleSegments } from "../lib/transcript";
 import { SegmentBlock } from "./SegmentBlock";
 import { TranscriptEmptyState } from "./TranscriptEmptyState";
 
@@ -48,6 +48,12 @@ export function TranscriptSurface({
   }
 
   const items = visibleSegments(segments, query);
+  // Keep the existing speaker/search boundaries; only join their visual layout.
+  const runs: IndexedSegment[][] = [];
+  items.forEach((item, position) => {
+    if (speakerRunEdges(items, position).isStart) runs.push([]);
+    runs[runs.length - 1].push(item);
+  });
 
   return (
     <section className="transcript-surface" ref={surfaceRef}>
@@ -55,12 +61,12 @@ export function TranscriptSurface({
         {items.length === 0 ? (
           <p className="transcript-no-match">No transcript text matches “{query.trim()}”.</p>
         ) : (
-          items.map((item, position) => (
+          runs.map((run, position) => (
             <SegmentBlock
-              key={`${item.segment.source}-${item.segment.startMs}-${item.index}`}
-              segment={item.segment}
-              runEdges={speakerRunEdges(items, position)}
-              active={isRecording && position === items.length - 1}
+              key={`${run[0].segment.source}-${run[0].segment.startMs}-${run[0].index}`}
+              items={run}
+              query={query}
+              active={isRecording && position === runs.length - 1}
             />
           ))
         )}

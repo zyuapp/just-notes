@@ -9,8 +9,10 @@ set -eu
 # Signing with a certificate keeps one grant valid across builds.
 #
 # Set JUST_NOTES_SIGNING_IDENTITY to override the certificate that is picked.
-# Set JUST_NOTES_RELEASE=1 and JUST_NOTES_NOTARY_PROFILE to create a notarized
-# release archive using a notarytool keychain profile.
+# Set JUST_NOTES_RELEASE=1 to create a notarized release archive. Notarization
+# authenticates with JUST_NOTES_NOTARY_PROFILE (a notarytool keychain profile)
+# or, where no keychain profile exists, with JUST_NOTES_NOTARY_KEY plus
+# JUST_NOTES_NOTARY_KEY_ID and JUST_NOTES_NOTARY_ISSUER.
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
@@ -58,11 +60,30 @@ if [ "$release" = 1 ]; then
     Developer\ ID\ Application:*) ;;
     *) echo "Direct releases must use a Developer ID Application identity: $identity" >&2; exit 1 ;;
   esac
-  if [ -z "${JUST_NOTES_NOTARY_PROFILE:-}" ]; then
-    echo "Missing required environment variable: JUST_NOTES_NOTARY_PROFILE" >&2
+  if [ -n "${JUST_NOTES_NOTARY_KEY:-}" ]; then
+    if [ -z "${JUST_NOTES_NOTARY_KEY_ID:-}" ] || [ -z "${JUST_NOTES_NOTARY_ISSUER:-}" ]; then
+      echo "JUST_NOTES_NOTARY_KEY requires JUST_NOTES_NOTARY_KEY_ID and JUST_NOTES_NOTARY_ISSUER" >&2
+      exit 1
+    fi
+  elif [ -z "${JUST_NOTES_NOTARY_PROFILE:-}" ]; then
+    echo "Set JUST_NOTES_NOTARY_PROFILE, or JUST_NOTES_NOTARY_KEY with its key id and issuer" >&2
     exit 1
   fi
 fi
+
+notarize() {
+  if [ -n "${JUST_NOTES_NOTARY_KEY:-}" ]; then
+    /usr/bin/xcrun notarytool submit "$1" \
+      --key "$JUST_NOTES_NOTARY_KEY" \
+      --key-id "$JUST_NOTES_NOTARY_KEY_ID" \
+      --issuer "$JUST_NOTES_NOTARY_ISSUER" \
+      --wait
+  else
+    /usr/bin/xcrun notarytool submit "$1" \
+      --keychain-profile "$JUST_NOTES_NOTARY_PROFILE" \
+      --wait
+  fi
+}
 
 echo "Signing with: $identity"
 APPLE_SIGNING_IDENTITY="$identity"
@@ -110,16 +131,52 @@ archive="$output_dir/Just-Notes-$version.zip"
 mkdir -p "$output_dir"
 submission_archive="$release_workspace/Just-Notes-$version-submission.zip"
 /usr/bin/ditto -c -k --keepParent "$app" "$submission_archive"
-/usr/bin/xcrun notarytool submit "$submission_archive" \
-  --keychain-profile "$JUST_NOTES_NOTARY_PROFILE" \
-  --wait
+notarize "$submission_archive"
 /usr/bin/xcrun stapler staple "$app"
 /usr/bin/xcrun stapler validate "$app"
 /usr/sbin/spctl --assess --type execute --verbose=2 "$app"
+
+dmg_work="$release_workspace/Just-Notes-$version.dmg"
+scripts/create-dmg.sh "$app" "$dmg_work"
+/usr/bin/codesign --force --timestamp --sign "$identity" "$dmg_work"
+notarize "$dmg_work"
+/usr/bin/xcrun stapler staple "$dmg_work"
+/usr/bin/xcrun stapler validate "$dmg_work"
+/usr/sbin/spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg_work"
+
+updater_name="Just-Notes-$version.app.tar.gz"
+updater_bundle=
+if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}${TAURI_SIGNING_PRIVATE_KEY_PATH:-}" ]; then
+  updater_bundle="$release_workspace/$updater_name"
+  /usr/bin/tar -czf "$updater_bundle" -C "$(dirname "$app")" "Just Notes.app"
+  bun tauri signer sign "$updater_bundle"
+  signature=$(cat "$updater_bundle.sig")
+  pub_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  printf '{
+  "version": "%s",
+  "pub_date": "%s",
+  "platforms": {
+    "darwin-aarch64": {
+      "signature": "%s",
+      "url": "https://github.com/zyuapp/just-notes/releases/download/v%s/%s"
+    }
+  }
+}
+' "$version" "$pub_date" "$signature" "$version" "$updater_name" > "$release_workspace/latest.json"
+else
+  echo "TAURI_SIGNING_PRIVATE_KEY is not set; skipping the OTA updater artifact" >&2
+fi
 
 final_staging_dir=$(mktemp -d "$output_dir/.just-notes-release.XXXXXX")
 staged_archive="$final_staging_dir/Just-Notes-$version.zip"
 /usr/bin/ditto -c -k --keepParent "$app" "$staged_archive"
 /bin/mv -f "$staged_archive" "$archive"
+/bin/mv -f "$dmg_work" "$output_dir/Just-Notes-$version.dmg"
+if [ -n "$updater_bundle" ]; then
+  /bin/mv -f "$updater_bundle" "$output_dir/$updater_name"
+  /bin/mv -f "$release_workspace/latest.json" "$output_dir/latest.json"
+  echo "Created OTA update artifact: $output_dir/$updater_name"
+fi
 
 echo "Created notarized direct release: $archive"
+echo "Created notarized installer: $output_dir/Just-Notes-$version.dmg"

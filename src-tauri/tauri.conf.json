@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Just Notes",
-  "version": "0.1.0",
-  "identifier": "dev.just-notes",
+  "version": "0.1.4",
+  "identifier": "com.zyu.just-notes",
   "build": {
     "beforeDevCommand": "bun dev",
     "devUrl": "http://localhost:1420",
@@ -29,9 +29,19 @@
       "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIwNzM0MDIwQzc5QzdGRjYKUldUMmY1ekhJRUJ6SUpVTC9kOG9RdUxuNkhGNDJ1bVdIemYwRkJpb0tDS1dUK0xQNTg0c0duYmwK",
+      "endpoints": [
+        "https://github.com/zyuapp/just-notes/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
-    "targets": ["app"],
+    "targets": [
+      "app"
+    ],
     "category": "Productivity",
     "shortDescription": "Local-first live transcription notes",
     "resources": {

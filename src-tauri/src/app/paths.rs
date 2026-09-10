@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn platform_data_directory_is_the_root_for_all_internal_storage() {
-        let root = PathBuf::from("/container/Library/Application Support/dev.just-notes");
+        let root = PathBuf::from("/container/Library/Application Support/com.zyu.just-notes");
         let paths = AppPaths::from_data_dir(root.clone());
 
         assert_eq!(paths.data_dir, root);

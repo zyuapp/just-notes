@@ -7,52 +7,55 @@
   background: var(--surface-sidebar);
 }
 
-/* reserves the native traffic-light zone of the overlay title bar */
-.sidebar-drag {
-  height: 36px;
-  flex: 0 0 auto;
-}
-
+/* Keep the native traffic lights and draggable title-bar region clear. */
+.sidebar-drag { height: 39px; flex: 0 0 auto; }
 .sidebar-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  height: 40px;
-  padding: 0 12px 0 16px;
+  min-height: 57px;
+  flex: 0 0 auto;
+  padding: 7px 16px 18px;
 }
-
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
   color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -.45px;
 }
-
-.brand-mark {
-  flex: 0 0 auto;
-  color: var(--text-muted);
+.brand-mark { flex: 0 0 auto; color: var(--accent); }
+.sidebar-head .ui-button-icon { width: 32px; height: 32px; }
+.thread-search { flex: 0 0 auto; margin: 0 12px 15px; background: var(--surface-panel); }
+.sidebar-library { padding: 0 10px 20px; }
+.sidebar-library-label, .sidebar-archive {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
 }
-
-.thread-search {
-  flex: 0 0 auto;
-  margin: 0 12px 8px;
-}
-
+.sidebar-library-label { color: var(--text-strong); background: color-mix(in srgb, var(--surface-panel) 60%, transparent); font-weight: 550; box-shadow: 0 1px 2px #12192e05; }
+.sidebar-count { margin-left: auto; color: var(--text-muted); font-size: 11px; font-weight: 400; }
 .sidebar-foot {
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 52px;
+  gap: 3px;
+  min-height: 63px;
   flex: 0 0 auto;
-  padding: 0 10px;
+  margin: 0 12px;
+  padding: 12px 0;
   border-top: 1px solid var(--border-default);
 }
-
-/* Pill that flies from a thread row into the archive icon when a thread is archived. */
+.sidebar-foot > .ui-button-quiet { padding: 0 7px; font-size: 12px; font-weight: 400; }
+/* Archive animation keeps the same target ref and measurements. */
 .archive-fly {
   position: fixed;
   z-index: 60;
@@ -63,7 +66,7 @@
   border: 1px solid var(--border-strong);
   border-radius: 9px;
   background: var(--surface-raised);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-popup);
   color: var(--text-strong);
   font-size: 13px;
   font-weight: 500;
@@ -71,17 +74,5 @@
   pointer-events: none;
   will-change: transform, opacity;
 }
-
-.archive-fly-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--text-muted);
-}
-
-.archive-fly-title {
-  overflow: hidden;
-  max-width: 200px;
-  text-overflow: ellipsis;
-}
+.archive-fly-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--accent); }
+.archive-fly-title { overflow: hidden; max-width: 200px; text-overflow: ellipsis; }

@@ -104,8 +104,8 @@
 }
 
 .ui-search:focus-within {
-  border-color: var(--border-emphasis);
-  box-shadow: 0 0 0 1px var(--focus-ring-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--focus-ring-soft);
 }
 
 .ui-search input {

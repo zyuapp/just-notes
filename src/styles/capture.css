@@ -1,147 +1,68 @@
+.capture-footer { flex: 0 0 auto; border-top: 1px solid var(--border-default); background: var(--surface-sunken); }
 .capture-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  height: 52px;
-  flex: 0 0 auto;
-  padding: 0 16px;
-  border-top: 1px solid var(--border-default);
-  background: var(--surface-sidebar);
-  transition: background 0.35s ease;
+  gap: 10px;
+  min-height: 63px;
+  padding: 12px var(--panel-gutter);
 }
-
-.capture-bar.recording {
-  background: var(--surface-sidebar);
-  border-top-color: var(--danger-border);
-}
-
+.capture-state { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.capture-indicator { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--text-muted); }
+.capture-indicator.ready { background: var(--success); }
+.recording .capture-indicator { background: #e85a61; box-shadow: 0 0 0 4px #e85a6114; }
+.capture-copy { min-width: 0; }
+.capture-copy strong { display: block; color: var(--text-strong); font-size: 12px; font-weight: 550; }
+.capture-status { display: block; margin-top: 3px; color: var(--text-muted); font-size: 11px; overflow-wrap: anywhere; }
+.capture-elapsed { color: var(--text-strong); font: 550 12px var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.capture-elapsed::before { content: '·'; margin-right: 7px; }
+.capture-sources, .capture-meters { display: flex; align-items: center; gap: 14px; margin-left: 6px; padding-left: 16px; border-left: 1px solid var(--border-default); flex: 0 0 auto; }
+.capture-sources { font-size: 11px; color: var(--text-muted); }
+.capture-sources span { display: inline-flex; gap: 5px; align-items: center; }
+.capture-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; margin-left: auto; }
 .record-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  height: 30px;
+  min-width: 98px;
+  min-height: 34px;
   flex: 0 0 auto;
   padding: 0 14px;
-  border: 1px solid var(--danger-border);
-  border-radius: 15px;
-  color: var(--text-strong);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--accent-foreground);
   cursor: pointer;
-  font-size: var(--type-control);
-  font-weight: 600;
-  transition: background 0.15s ease;
+  font-size: 12px;
+  font-weight: 550;
+  box-shadow: inset 0 1px 0 #ffffff1c, 0 1px 2px #21295715;
+  transition: background .12s ease;
 }
-
-.record-button:hover:not(:disabled) { background: var(--danger-soft); }
-
-.record-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+.record-button:hover:not(:disabled) { background: var(--accent-hover); }
+.record-button:disabled { cursor: not-allowed; opacity: .5; }
+.record-glyph { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: currentColor; }
+.recording .record-glyph { border-radius: 1px; }
+.recording .record-button { background: var(--surface-panel); color: var(--text-strong); border-color: var(--border-default); box-shadow: 0 1px 2px #12192e05; }
+.recording .record-button:hover { background: var(--surface-hover); }
+.capture-meter { display: flex; align-items: center; gap: 5px; }
+.capture-meter b { color: var(--text-muted); font-size: 10px; font-weight: 500; }
+.capture-meter-bars { display: flex; align-items: center; gap: 1px; height: 15px; }
+.capture-meter-bars span { width: 2px; height: 60%; border-radius: 1px; background: var(--border-default); }
+.capture-meter-bars span:nth-child(3n) { height: 100%; }
+.capture-meter-bars span:nth-child(3n + 1) { height: 35%; }
+.capture-meter-bars span.on { background: var(--accent); }
+.capture-meter + .capture-meter .capture-meter-bars span.on { background: var(--success); }
+.fixture-link { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@container (max-width: 730px) {
+  .capture-bar { flex-wrap: wrap; }
+  .capture-sources, .capture-meters { gap: 10px; margin-left: 2px; padding-left: 12px; }
+  .capture-copy { max-width: 220px; }
 }
-
-.record-button:focus-visible {
-  outline-color: var(--focus-ring);
+@container (max-width: 580px) {
+  .capture-sources { display: none; }
+  .capture-actions { max-width: 100%; flex-wrap: wrap; }
 }
-
-.record-glyph {
-  width: 9px;
-  height: 9px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--danger);
-}
-
-.capture-bar.recording .record-button {
-  background: var(--danger);
-  border-color: var(--danger);
-  box-shadow: none;
-}
-
-.capture-bar.recording .record-button:hover:not(:disabled) {
-  background: var(--danger-hover);
-}
-
-.capture-bar.recording .record-glyph {
-  border-radius: 2px;
-  background: var(--action-primary-bg);
-  animation: record-glyph-breathe 1.6s ease-in-out infinite;
-}
-
-@keyframes record-glyph-breathe { 50% { opacity: 0.5; } }
-
-.capture-elapsed {
-  flex: 0 0 auto;
-  color: var(--text-strong);
-  font: 500 var(--type-control) var(--mono);
-}
-
-.capture-meters {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.capture-meter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.capture-meter b {
-  color: var(--text-subtle);
-  font-size: var(--type-caption);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.capture-meter-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: 2.5px;
-  height: 15px;
-}
-
-.capture-meter-bars span {
-  width: 3px;
-  border-radius: 1px;
-  background: var(--surface-hover);
-}
-
-.capture-meter-bars span:nth-child(odd) {
-  height: 60%;
-}
-
-.capture-meter-bars span:nth-child(even) {
-  height: 100%;
-}
-
-.capture-meter-bars span.on {
-  background: var(--text-muted);
-}
-
-.capture-meter:first-child .capture-meter-bars span.on {
-  background: var(--text-muted);
-}
-
-.capture-status {
-  margin-left: auto;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-subtle);
-  font-size: var(--type-control);
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.capture-bar.recording .capture-status {
-  color: var(--danger-text);
-}
-
-.fixture-link {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
+@container (max-width: 440px) {
+  .capture-bar { padding: 12px 16px; }
+  .capture-meters { margin-left: 0; padding-left: 0; border-left: 0; }
 }

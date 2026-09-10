@@ -1,7 +1,10 @@
 use std::{path::Path, sync::mpsc, time::Duration};
 
 use objc2::MainThreadMarker;
-use objc2_app_kit::{NSAlert, NSAlertStyle, NSPasteboard, NSPasteboardTypeString, NSWorkspace};
+use objc2_app_kit::{
+    NSAlert, NSAlertFirstButtonReturn, NSAlertStyle, NSPasteboard, NSPasteboardTypeString,
+    NSWorkspace,
+};
 use objc2_foundation::{NSArray, NSString, NSURL};
 use tauri::AppHandle;
 
@@ -45,6 +48,31 @@ pub(crate) fn show_blocking_error(title: &str, message: &str) -> Result<(), Stri
     alert.setInformativeText(&NSString::from_str(message));
     let _ = alert.runModal();
     Ok(())
+}
+
+pub(crate) fn show_notice(title: &str, message: &str) -> Result<(), String> {
+    let marker = MainThreadMarker::new()
+        .ok_or_else(|| "A macOS alert must run on the main thread".to_string())?;
+    let alert = NSAlert::new(marker);
+    alert.setMessageText(&NSString::from_str(title));
+    alert.setInformativeText(&NSString::from_str(message));
+    let _ = alert.runModal();
+    Ok(())
+}
+
+pub(crate) fn ask_confirmation(
+    title: &str,
+    message: &str,
+    confirm_label: &str,
+) -> Result<bool, String> {
+    let marker = MainThreadMarker::new()
+        .ok_or_else(|| "A macOS alert must run on the main thread".to_string())?;
+    let alert = NSAlert::new(marker);
+    alert.setMessageText(&NSString::from_str(title));
+    alert.setInformativeText(&NSString::from_str(message));
+    alert.addButtonWithTitle(&NSString::from_str(confirm_label));
+    alert.addButtonWithTitle(&NSString::from_str("Later"));
+    Ok(alert.runModal() == NSAlertFirstButtonReturn)
 }
 
 pub(crate) fn copy_to_clipboard(app: &AppHandle, text: &str) -> Result<(), String> {

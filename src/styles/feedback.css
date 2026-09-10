@@ -1,7 +1,7 @@
 .error {
   position: fixed;
   right: 16px;
-  bottom: 64px;
+  bottom: 124px;
   z-index: 40;
   max-width: min(560px, calc(100vw - 32px));
   max-height: 160px;
@@ -11,7 +11,7 @@
   border: 1px solid var(--danger-border);
   border-radius: 8px;
   background: var(--error-surface);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-popup);
   color: var(--error-text);
   font: 11.5px var(--mono);
   white-space: pre-wrap;

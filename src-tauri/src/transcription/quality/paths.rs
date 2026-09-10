@@ -7,7 +7,7 @@ pub(super) fn quality_app_data_dir_from_env() -> PathBuf {
 }
 
 fn quality_app_data_dir(home: &Path, configured: Option<PathBuf>) -> PathBuf {
-    configured.unwrap_or_else(|| home.join("Library/Application Support/dev.just-notes"))
+    configured.unwrap_or_else(|| home.join("Library/Application Support/com.zyu.just-notes"))
 }
 
 #[test]
@@ -15,7 +15,7 @@ fn defaults_to_the_direct_app_data_directory() {
     let home = Path::new("/Users/tester");
     assert_eq!(
         quality_app_data_dir(home, None),
-        home.join("Library/Application Support/dev.just-notes")
+        home.join("Library/Application Support/com.zyu.just-notes")
     );
     assert_eq!(
         quality_app_data_dir(home, Some(PathBuf::from("/tmp/quality-data"))),
