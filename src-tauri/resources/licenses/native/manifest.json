@@ -1,14 +1,14 @@
 {
   "archive": {
-    "name": "sherpa-onnx-v1.13.4-osx-arm64-static-lib.tar.bz2",
-    "sha256": "57801db2bbb786a5d343f515a38ff210b401842338bdc804fa075312d1cd2404",
-    "source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.4/sherpa-onnx-v1.13.4-osx-arm64-static-lib.tar.bz2",
-    "githubAssetDigest": "sha256:57801db2bbb786a5d343f515a38ff210b401842338bdc804fa075312d1cd2404"
+    "name": "sherpa-onnx-v1.13.5-osx-arm64-static-lib.tar.bz2",
+    "sha256": "339c8fc19bb4b26e118c80792bbc4546eb263040fac36ef0cc027ec29c756b44",
+    "source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.5/sherpa-onnx-v1.13.5-osx-arm64-static-lib.tar.bz2",
+    "githubAssetDigest": "sha256:339c8fc19bb4b26e118c80792bbc4546eb263040fac36ef0cc027ec29c756b44"
   },
   "components": [
     {
       "name": "sherpa-onnx native core",
-      "version": "1.13.4",
+      "version": "1.13.5",
       "license": "Apache-2.0 (also inventoried from Cargo)",
       "libraries": ["sherpa-onnx-c-api", "sherpa-onnx-core"],
       "files": ["../../../vendor/sherpa-onnx-sys/LICENSE"]
@@ -29,7 +29,7 @@
     },
     {
       "name": "OpenFST",
-      "version": "1.8.5-2026-04-11",
+      "version": "1.8.5-2026-07-09",
       "license": "Apache-2.0",
       "libraries": ["sherpa-onnx-fstfar", "sherpa-onnx-fst"],
       "files": ["openfst-COPYING"]
@@ -57,7 +57,7 @@
     },
     {
       "name": "ONNX Runtime",
-      "version": "1.27.0",
+      "version": "1.27.1",
       "license": "MIT with third-party notices",
       "libraries": ["onnxruntime"],
       "files": ["../onnxruntime-LICENSE.txt", "../onnxruntime-ThirdPartyNotices.txt"]
