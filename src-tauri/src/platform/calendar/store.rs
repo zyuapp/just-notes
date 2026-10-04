@@ -94,6 +94,11 @@ pub(super) fn read_upcoming_events(
                 free: unsafe { event.availability() } == EKEventAvailability::Free,
                 current_user_declined: current_user_declined(&event),
                 participants: read_participants(&event),
+                url: unsafe { event.URL() }
+                    .and_then(|url| url.absoluteString())
+                    .map(|url| url.to_string()),
+                location: unsafe { event.location() }.map(|location| location.to_string()),
+                notes: unsafe { event.notes() }.map(|notes| notes.to_string()),
             })
         })
         .collect()

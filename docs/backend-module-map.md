@@ -59,7 +59,7 @@ Use this when changing local agent guide discovery or lifecycle. It receives pat
 
 ## `src-tauri/src/settings`
 
-- `store.rs`: persisted user preferences (`settings.json`), including raw-audio, Markdown-copy, meeting reminder, and automatic recording options.
+- `store.rs`: persisted user preferences (`settings.json`), including raw-audio, Markdown-copy, meeting reminder, join reminder, and automatic recording options.
 - `mod.rs`: exports the settings API.
 
 Use this when adding or changing a user preference.
@@ -74,9 +74,10 @@ Keep this free of domain knowledge; it only shells out to the OS.
 
 ## `src-tauri/src/meetings`
 
-- `model.rs`: calendar-access payloads and the internal meeting model.
+- `model.rs`: calendar-access payloads, the internal meeting model, and the calendar-event eligibility filter.
 - `state.rs`: scheduler state plus the active meeting-recording association; `state/start.rs` owns prompt deduplication, current-prompt selection, and one-shot automatic-start selection.
 - `scheduler.rs`: EventKit-change-driven and periodic calendar refresh, start timing, refresh-health logging, and prompt-surface synchronization; `scheduler/end.rs` owns end prompts and permission-gated automatic stops.
+- `join.rs`: join reminders — one notification per meeting with a conferencing link, one minute before start, whose click opens the link; `join/link.rs` finds HTTPS conferencing links in the event URL, location, or notes.
 - `actions.rs`: meeting start/stop orchestration into the recording domain for notification, tray, and frontend adapters.
 - `mod.rs`: meeting-context facade used by commands and app setup.
 

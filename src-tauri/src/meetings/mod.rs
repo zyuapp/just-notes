@@ -1,4 +1,5 @@
 mod actions;
+mod join;
 mod model;
 mod notifications;
 mod scheduler;
@@ -9,6 +10,7 @@ use tauri::{AppHandle, Manager};
 use crate::platform::{calendar, notifications as platform_notifications};
 
 pub(crate) use actions::{handle_notification_action, start_meeting_recording};
+pub(crate) use join::JoinReminderState;
 pub(crate) use model::{MeetingAccess, MeetingCalendar, MeetingPrompt};
 pub(crate) use notifications::categories as notification_categories;
 pub(crate) use notifications::remove as remove_notifications;
@@ -77,6 +79,9 @@ pub(crate) fn settings_updated(
         || previous.meeting_auto_record_enabled != current.meeting_auto_record_enabled;
     if start_settings_changed {
         platform_notifications::remove(&state.clear_start_prompts());
+    }
+    if !current.meeting_join_reminders_enabled {
+        platform_notifications::remove(&app.state::<JoinReminderState>().clear());
     }
     let end_settings_changed = previous.meeting_end_reminders != current.meeting_end_reminders;
     if !current.meeting_reminders_enabled {

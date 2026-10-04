@@ -23,6 +23,9 @@ fn calendar_event() -> calendar::CalendarEvent {
         free: false,
         current_user_declined: false,
         participants: vec![named_participant("Alice"), named_participant("Bob")],
+        url: None,
+        location: None,
+        notes: None,
     }
 }
 

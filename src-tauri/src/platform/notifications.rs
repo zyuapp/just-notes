@@ -21,6 +21,9 @@ pub(crate) use delivery::{
     remove, show, show_informational, show_with_completion_handler, show_with_error_handler,
 };
 
+/// Action id reported when the user clicks the notification body.
+pub(crate) const DEFAULT_ACTION_ID: &str = "com.apple.UNNotificationDefaultActionIdentifier";
+
 #[derive(Clone, Debug)]
 pub(crate) struct NotificationResponseAction {
     pub(crate) action_id: String,

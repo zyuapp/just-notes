@@ -42,6 +42,9 @@ pub(crate) struct CalendarEvent {
     pub(crate) free: bool,
     pub(crate) current_user_declined: bool,
     pub(crate) participants: Vec<CalendarParticipant>,
+    pub(crate) url: Option<String>,
+    pub(crate) location: Option<String>,
+    pub(crate) notes: Option<String>,
 }
 
 pub(crate) fn authorization_status() -> String {

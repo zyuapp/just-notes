@@ -14,6 +14,7 @@ type MeetingReminderControlsProps = {
   onToggleReminders: () => void;
   onSetReminderMinutes: (minutes: number) => void;
   onToggleEndReminders: () => void;
+  onToggleJoinReminders: () => void;
 };
 
 export function MeetingReminderControls({
@@ -23,6 +24,7 @@ export function MeetingReminderControls({
   onToggleReminders,
   onSetReminderMinutes,
   onToggleEndReminders,
+  onToggleJoinReminders,
 }: MeetingReminderControlsProps) {
   return (
     <section className="meeting-settings-group">
@@ -60,6 +62,17 @@ export function MeetingReminderControls({
         description="Ask at the scheduled end, then again in 10 minutes."
         checked={settings.meetingEndReminders && canRemind}
         onToggle={onToggleEndReminders}
+        disabled={!canRemind}
+      />
+      <SettingsToggle
+        label="Join reminders"
+        description={
+          canRemind
+            ? "Notify 1 minute before meetings with a video call link. Click to join."
+            : blockedReason
+        }
+        checked={settings.meetingJoinRemindersEnabled && canRemind}
+        onToggle={onToggleJoinReminders}
         disabled={!canRemind}
       />
     </section>
