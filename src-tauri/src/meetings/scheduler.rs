@@ -15,7 +15,12 @@ use prompts::{reconcile_start_prompts, start_action_is_timely};
 
 use tauri::{AppHandle, Manager};
 
-use super::{model::Meeting, notifications, state::MeetingSchedulerState};
+use super::{
+    join::{self, JoinReminderState},
+    model::Meeting,
+    notifications,
+    state::MeetingSchedulerState,
+};
 use crate::{
     app::now_ms,
     platform::{calendar, notifications as platform_notifications},
@@ -66,8 +71,17 @@ fn next_poll_delay(elapsed: Duration) -> Duration {
 fn tick(app: &AppHandle) -> Result<Option<String>, String> {
     let settings = app.state::<SettingsState>().snapshot();
     let scheduler = app.state::<MeetingSchedulerState>().inner().clone();
+    let join_reminders = app.state::<JoinReminderState>().inner().clone();
+    if !settings.meeting_join_reminders_enabled {
+        notifications::remove(&join_reminders.clear());
+    }
     if !settings.meeting_reminders_enabled {
         notifications::remove(&scheduler.reset());
+        if settings.meeting_join_reminders_enabled {
+            if let Ok(now) = now_ms() {
+                refresh_calendar(&settings, &scheduler, &join_reminders, now)?;
+            }
+        }
         return Ok(None);
     }
 
@@ -89,7 +103,7 @@ fn tick(app: &AppHandle) -> Result<Option<String>, String> {
                 notifications_authorized,
             );
         },
-        || refresh_start_prompts(&settings, &scheduler, now),
+        || refresh_calendar(&settings, &scheduler, &join_reminders, now),
     )?;
     Ok(notifications_authorized
         .then(|| scheduler.take_due_auto_start(now))
@@ -104,9 +118,10 @@ fn run_calendar_cycle(
     refresh_start_prompts()
 }
 
-fn refresh_start_prompts(
+fn refresh_calendar(
     settings: &AppSettings,
     scheduler: &MeetingSchedulerState,
+    join_reminders: &JoinReminderState,
     now: u64,
 ) -> Result<(), String> {
     let events = calendar::upcoming_events(
@@ -114,7 +129,12 @@ fn refresh_start_prompts(
         now.saturating_sub(LOOK_BACK_MS),
         now.saturating_add(LOOK_AHEAD_MS),
     )?;
-    reconcile_start_prompts(scheduler, settings, events, now);
+    if settings.meeting_join_reminders_enabled {
+        join::refresh(join_reminders, &events, now);
+    }
+    if settings.meeting_reminders_enabled {
+        reconcile_start_prompts(scheduler, settings, events, now);
+    }
     Ok(())
 }
 
@@ -195,52 +215,6 @@ pub(super) fn notification_id(kind: &str, meeting_id: &str) -> String {
     let mut hasher = DefaultHasher::new();
     meeting_id.hash(&mut hasher);
     format!("just-notes-{kind}-{:016x}", hasher.finish())
-}
-
-impl TryFrom<calendar::CalendarEvent> for Meeting {
-    type Error = ();
-
-    fn try_from(event: calendar::CalendarEvent) -> Result<Self, Self::Error> {
-        if event.all_day || event.canceled || event.free || event.current_user_declined {
-            return Err(());
-        }
-        Ok(Self {
-            id: event.id,
-            calendar_id: event.calendar_id,
-            title: if event.title.trim().is_empty() {
-                "Calendar meeting".to_string()
-            } else {
-                event.title
-            },
-            start_at_ms: event.start_at_ms,
-            end_at_ms: event.end_at_ms,
-            attendees: attendee_names(event.participants),
-        })
-    }
-}
-
-/// Names to remember a meeting by: everyone but the current user, who appears in
-/// every meeting and so cannot narrow a search. Falls back to the invite address
-/// when a participant has no display name, and keeps invite order.
-fn attendee_names(participants: Vec<calendar::CalendarParticipant>) -> Vec<String> {
-    let mut names = Vec::new();
-    for participant in participants {
-        if participant.is_current_user {
-            continue;
-        }
-        let name = participant
-            .name
-            .filter(|name| !name.trim().is_empty())
-            .or(participant.email)
-            .map(|name| name.trim().to_string())
-            .filter(|name| !name.is_empty());
-        if let Some(name) = name {
-            if !names.contains(&name) {
-                names.push(name);
-            }
-        }
-    }
-    names
 }
 
 #[cfg(test)]

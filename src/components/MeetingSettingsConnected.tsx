@@ -76,6 +76,7 @@ export function MeetingSettingsConnected(props: MeetingSettingsConnectedProps) {
         onToggleReminders={props.onToggleReminders}
         onSetReminderMinutes={props.onSetReminderMinutes}
         onToggleEndReminders={props.onToggleEndReminders}
+        onToggleJoinReminders={props.onToggleJoinReminders}
       />
 
       <MeetingAutomationControls
@@ -91,7 +92,8 @@ export function MeetingSettingsConnected(props: MeetingSettingsConnectedProps) {
         onToggleAutoRecord={props.onToggleAutoRecord}
       />
 
-      {!hasSelectedCalendar && settings.meetingRemindersEnabled && (
+      {!hasSelectedCalendar
+        && (settings.meetingRemindersEnabled || settings.meetingJoinRemindersEnabled) && (
         <p className="settings-callout">
           Reminders stay switched on and resume as soon as you watch a calendar again.
         </p>

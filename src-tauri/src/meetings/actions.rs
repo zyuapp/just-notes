@@ -1,14 +1,18 @@
 use tauri::{AppHandle, Manager};
 
 use super::{
+    join::JoinReminderState,
     model::Meeting,
-    notifications::{KEEP_ACTION, SKIP_ACTION, START_ACTION, STOP_ACTION},
+    notifications::{JOIN_ACTION, KEEP_ACTION, SKIP_ACTION, START_ACTION, STOP_ACTION},
     scheduler::{auto_record_eligible, meeting_is_current, notification_id},
     state::MeetingSchedulerState,
 };
 use crate::{
     app::{now_ms, AppPaths},
-    platform::notifications::NotificationResponseAction,
+    platform::{
+        self,
+        notifications::{NotificationResponseAction, DEFAULT_ACTION_ID},
+    },
     recording::{self, RecorderState, ScheduledMeeting},
     settings::SettingsState,
 };
@@ -28,6 +32,7 @@ pub(crate) fn handle_notification_action(
             SKIP_ACTION => skip_meeting(&app, &response.request_id),
             STOP_ACTION => stop_meeting_recording(&app, &response.request_id),
             KEEP_ACTION => keep_recording(&app, &response.request_id),
+            JOIN_ACTION | DEFAULT_ACTION_ID => join_meeting(&app, &response.request_id),
             _ => {}
         }
         sync_prompt(&app);
@@ -183,6 +188,15 @@ fn keep_recording(app: &AppHandle, request_id: &str) {
     };
     let scheduler = app.state::<MeetingSchedulerState>().inner().clone();
     scheduler.defer_end_prompt_for_later(request_id, now);
+}
+
+fn join_meeting(app: &AppHandle, request_id: &str) {
+    let Some(join_url) = app.state::<JoinReminderState>().join_url(request_id) else {
+        return;
+    };
+    if let Err(error) = platform::open_https_url(app, &join_url) {
+        eprintln!("meeting link {request_id} could not be opened: {error}");
+    }
 }
 
 #[cfg(test)]

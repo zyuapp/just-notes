@@ -4,9 +4,11 @@ pub(super) const START_ACTION: &str = "meeting-start";
 pub(super) const SKIP_ACTION: &str = "meeting-skip";
 pub(super) const STOP_ACTION: &str = "meeting-stop";
 pub(super) const KEEP_ACTION: &str = "meeting-keep-recording";
+pub(super) const JOIN_ACTION: &str = "meeting-join";
 
 const START_CATEGORY: &str = "meeting-start-prompt";
 const END_CATEGORY: &str = "meeting-end-prompt";
+const JOIN_CATEGORY: &str = "meeting-join-reminder";
 
 pub(crate) fn categories() -> Vec<NotificationCategorySpec> {
     vec![
@@ -39,6 +41,14 @@ pub(crate) fn categories() -> Vec<NotificationCategorySpec> {
                     foreground: false,
                 },
             ],
+        },
+        NotificationCategorySpec {
+            id: JOIN_CATEGORY,
+            actions: vec![NotificationActionSpec {
+                id: JOIN_ACTION,
+                title: "Join meeting",
+                foreground: false,
+            }],
         },
     ]
 }
@@ -87,6 +97,26 @@ pub(super) fn show_end_prompt(
         )
     };
     notifications::show_with_error_handler(request_id, title, &body, END_CATEGORY, on_error);
+}
+
+pub(super) fn show_join_reminder(
+    request_id: &str,
+    meeting_title: &str,
+    started: bool,
+    on_error: impl Fn(String) + Send + Sync + 'static,
+) {
+    let title = if started {
+        "Meeting has started"
+    } else {
+        "Meeting starts in 1 minute"
+    };
+    notifications::show_with_error_handler(
+        request_id,
+        title,
+        &format!("{meeting_title}. Click to join."),
+        JOIN_CATEGORY,
+        on_error,
+    );
 }
 
 pub(crate) fn show_start_failure(request_id: &str, meeting_title: &str, error: &str) {

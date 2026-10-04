@@ -11,5 +11,12 @@ export function useMeetingAutomationSettings(
     }));
   }, [updateSettings]);
 
-  return { toggleAutoRecord };
+  const toggleJoinReminders = useCallback(async () => {
+    await updateSettings((settings) => ({
+      ...settings,
+      meetingJoinRemindersEnabled: !settings.meetingJoinRemindersEnabled,
+    }));
+  }, [updateSettings]);
+
+  return { toggleAutoRecord, toggleJoinReminders };
 }
