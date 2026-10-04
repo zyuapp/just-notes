@@ -43,6 +43,12 @@ impl JoinReminderState {
         })
     }
 
+    fn release(&self, request_id: &str) {
+        if let Ok(mut reminders) = self.0.lock() {
+            reminders.retain(|_, reminder| reminder.request_id != request_id);
+        }
+    }
+
     pub(super) fn clear(&self) -> Vec<String> {
         self.0
             .lock()
@@ -116,10 +122,16 @@ pub(super) fn refresh(state: &JoinReminderState, events: &[CalendarEvent], now_m
     let outcome = state.reconcile(meetings, now_ms);
     notifications::remove(&outcome.removed);
     for reminder in outcome.due {
+        let retry_state = state.clone();
+        let retry_request_id = reminder.request_id.clone();
         notifications::show_join_reminder(
             &reminder.request_id,
             &reminder.meeting_title,
             reminder.started,
+            move |error| {
+                eprintln!("join reminder {retry_request_id} could not be delivered: {error}");
+                retry_state.release(&retry_request_id);
+            },
         );
     }
 }

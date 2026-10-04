@@ -34,7 +34,7 @@ fn find_join_link(text: &str) -> Option<String> {
             .find(|c: char| c.is_whitespace() || matches!(c, '<' | '>' | '"' | '\'' | '`'))
             .unwrap_or(candidate.len());
         let url = candidate[..end].trim_end_matches(['.', ',', ';', ':', ')', ']']);
-        is_conferencing_url(url).then(|| url.to_string())
+        is_conferencing_url(url).then(|| format!("{SCHEME}{}", &url[SCHEME.len()..]))
     })
 }
 
@@ -100,7 +100,7 @@ mod tests {
     fn matches_scheme_and_host_case_insensitively() {
         assert_eq!(
             join_link(&[Some("HTTPS://Company.Zoom.US/j/9")]).as_deref(),
-            Some("HTTPS://Company.Zoom.US/j/9")
+            Some("https://Company.Zoom.US/j/9")
         );
     }
 

@@ -99,17 +99,23 @@ pub(super) fn show_end_prompt(
     notifications::show_with_error_handler(request_id, title, &body, END_CATEGORY, on_error);
 }
 
-pub(super) fn show_join_reminder(request_id: &str, meeting_title: &str, started: bool) {
+pub(super) fn show_join_reminder(
+    request_id: &str,
+    meeting_title: &str,
+    started: bool,
+    on_error: impl Fn(String) + Send + Sync + 'static,
+) {
     let title = if started {
         "Meeting has started"
     } else {
         "Meeting starts in 1 minute"
     };
-    notifications::show(
+    notifications::show_with_error_handler(
         request_id,
         title,
         &format!("{meeting_title}. Click to join."),
         JOIN_CATEGORY,
+        on_error,
     );
 }
 

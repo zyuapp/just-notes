@@ -107,6 +107,16 @@ fn reminders_are_removed_when_the_meeting_ends_or_disappears() {
 }
 
 #[test]
+fn released_reminder_is_claimed_again_on_the_next_refresh() {
+    let state = JoinReminderState::default();
+    let request_id = notification_id("join", "meeting-1");
+    state.reconcile(candidates(), START_MS);
+    state.release(&request_id);
+    assert_eq!(state.join_url(&request_id), None);
+    assert_eq!(state.reconcile(candidates(), START_MS + 1).due.len(), 1);
+}
+
+#[test]
 fn clear_returns_delivered_request_ids() {
     let state = JoinReminderState::default();
     state.reconcile(candidates(), START_MS);
