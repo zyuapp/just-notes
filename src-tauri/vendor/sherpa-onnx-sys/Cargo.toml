@@ -12,7 +12,7 @@
 [package]
 edition = "2021"
 name = "sherpa-onnx-sys"
-version = "1.13.5"
+version = "1.13.8"
 build = "build.rs"
 links = "sherpa-onnx"
 include = [
