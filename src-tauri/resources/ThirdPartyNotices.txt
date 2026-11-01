@@ -2,11 +2,11 @@ Just Notes Third-Party Software Notices
 
 Generated from the exact Cargo and JavaScript dependency graphs plus the bundled native runtime.
 
-JavaScript: @tauri-apps/api 2.12.1 — Apache-2.0 OR MIT — License-1, License-2, License-3
-JavaScript: lucide-react 1.52.0 — ISC — License-4
-JavaScript: react-dom 19.3.0 — MIT — License-5
+JavaScript: @tauri-apps/api 2.12.4 — Apache-2.0 OR MIT — License-1, License-2, License-3
+JavaScript: lucide-react 1.61.0 — ISC — License-4
+JavaScript: react-dom 19.3.1 — MIT — License-5
 JavaScript: react-icons 5.7.0 — MIT — License-6
-JavaScript: react 19.3.0 — MIT — License-5
+JavaScript: react 19.3.1 — MIT — License-5
 JavaScript: scheduler 0.28.0 — MIT — License-5
 Native: Kaldi decoder 0.3.0 — Apache-2.0 — License-7
 Native: kaldi-native-fbank 1.22.3 — Apache-2.0 — License-7
