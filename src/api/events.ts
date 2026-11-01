@@ -1,6 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import type { LiveTranscriptPayload } from "../bindings/LiveTranscriptPayload";
 import type { MeterPayload } from "../bindings/MeterPayload";
+import type { AppSettings } from "../bindings/AppSettings";
 import type { MeetingPromptPayload } from "../bindings/MeetingPromptPayload";
 import type { RecordingPayload } from "../bindings/RecordingPayload";
 import type { ThreadDetail } from "../bindings/ThreadDetail";
@@ -33,6 +34,10 @@ export const eventsApi = {
     handler: EventHandler<MeetingPromptPayload | null>,
   ): Promise<UnlistenFn> {
     return listenToEvent("meeting-prompt-updated", handler);
+  },
+
+  onSettingsUpdated(handler: EventHandler<AppSettings>): Promise<UnlistenFn> {
+    return listenToEvent("settings-updated", handler);
   },
 
   onRecordingStopped(handler: EventHandler<ThreadDetail>): Promise<UnlistenFn> {

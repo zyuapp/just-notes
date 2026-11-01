@@ -27,6 +27,9 @@ export function useAppEvents(
         dispatch({ type: "recordingStarted", payload });
         onRecordingStarted(payload.thread.summary.id);
       }),
+      api.events.onSettingsUpdated((settings) => {
+        dispatch({ type: "settingsLoaded", settings });
+      }),
       api.events.onRecordingStopped((detail) => {
         dispatch({ type: "recordingStopped", detail });
       }),

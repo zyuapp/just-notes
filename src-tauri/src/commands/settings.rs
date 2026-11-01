@@ -23,6 +23,7 @@ pub(crate) fn update_settings(
     save_settings(&paths.data_dir, &settings)?;
     meetings::settings_updated(&app, &previous, &settings);
     state.replace(settings.clone());
+    meetings::settings_applied(&app);
     meeting_surfaces::sync_current(&app);
     Ok(settings)
 }

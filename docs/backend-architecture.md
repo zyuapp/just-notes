@@ -20,11 +20,11 @@ The Rust backend is split around domain responsibilities rather than technical l
 
 ### Platform
 
-`platform` owns public macOS integration: Finder reveal, clipboard copy, System Settings deep links, EventKit access, and native actionable notifications. It must not depend on any domain module.
+`platform` owns public macOS integration: Finder reveal, clipboard copy, System Settings deep links, EventKit access, native actionable notifications, and CoreAudio microphone-activity observation. It must not depend on any domain module.
 
 ### Meetings
 
-`meetings` owns calendar-driven recording reminders, join reminders, and automation. It filters eligible events, deduplicates start prompts, decides when an opted-in meeting should start automatically, exposes the current prompt to user-facing adapters, associates a meeting-started recording with its event, and schedules end prompts or automatic stops. It coordinates `platform`, `recording`, and `settings` without putting meeting policy into those contexts.
+`meetings` owns calendar-driven recording reminders, join reminders, automation, and opt-in call detection. It filters eligible events, deduplicates start prompts, decides when an opted-in meeting should start automatically, exposes the current prompt to user-facing adapters, associates a meeting-started recording with its event, and schedules end prompts or automatic stops. Call detection classifies microphone users as calling apps, offers to record (or starts automatically when the matching calendar meeting is set to record), names the thread after that meeting or the app, and defers to the calendar flow when the meeting was skipped or is about to auto-start. It coordinates `platform`, `recording`, and `settings` without putting meeting policy into those contexts.
 
 ### Tray
 

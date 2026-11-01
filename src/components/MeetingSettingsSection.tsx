@@ -1,6 +1,7 @@
 import type { AppSettings } from "../bindings/AppSettings";
 import type { MeetingAccessPayload } from "../bindings/MeetingAccessPayload";
 import { MeetingCalendarConnect } from "./MeetingCalendarConnect";
+import { MeetingCallDetectionControls } from "./MeetingCallDetectionControls";
 import { MeetingSettingsConnected } from "./MeetingSettingsConnected";
 import type { MeetingSettingsActions } from "./settingsViewTypes";
 import type { PrivacyPane } from "../lib/permissionStatus";
@@ -27,6 +28,15 @@ export function MeetingSettingsSection(props: MeetingSettingsSectionProps) {
           onOpenSettings={() => onOpenPrivacy("calendar")}
         />
       )}
+      <MeetingCallDetectionControls
+        settings={props.settings}
+        access={access}
+        requestingAccess={requestingAccess}
+        onToggleCallDetection={props.onToggleCallDetection}
+        onResetIgnoredCallApps={props.onResetIgnoredCallApps}
+        onRequestNotificationAccess={props.onRequestNotificationAccess}
+        onOpenPrivacy={onOpenPrivacy}
+      />
     </section>
   );
 }

@@ -69,6 +69,7 @@ Use this when adding or changing a user preference.
 - `mod.rs`: public AppKit/Foundation helpers — Finder reveal, clipboard copy, and System Settings privacy-pane links.
 - `calendar.rs`: EventKit authorization, database-change observation, calendar listing, and eligible event retrieval; `calendar/worker.rs` serializes synchronous EventKit reads and replaces timed-out workers.
 - `notifications.rs`: UserNotifications permission, categories, delivery, and action callback adapter.
+- `microphone_activity/`: processes capturing audio input (CoreAudio process objects), their host app through the parent chain, and change listeners that wake the caller.
 
 Keep this free of domain knowledge; it only shells out to the OS.
 
@@ -79,9 +80,11 @@ Keep this free of domain knowledge; it only shells out to the OS.
 - `scheduler.rs`: EventKit-change-driven and periodic calendar refresh, start timing, refresh-health logging, and prompt-surface synchronization; `scheduler/end.rs` owns end prompts and permission-gated automatic stops.
 - `join.rs`: join reminders — one notification per meeting with a conferencing link, one minute before start, whose click opens the link; `join/link.rs` finds HTTPS conferencing links in the event URL, location, or notes.
 - `actions.rs`: meeting start/stop orchestration into the recording domain for notification, tray, and frontend adapters.
+- `detection/`: opt-in call detection — `call_app.rs` maps microphone users to known calling apps and browsers, `tracker.rs` turns snapshots into call starts and ends (2 s for apps, 20 s for browsers, snoozed until off the microphone for a minute), `calendar_match.rs` picks the meeting a call belongs to, `watcher.rs` runs the listener-driven loop, `respond.rs` offers, reports ends, and handles notification actions, and `start.rs` records an offer as its calendar meeting or a titled call thread.
+- `state/calls.rs`: skipped-meeting memory, armed auto-start checks, and meeting claims shared by call detection and calendar prompts.
 - `mod.rs`: meeting-context facade used by commands and app setup.
 
-Use this when changing which calendar events qualify, when meeting reminders or automation run, or how calendar actions start and stop recordings.
+Use this when changing which calendar events qualify, when meeting reminders or automation run, how calendar actions start and stop recordings, or how detected calls are offered and named.
 
 ## `src-tauri/src/tray`
 
@@ -151,7 +154,7 @@ Use this when changing model status, Parakeet behavior, model download/install, 
 ## `src-tauri/src/recording`
 
 - `mod.rs`: recording facade and public API exports.
-- `model.rs`: recording-owned start result before adapters translate it into an IPC payload.
+- `model.rs`: recording-owned start result before adapters translate it into an IPC payload, plus how a new thread is named (untitled, titled call, or calendar meeting).
 - `state.rs`: recorder state, operation serialization, active session storage, startup guard, and selected-thread reuse predicate.
 - `workflow.rs`: start orchestration — model-readiness gate, thread selection, capture startup, audio sink startup, live transcription startup, and tray updates.
 - `stop.rs`: stop orchestration — worker shutdown (including live transcription), duration persistence, markdown rendering, raw-audio retention, and the stopped event. The transcript is already on disk.

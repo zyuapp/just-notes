@@ -9,6 +9,7 @@ use objc2_foundation::{NSArray, NSString, NSURL};
 use tauri::AppHandle;
 
 pub(crate) mod calendar;
+pub(crate) mod microphone_activity;
 pub(crate) mod notifications;
 
 const APP_KIT_TIMEOUT: Duration = Duration::from_secs(120);

@@ -6,6 +6,7 @@ use crate::{
     ipc::{MeetingPromptPayload, RecordingPayload},
     meetings::{self, MeetingPrompt, MeetingSchedulerState},
     recording_payload,
+    settings::SettingsState,
     tray::{self, TrayMeetingPrompt},
 };
 
@@ -77,4 +78,10 @@ pub(crate) fn sync_current(app: &AppHandle) -> Option<MeetingPromptPayload> {
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     let prompt = app.state::<MeetingSchedulerState>().current_start_prompt();
     publish(app, prompt)
+}
+
+/// Tells the frontend about settings changed from a notification action.
+pub(crate) fn publish_settings(app: &AppHandle) {
+    let settings = app.state::<SettingsState>().snapshot();
+    let _ = app.emit("settings-updated", settings);
 }

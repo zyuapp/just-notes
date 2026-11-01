@@ -5,6 +5,7 @@ use std::{
 
 use super::model::{Meeting, MeetingPrompt};
 
+mod calls;
 mod start;
 
 const AUTO_STOP_WARNING_MS: u64 = 60 * 1000;
@@ -20,6 +21,8 @@ struct SchedulerData {
     auto_start_revision: u64,
     start_prompts: HashMap<String, MeetingPrompt>,
     active_meeting: Option<ActiveMeeting>,
+    /// Meetings whose start prompt the user skipped, with their end time.
+    declined_meetings: HashMap<String, u64>,
 }
 
 struct ActiveMeeting {

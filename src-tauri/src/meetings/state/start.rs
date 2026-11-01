@@ -4,7 +4,7 @@ use crate::meetings::model::{Meeting, MeetingPrompt};
 
 use super::MeetingSchedulerState;
 
-const AUTO_START_LATE_GRACE_MS: u64 = 60 * 1000;
+pub(super) const AUTO_START_LATE_GRACE_MS: u64 = 60 * 1000;
 
 impl MeetingSchedulerState {
     pub(in crate::meetings) fn start_prompt_is_automatic(&self, request_id: &str) -> bool {
@@ -71,11 +71,7 @@ impl MeetingSchedulerState {
     }
 
     pub(crate) fn dismiss_start_prompt(&self, request_id: &str) -> bool {
-        self.0
-            .lock()
-            .ok()
-            .and_then(|mut data| data.start_prompts.remove(request_id))
-            .is_some()
+        self.decline_start_prompt(request_id).is_some()
     }
 
     pub(in crate::meetings) fn restore_start_prompt(&self, prompt: MeetingPrompt) {

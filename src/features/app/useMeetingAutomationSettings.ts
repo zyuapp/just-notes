@@ -18,5 +18,16 @@ export function useMeetingAutomationSettings(
     }));
   }, [updateSettings]);
 
-  return { toggleAutoRecord, toggleJoinReminders };
+  const toggleCallDetection = useCallback(async () => {
+    await updateSettings((settings) => ({
+      ...settings,
+      callDetectionEnabled: !settings.callDetectionEnabled,
+    }));
+  }, [updateSettings]);
+
+  const resetIgnoredCallApps = useCallback(async () => {
+    await updateSettings((settings) => ({ ...settings, callDetectionIgnoredApps: [] }));
+  }, [updateSettings]);
+
+  return { toggleAutoRecord, toggleJoinReminders, toggleCallDetection, resetIgnoredCallApps };
 }

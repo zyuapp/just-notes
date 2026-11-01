@@ -18,7 +18,7 @@ const CONFERENCING_HOSTS: &[&str] = &[
 ];
 
 /// The first HTTPS conferencing link found across `sources`, searched in order.
-pub(super) fn join_link(sources: &[Option<&str>]) -> Option<String> {
+pub(in crate::meetings) fn join_link(sources: &[Option<&str>]) -> Option<String> {
     sources
         .iter()
         .flatten()
@@ -39,25 +39,35 @@ fn find_join_link(text: &str) -> Option<String> {
 }
 
 fn is_conferencing_url(url: &str) -> bool {
-    let authority = url[SCHEME.len()..]
-        .split(['/', '?', '#'])
-        .next()
-        .unwrap_or_default();
-    if authority.contains('@') {
+    let Some(host) = link_host(url) else {
         return false;
-    }
-    let host = authority
-        .split(':')
-        .next()
-        .unwrap_or_default()
-        .trim_end_matches('.')
-        .to_ascii_lowercase();
+    };
     CONFERENCING_HOSTS.iter().any(|domain| {
         host == *domain
             || host
                 .strip_suffix(domain)
                 .is_some_and(|prefix| prefix.ends_with('.'))
     })
+}
+
+/// Lowercased host of an HTTPS link, or `None` when it carries credentials.
+pub(in crate::meetings) fn link_host(url: &str) -> Option<String> {
+    let authority = url
+        .get(SCHEME.len()..)?
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or_default();
+    if authority.contains('@') {
+        return None;
+    }
+    Some(
+        authority
+            .split(':')
+            .next()
+            .unwrap_or_default()
+            .trim_end_matches('.')
+            .to_ascii_lowercase(),
+    )
 }
 
 #[cfg(test)]

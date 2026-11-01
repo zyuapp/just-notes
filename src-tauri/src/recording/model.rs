@@ -8,6 +8,13 @@ pub(crate) struct StartedRecording {
     pub(crate) transcription: TranscriptionStatusPayload,
 }
 
+/// How a recording that starts a new thread names it.
+pub(super) enum NewThread {
+    Untitled,
+    Titled(String),
+    Meeting(ScheduledMeeting),
+}
+
 /// The calendar event a scheduled recording is being started for. The meetings
 /// context builds this; `recording` maps it onto the thread domain's provenance
 /// shape, so `meetings` never names a `threads` type.

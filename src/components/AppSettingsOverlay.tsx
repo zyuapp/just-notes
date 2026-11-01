@@ -57,6 +57,8 @@ export function AppSettingsOverlay({
         onToggleEndReminders: () => void meetingSettings.toggleEndReminders(),
         onToggleJoinReminders: () => void meetingSettings.toggleJoinReminders(),
         onToggleAutoRecord: () => void meetingSettings.toggleAutoRecord(),
+        onToggleCallDetection: () => void meetingSettings.toggleCallDetection(),
+        onResetIgnoredCallApps: () => void meetingSettings.resetIgnoredCallApps(),
       }}
       storage={{
         clearing: storage.clearing,

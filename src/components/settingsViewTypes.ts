@@ -28,6 +28,8 @@ export type MeetingSettingsActions = {
   onToggleEndReminders: () => void;
   onToggleJoinReminders: () => void;
   onToggleAutoRecord: () => void;
+  onToggleCallDetection: () => void;
+  onResetIgnoredCallApps: () => void;
 };
 
 export type StorageActions = {

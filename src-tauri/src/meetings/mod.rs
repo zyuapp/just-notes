@@ -1,4 +1,5 @@
 mod actions;
+mod detection;
 mod join;
 mod model;
 mod notifications;
@@ -10,6 +11,7 @@ use tauri::{AppHandle, Manager};
 use crate::platform::{calendar, notifications as platform_notifications};
 
 pub(crate) use actions::{handle_notification_action, start_meeting_recording};
+pub(crate) use detection::{spawn as spawn_call_detection, CallDetectionState};
 pub(crate) use join::JoinReminderState;
 pub(crate) use model::{MeetingAccess, MeetingCalendar, MeetingPrompt};
 pub(crate) use notifications::categories as notification_categories;
@@ -64,6 +66,11 @@ pub(crate) fn request_calendar_access(app: &AppHandle) -> Result<MeetingAccess, 
 pub(crate) fn request_notification_access(app: &AppHandle) -> Result<MeetingAccess, String> {
     platform_notifications::request_access(app)?;
     Ok(access_status())
+}
+
+/// Runs once new settings are visible through `SettingsState`.
+pub(crate) fn settings_applied(app: &AppHandle) {
+    app.state::<CallDetectionState>().wake();
 }
 
 pub(crate) fn settings_updated(

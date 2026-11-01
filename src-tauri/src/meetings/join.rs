@@ -6,7 +6,7 @@ use std::{
 use super::{model::Meeting, notifications, scheduler::notification_id};
 use crate::platform::calendar::CalendarEvent;
 
-mod link;
+pub(super) mod link;
 
 const JOIN_LEAD_MS: u64 = 60 * 1000;
 const JOIN_LATE_GRACE_MS: u64 = 5 * 60 * 1000;

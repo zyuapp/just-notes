@@ -20,7 +20,7 @@ mod updates;
 
 use agent_access::{AgentAccessPaths, GuideLifecycle};
 use app::{AppPaths, DataRootMigration, DataRootMigrationError};
-use meetings::{JoinReminderState, MeetingSchedulerState};
+use meetings::{CallDetectionState, JoinReminderState, MeetingSchedulerState};
 use recording::RecorderState;
 use settings::SettingsState;
 use threads::{readiness::migrate_retrieval_readiness, repository::reset_stale_recording_threads};
@@ -35,6 +35,7 @@ pub fn run() {
         .manage(ModelDownloadState::default())
         .manage(MeetingSchedulerState::default())
         .manage(JoinReminderState::default())
+        .manage(CallDetectionState::default())
         .menu(app_menu::build)
         .on_menu_event(|app, event| {
             if event.id().as_ref() == updates::CHECK_FOR_UPDATES_MENU_ID {
@@ -82,6 +83,7 @@ fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
             |app| {
                 meeting_surfaces::sync_current(app);
             },
+            meeting_surfaces::publish_settings,
         );
     });
     agent_access_surfaces::reconcile_on_launch(app);
@@ -91,6 +93,10 @@ fn setup_app(app: &mut tauri::App<Wry>) -> SetupResult {
         |app| {
             meeting_surfaces::sync_current(app);
         },
+    );
+    meetings::spawn_call_detection(
+        app.handle().clone(),
+        meeting_surfaces::start_native_meeting_now,
     );
     updates::check_on_launch(app.handle());
     Ok(())

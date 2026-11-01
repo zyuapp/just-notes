@@ -22,6 +22,13 @@ fn settings_defaults_are_safe() {
 }
 
 #[test]
+fn call_detection_is_off_by_default() {
+    let defaults = AppSettings::default();
+    assert!(!defaults.call_detection_enabled);
+    assert!(defaults.call_detection_ignored_apps.is_empty());
+}
+
+#[test]
 fn settings_round_trip() {
     let dir = settings_test_dir("roundtrip");
     fs::create_dir_all(&dir).unwrap();
@@ -34,6 +41,8 @@ fn settings_round_trip() {
         meeting_end_reminders: false,
         meeting_auto_record_enabled: true,
         meeting_join_reminders_enabled: true,
+        call_detection_enabled: true,
+        call_detection_ignored_apps: vec!["Zoom".to_string()],
     };
     save_settings(&dir, &custom).unwrap();
     let loaded = load_settings(&dir);
@@ -44,6 +53,8 @@ fn settings_round_trip() {
     assert!(!loaded.meeting_end_reminders);
     assert!(loaded.meeting_auto_record_enabled);
     assert!(loaded.meeting_join_reminders_enabled);
+    assert!(loaded.call_detection_enabled);
+    assert_eq!(loaded.call_detection_ignored_apps, ["Zoom"]);
     let _ = fs::remove_dir_all(&dir);
 }
 
@@ -71,6 +82,7 @@ fn legacy_settings_keep_existing_values_and_receive_automation_defaults() {
     assert!(!loaded.meeting_end_reminders);
     assert!(!loaded.meeting_auto_record_enabled);
     assert!(!loaded.meeting_join_reminders_enabled);
+    assert!(!loaded.call_detection_enabled);
     let _ = fs::remove_dir_all(&dir);
 }
 

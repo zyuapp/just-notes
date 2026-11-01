@@ -1,9 +1,13 @@
 use tauri::{AppHandle, Manager};
 
 use super::{
+    detection,
     join::JoinReminderState,
     model::Meeting,
-    notifications::{JOIN_ACTION, KEEP_ACTION, SKIP_ACTION, START_ACTION, STOP_ACTION},
+    notifications::{
+        CALL_DISMISS_ACTION, CALL_IGNORE_ACTION, CALL_KEEP_ACTION, CALL_RECORD_ACTION,
+        CALL_STOP_ACTION, JOIN_ACTION, KEEP_ACTION, SKIP_ACTION, START_ACTION, STOP_ACTION,
+    },
     scheduler::{auto_record_eligible, meeting_is_current, notification_id},
     state::MeetingSchedulerState,
 };
@@ -22,14 +26,28 @@ pub(crate) fn handle_notification_action(
     response: NotificationResponseAction,
     start_prompt: impl FnOnce(&AppHandle, &str) + Send + 'static,
     sync_prompt: impl FnOnce(&AppHandle) + Send + 'static,
+    settings_changed: impl FnOnce(&AppHandle) + Send + 'static,
 ) {
     tauri::async_runtime::spawn_blocking(move || {
-        if response.action_id == START_ACTION {
+        if matches!(
+            response.action_id.as_str(),
+            START_ACTION | CALL_RECORD_ACTION
+        ) {
             start_prompt(&app, &response.request_id);
             return;
         }
         match response.action_id.as_str() {
-            SKIP_ACTION => skip_meeting(&app, &response.request_id),
+            SKIP_ACTION | CALL_DISMISS_ACTION => {
+                skip_meeting(&app, &response.request_id);
+                detection::dismiss_offer(&app, &response.request_id);
+            }
+            CALL_IGNORE_ACTION => {
+                if detection::ignore_app(&app, &response.request_id) {
+                    settings_changed(&app);
+                }
+            }
+            CALL_STOP_ACTION => detection::stop_after_call(&app, &response.request_id),
+            CALL_KEEP_ACTION => detection::keep_recording(&app, &response.request_id),
             STOP_ACTION => stop_meeting_recording(&app, &response.request_id),
             KEEP_ACTION => keep_recording(&app, &response.request_id),
             JOIN_ACTION | DEFAULT_ACTION_ID => join_meeting(&app, &response.request_id),
@@ -50,6 +68,9 @@ pub(crate) fn start_meeting_recording(
     app: &AppHandle,
     request_id: &str,
 ) -> Result<recording::StartedRecording, MeetingStartError> {
+    if let Some(result) = detection::start_offer(app, request_id) {
+        return result;
+    }
     let scheduler = app.state::<MeetingSchedulerState>().inner().clone();
     let paths = app.state::<AppPaths>();
     let settings_state = app.state::<SettingsState>();
@@ -98,7 +119,7 @@ pub(crate) fn start_meeting_recording(
 
 /// Hands the recording context the calendar facts a thread should remember it
 /// was created from.
-fn scheduled_meeting(meeting: &Meeting) -> ScheduledMeeting {
+pub(super) fn scheduled_meeting(meeting: &Meeting) -> ScheduledMeeting {
     ScheduledMeeting {
         title: meeting.title.clone(),
         event_id: meeting.id.clone(),
@@ -152,7 +173,7 @@ fn retryable_start<T>(
 
 fn skip_meeting(app: &AppHandle, request_id: &str) {
     let scheduler = app.state::<MeetingSchedulerState>().inner().clone();
-    let _ = scheduler.take_start_prompt(request_id);
+    let _ = scheduler.decline_start_prompt(request_id);
 }
 
 fn stop_meeting_recording(app: &AppHandle, request_id: &str) {

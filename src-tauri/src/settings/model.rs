@@ -10,6 +10,9 @@ pub(crate) struct AppSettings {
     pub(crate) meeting_end_reminders: bool,
     pub(crate) meeting_auto_record_enabled: bool,
     pub(crate) meeting_join_reminders_enabled: bool,
+    pub(crate) call_detection_enabled: bool,
+    /// Calling apps, by display name, that are never offered for recording.
+    pub(crate) call_detection_ignored_apps: Vec<String>,
 }
 
 impl Default for AppSettings {
@@ -23,6 +26,8 @@ impl Default for AppSettings {
             meeting_end_reminders: true,
             meeting_auto_record_enabled: false,
             meeting_join_reminders_enabled: false,
+            call_detection_enabled: false,
+            call_detection_ignored_apps: Vec::new(),
         }
     }
 }
