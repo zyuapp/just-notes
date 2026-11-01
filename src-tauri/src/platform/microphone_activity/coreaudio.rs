@@ -6,10 +6,12 @@ use std::{
 
 use objc2_core_audio::{
     kAudioHardwareNoError, kAudioHardwarePropertyProcessObjectList,
-    kAudioObjectPropertyElementMain, kAudioObjectPropertyScopeGlobal, kAudioObjectSystemObject,
-    kAudioProcessPropertyBundleID, kAudioProcessPropertyIsRunningInput, kAudioProcessPropertyPID,
-    AudioObjectAddPropertyListener, AudioObjectGetPropertyData, AudioObjectGetPropertyDataSize,
-    AudioObjectID, AudioObjectPropertyAddress, AudioObjectPropertySelector,
+    kAudioObjectPropertyElementMain, kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyScopeInput, kAudioObjectSystemObject, kAudioProcessPropertyBundleID,
+    kAudioProcessPropertyDevices, kAudioProcessPropertyIsRunning,
+    kAudioProcessPropertyIsRunningInput, kAudioProcessPropertyPID, AudioObjectAddPropertyListener,
+    AudioObjectGetPropertyData, AudioObjectGetPropertyDataSize, AudioObjectID,
+    AudioObjectPropertyAddress, AudioObjectPropertyScope, AudioObjectPropertySelector,
     AudioObjectRemovePropertyListener,
 };
 use objc2_core_foundation::{CFRetained, CFString};
@@ -85,17 +87,24 @@ pub(super) fn bundle_id(object: AudioObjectID) -> Option<String> {
 pub(super) fn listen_to_process_list(enabled: bool) {
     set_listener(
         kAudioObjectSystemObject as AudioObjectID,
-        kAudioHardwarePropertyProcessObjectList,
+        property_address(kAudioHardwarePropertyProcessObjectList),
         enabled,
     );
 }
 
+/// `IsRunningInput` alone does not notify on macOS 26, while `IsRunning`
+/// and the input-scope device list do.
 pub(super) fn listen_to_input_state(object: AudioObjectID, enabled: bool) {
-    set_listener(object, kAudioProcessPropertyIsRunningInput, enabled);
+    for address in [
+        property_address(kAudioProcessPropertyIsRunningInput),
+        property_address(kAudioProcessPropertyIsRunning),
+        scoped_address(kAudioProcessPropertyDevices, kAudioObjectPropertyScopeInput),
+    ] {
+        set_listener(object, address, enabled);
+    }
 }
 
-fn set_listener(object: AudioObjectID, selector: AudioObjectPropertySelector, enabled: bool) {
-    let mut address = property_address(selector);
+fn set_listener(object: AudioObjectID, mut address: AudioObjectPropertyAddress, enabled: bool) {
     // A process object can vanish before its listener is removed; CoreAudio
     // drops listeners with the object, so a failed removal needs no handling.
     let status = unsafe {
@@ -151,9 +160,16 @@ fn scalar<T: Copy + Default>(
 }
 
 fn property_address(selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
+    scoped_address(selector, kAudioObjectPropertyScopeGlobal)
+}
+
+fn scoped_address(
+    selector: AudioObjectPropertySelector,
+    scope: AudioObjectPropertyScope,
+) -> AudioObjectPropertyAddress {
     AudioObjectPropertyAddress {
         mSelector: selector,
-        mScope: kAudioObjectPropertyScopeGlobal,
+        mScope: scope,
         mElement: kAudioObjectPropertyElementMain,
     }
 }
