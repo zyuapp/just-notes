@@ -100,6 +100,15 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         run: bun run app:release
 
+      - name: Add installer archive
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          cd dist/direct
+          cp "Just-Notes-${TAG#v}.zip" JustNotes.zip
+          shasum -a 256 JustNotes.zip > JustNotes.zip.sha256
+
       - name: Remove signing credentials
         if: always()
         shell: bash
@@ -123,6 +132,7 @@ jobs:
           name: packages-mac
           path: |
             dist/direct/*.zip
+            dist/direct/*.sha256
             dist/direct/*.dmg
             dist/direct/*.tar.gz
             dist/direct/latest.json

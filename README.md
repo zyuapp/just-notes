@@ -2,6 +2,15 @@
 
 A local-first macOS notes app that records audio (microphone + system loopback) and transcribes it on-device, organizing everything into searchable note threads. Built with Tauri (Rust) and React/TypeScript. Transcription runs locally via Parakeet on sherpa-onnx — no audio leaves your machine.
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/zyuapp/just-notes/main/install.sh | sh
+```
+
+Installs the latest notarized release to `/Applications` (or `~/Applications`).
+Needs an Apple silicon Mac on macOS 14.4+.
+
 ## Requirements
 
 - macOS 14.4+
@@ -33,7 +42,8 @@ Run the [release workflow](.github/workflows/release.yml) from the Actions tab
 with a patch/minor/major bump. It bumps the version in `package.json`,
 `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`, builds on macOS, signs
 with Developer ID, notarizes, then pushes the release commit and tag and
-attaches the zip archive and dmg installer to a GitHub release.
+attaches the zip archive, dmg installer, and the `JustNotes.zip` archive
+(with its `.sha256`) used by `install.sh` to a GitHub release.
 
 ## License
 
